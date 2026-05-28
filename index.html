@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PM Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <h1>PM Assistant</h1>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="capture" aria-selected="true">Захватить</button>
+      <button class="tab" role="tab" data-tab="tasks" aria-selected="false">Задачи</button>
+      <button class="tab" role="tab" data-tab="find" aria-selected="false">Найти</button>
+    </nav>
+    <div class="topbar-actions">
+      <button id="theme-toggle" class="icon-btn" title="Переключить тему" aria-label="Переключить тему">☾</button>
+      <button id="settings-btn" class="icon-btn" title="Настройки" aria-label="Настройки">⚙</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <!-- ВКЛАДКА: ЗАХВАТИТЬ -->
+    <section id="view-capture" class="view" data-view="capture">
+      <div class="panel">
+        <label class="field-label" for="capture-input">Запиши всё, что в голове</label>
+        <textarea
+          id="capture-input"
+          class="capture-input"
+          rows="6"
+          placeholder="Напр.: Обсудить с Леной роадмап Q3 до пятницы. Не забыть отписать в Slack про релиз. Идея: сделать onboarding короче..."
+        ></textarea>
+        <div class="capture-actions">
+          <span class="hint">Claude разберёт текст на задачи, заметки и темы для 1:1.</span>
+          <button id="parse-btn" class="btn btn-primary">Разобрать ✦</button>
+        </div>
+      </div>
+
+      <div id="capture-status" class="status-line" hidden></div>
+
+      <!-- Черновики предложенных элементов -->
+      <div id="drafts" class="drafts" hidden>
+        <div class="drafts-header">
+          <h2>Предложено</h2>
+          <button id="save-all-btn" class="btn btn-primary">Сохранить всё</button>
+        </div>
+        <ul id="drafts-list" class="card-list"></ul>
+      </div>
+    </section>
+
+    <!-- ВКЛАДКА: ЗАДАЧИ -->
+    <section id="view-tasks" class="view" data-view="tasks" hidden>
+      <div class="toolbar">
+        <div class="filters" id="type-filters">
+          <button class="chip is-active" data-filter-type="all">Все</button>
+          <button class="chip" data-filter-type="task">Задачи</button>
+          <button class="chip" data-filter-type="note">Заметки</button>
+          <button class="chip" data-filter-type="discussion">Обсудить</button>
+        </div>
+        <div class="filters" id="status-filters">
+          <button class="chip is-active" data-filter-status="active">Активные</button>
+          <button class="chip" data-filter-status="done">Готово</button>
+          <button class="chip" data-filter-status="all">Все статусы</button>
+        </div>
+      </div>
+      <ul id="items-list" class="card-list"></ul>
+      <p id="items-empty" class="empty-state" hidden>Пока пусто. Захвати первую мысль на вкладке «Захватить».</p>
+    </section>
+
+    <!-- ВКЛАДКА: НАЙТИ -->
+    <section id="view-find" class="view" data-view="find" hidden>
+      <div class="panel">
+        <div class="find-bar">
+          <input
+            id="find-input"
+            class="find-input"
+            type="text"
+            placeholder="Что я хотел обсудить с Леной? Какие задачи горят на этой неделе?"
+          />
+          <button id="find-btn" class="btn btn-primary">Спросить</button>
+        </div>
+        <div class="find-suggestions">
+          <button class="chip suggestion">Что обсудить на ближайших 1:1?</button>
+          <button class="chip suggestion">Какие задачи просрочены?</button>
+          <button class="chip suggestion">Собери заметки про onboarding</button>
+        </div>
+      </div>
+      <div id="find-status" class="status-line" hidden></div>
+      <div id="find-answer" class="answer" hidden></div>
+      <ul id="find-results" class="card-list"></ul>
+    </section>
+  </main>
+
+  <!-- Модалка настроек -->
+  <div id="settings-modal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Настройки</h2>
+        <button id="settings-close" class="icon-btn" aria-label="Закрыть">✕</button>
+      </div>
+      <label class="field-label" for="api-key-input">Claude API ключ</label>
+      <input id="api-key-input" class="text-input" type="password" placeholder="sk-ant-..." autocomplete="off" />
+      <p class="hint">Хранится только в этом браузере (localStorage) и шлётся напрямую в api.anthropic.com.</p>
+
+      <label class="field-label" for="model-input">Модель</label>
+      <input id="model-input" class="text-input" type="text" />
+
+      <div class="modal-footer">
+        <button id="export-btn" class="btn">Экспорт данных</button>
+        <button id="settings-save" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Загрузка как ES-модули -->
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
