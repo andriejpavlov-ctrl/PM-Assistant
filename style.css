@@ -259,6 +259,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .badge-topic { background: rgba(251, 191, 36, 0.16); color: var(--warn); }
 .badge-task { background: var(--accent-weak); color: var(--accent); }
 .badge-note { background: var(--bg-elev-2); color: var(--text-dim); }
+.badge-P0 { background: var(--danger); color: #fff; }
 .badge-P1 { background: rgba(248, 113, 113, 0.16); color: var(--danger); }
 .badge-P2 { background: rgba(251, 191, 36, 0.16); color: var(--warn); }
 .badge-P3 { background: var(--accent-weak); color: var(--accent); }

@@ -64,9 +64,20 @@
         <div class="filter-group">
           <label for="filter-status">Статус</label>
           <select id="filter-status" class="select">
-            <option value="active">Активные</option>
-            <option value="done">Закрытые</option>
             <option value="all">Все</option>
+            <option value="open">Открытые</option>
+            <option value="in_progress">В работе</option>
+            <option value="done">Закрытые</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-daterange">Срок</label>
+          <select id="filter-daterange" class="select">
+            <option value="all">Любой</option>
+            <option value="overdue">Просроченные</option>
+            <option value="today">Сегодня</option>
+            <option value="this_week">Эта неделя</option>
+            <option value="this_month">Этот месяц</option>
           </select>
         </div>
         <div class="filter-group sort-group">

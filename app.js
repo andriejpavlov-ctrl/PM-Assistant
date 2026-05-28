@@ -14,9 +14,13 @@ const IMPORTANCE_LABEL = { critical: 'критично', high: 'высокая',
 const URGENCY_RANK = { urgent: 3, high: 2, medium: 1, low: 0 };
 const IMPORTANCE_RANK = { critical: 3, high: 2, medium: 1, low: 0 };
 const PRIORITY_RANK = { P1: 4, P2: 3, P3: 2, P4: 1 };
+const VISUAL_RANK = { P0: 0, P1: 1, P2: 2, P3: 3, P4: 4 };
+// Для записей без явных urgency/importance выводим их из приоритета задачи.
+const TASK_PRIO_URGENCY = { P1: 'urgent', P2: 'high', P3: 'medium', P4: 'low' };
+const TASK_PRIO_IMPORTANCE = { P1: 'critical', P2: 'high', P3: 'medium', P4: 'low' };
 
 let captureDraft = null; // результат processCapture, ещё не сохранён
-const filters = { person: '', project: '', priority: '', status: 'active' };
+const filters = { person: '', project: '', priority: '', status: 'all', dateRange: 'all' };
 let sortMode = 'default';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -55,11 +59,6 @@ function sevClass(level) {
   if (['urgent', 'critical', 'high', 'P1'].includes(level)) return 'badge-sev-high';
   if (['medium', 'P2'].includes(level)) return 'badge-sev-medium';
   return 'badge-sev-low';
-}
-function scoreEntity(e) {
-  if (e.type === 'topic') return (URGENCY_RANK[e.urgency] || 0) + (IMPORTANCE_RANK[e.importance] || 0);
-  if (e.type === 'task') return (PRIORITY_RANK[e.priority] || 0) * 2;
-  return 0;
 }
 
 // ===== Инициализация =====
@@ -143,13 +142,14 @@ function renderCaptureResult() {
   box.innerHTML = '';
   if (!captureDraft) return;
 
+  const view = annotate(captureDraft); // для отображения метки приоритета
   const card = document.createElement('div');
   card.className = 'card';
-  card.appendChild(buildTop(captureDraft));
-  card.appendChild(el('p', 'card-title', displayTitle(captureDraft)));
-  const body = displayBody(captureDraft);
+  card.appendChild(buildTop(view));
+  card.appendChild(el('p', 'card-title', displayTitle(view)));
+  const body = displayBody(view);
   if (body) card.appendChild(el('p', 'card-body', body));
-  card.appendChild(buildMeta(captureDraft));
+  card.appendChild(buildMeta(view));
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
@@ -248,6 +248,7 @@ function bindBoard() {
   $('#filter-project').addEventListener('change', (e) => { filters.project = e.target.value; renderBoard(); });
   $('#filter-priority').addEventListener('change', (e) => { filters.priority = e.target.value; renderBoard(); });
   $('#filter-status').addEventListener('change', (e) => { filters.status = e.target.value; renderBoard(); });
+  $('#filter-daterange').addEventListener('change', (e) => { filters.dateRange = e.target.value; renderBoard(); });
   $$('#sort-toggles .chip').forEach((c) =>
     c.addEventListener('click', () => {
       sortMode = c.dataset.sort;
@@ -257,10 +258,12 @@ function bindBoard() {
   );
   $('#filter-reset').addEventListener('click', () => {
     filters.person = filters.project = filters.priority = '';
-    filters.status = 'active';
+    filters.status = 'all';
+    filters.dateRange = 'all';
     sortMode = 'default';
     $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
-    $('#filter-status').value = 'active';
+    $('#filter-status').value = 'all';
+    $('#filter-daterange').value = 'all';
     $$('#sort-toggles .chip').forEach((x) => x.classList.toggle('is-active', x.dataset.sort === 'default'));
     populateFilters();
     renderBoard();
@@ -286,34 +289,155 @@ function fillSelect(sel, values, current) {
   });
 }
 
-function passesFilter(e) {
-  if (filters.status === 'active' && isClosed(e)) return false;
-  if (filters.status === 'done' && !isClosed(e)) return false;
-  if (filters.person && !peopleOf(e).includes(filters.person)) return false;
-  if (filters.project && !projectsOf(e).includes(filters.project)) return false;
-  if (filters.priority && e.priority !== filters.priority) return false;
-  return true;
+// ===== Сортировка и фильтрация (матрица Эйзенхауэра) =====
+
+// Эффективные срочность/важность: у заметок их нет, у задач при отсутствии
+// выводим из приоритета P1-P4.
+function effUrgency(it) {
+  if (it.urgency) return it.urgency;
+  if (it.type === 'task' && it.priority) return TASK_PRIO_URGENCY[it.priority] || 'medium';
+  return it.type === 'note' ? 'low' : 'medium';
+}
+function effImportance(it) {
+  if (it.importance) return it.importance;
+  if (it.type === 'task' && it.priority) return TASK_PRIO_IMPORTANCE[it.priority] || 'medium';
+  return it.type === 'note' ? 'low' : 'medium';
 }
 
-function sortEntities(list) {
-  const arr = [...list];
-  const byStr = (fn) => (a, b) => (fn(a) || '').localeCompare(fn(b) || '', 'ru');
-  switch (sortMode) {
-    case 'deadline':
-      return arr.sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
-    case 'priority':
-      return arr.sort((a, b) => scoreEntity(b) - scoreEntity(a));
-    case 'person':
-      return arr.sort(byStr((e) => peopleOf(e)[0]));
-    case 'project':
-      return arr.sort(byStr((e) => projectsOf(e)[0]));
-    default: // важность + срочность
-      return arr.sort((a, b) => scoreEntity(b) - scoreEntity(a));
+/** Матрица Эйзенхауэра: (ранг срочности, ранг важности) → визуальный приоритет. */
+function classifyVisual(ur, ir) {
+  if (ur === 3 && ir === 3) return 'P0'; // urgent + critical
+  if (ur >= 2 && ir >= 2) return 'P1';   // высокая срочность + высокая важность
+  if (ur === 1 || ir >= 2) return 'P2';  // средняя срочность ИЛИ высокая важность
+  if (ur === 0 && ir === 1) return 'P3'; // низкая срочность + средняя важность
+  if (ur === 0 && ir === 0) return 'P4'; // низкая + низкая
+  return 'P2';                           // прочее (напр. срочно, но не важно)
+}
+
+/** Добавить к записи priorityScore (число для отладки) и visualPriority (P0-P4). */
+function annotate(it) {
+  const ur = URGENCY_RANK[effUrgency(it)] ?? 1;
+  const ir = IMPORTANCE_RANK[effImportance(it)] ?? 1;
+  const visualPriority = classifyVisual(ur, ir);
+  // Чем выше — тем раньше: банд (P0..P4) доминирует, внутри банда — срочность, затем важность.
+  const priorityScore = (4 - VISUAL_RANK[visualPriority]) * 1000 + ur * 100 + ir * 10;
+  return { ...it, priorityScore, visualPriority };
+}
+
+// --- предикаты фильтров ---
+function typeMatches(it, type) {
+  if (!type) return true;
+  return Array.isArray(type) ? type.includes(it.type) : it.type === type;
+}
+function statusMatches(it, status) {
+  if (!status || status === 'all') return true;
+  if (status === 'done') return isClosed(it);
+  if (status === 'in_progress') return it.type === 'task' && it.status === 'in_progress';
+  if (status === 'open') {
+    if (it.type === 'task') return it.status === 'todo';
+    if (it.type === 'topic') return it.status === 'open';
+    return true; // заметки считаем открытыми
   }
+  return true;
+}
+/** Совпадение строки: точное вхождение в любую сторону (простой fuzzy). */
+function fuzzyIncludes(hay, needle) {
+  const h = (hay || '').toLowerCase();
+  const n = needle.toLowerCase();
+  return h.includes(n) || n.includes(h);
+}
+function personMatches(it, q) {
+  if (!q) return true;
+  return peopleOf(it).some((p) => fuzzyIncludes(p, q.trim()));
+}
+function projectMatches(it, q) {
+  if (!q) return true;
+  return [...projectsOf(it), ...(it.tags || [])].some((p) => fuzzyIncludes(p, q.trim()));
+}
+function priorityMatches(it, p) {
+  return !p || it.priority === p;
+}
+function dateMatches(it, range) {
+  if (!range || range === 'all') return true;
+  if (!it.deadline) return false;
+  const today = todayISO();
+  if (range === 'overdue') return !isClosed(it) && it.deadline < today;
+  if (range === 'today') return it.deadline === today;
+  if (range === 'this_week') return it.deadline >= today && it.deadline <= endOfWeekISO();
+  if (range === 'this_month') return it.deadline >= today && it.deadline <= endOfMonthISO();
+  return true;
+}
+function endOfWeekISO() {
+  const d = new Date();
+  const dow = (d.getDay() + 6) % 7; // Пн=0 … Вс=6
+  d.setDate(d.getDate() + (6 - dow));
+  return d.toISOString().slice(0, 10);
+}
+function endOfMonthISO() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+}
+
+/** Сравнение по дедлайну: просроченные первыми, затем по ближайшей дате; без срока — в конец. */
+function cmpDeadline(a, b) {
+  const key = (it) => {
+    if (!it.deadline) return ['2', '9999-99-99'];
+    const overdue = !isClosed(it) && it.deadline < todayISO();
+    return [overdue ? '0' : '1', it.deadline];
+  };
+  const [ba, da] = key(a);
+  const [bb, db] = key(b);
+  return ba.localeCompare(bb) || da.localeCompare(db);
+}
+
+/**
+ * Отфильтровать и отсортировать записи.
+ * @param {Array}  items   исходные записи
+ * @param {string} sortBy  'default'|'priority'|'deadline'|'person'|'project'
+ * @param {object} filters { person, project, status, type, dateRange, priority }
+ * @returns {Array} новые объекты с добавленными priorityScore (число) и visualPriority (P0-P4)
+ */
+export function sortAndFilter(items, sortBy = 'default', filters = {}) {
+  const filtered = (items || []).filter(
+    (it) =>
+      typeMatches(it, filters.type) &&
+      statusMatches(it, filters.status) &&
+      personMatches(it, filters.person) &&
+      projectMatches(it, filters.project) &&
+      priorityMatches(it, filters.priority) &&
+      dateMatches(it, filters.dateRange)
+  );
+
+  const annotated = filtered.map(annotate);
+  const byStr = (fn) => (a, b) => (fn(a) || '').localeCompare(fn(b) || '', 'ru');
+
+  switch (sortBy) {
+    case 'deadline':
+      annotated.sort(cmpDeadline);
+      break;
+    case 'person':
+      annotated.sort(byStr((e) => peopleOf(e)[0]));
+      break;
+    case 'project':
+      annotated.sort(byStr((e) => projectsOf(e)[0]));
+      break;
+    case 'priority':
+    case 'default':
+    default:
+      // По важности + срочности: выше priorityScore — раньше, при равенстве — ближе дедлайн.
+      annotated.sort((a, b) => b.priorityScore - a.priorityScore || cmpDeadline(a, b));
+  }
+  return annotated;
 }
 
 function renderBoard() {
-  const filtered = store.getAll().filter(passesFilter);
+  const annotated = sortAndFilter(store.getAll(), sortMode, {
+    person: filters.person,
+    project: filters.project,
+    priority: filters.priority,
+    status: filters.status,
+    dateRange: filters.dateRange,
+  });
   const cols = {
     topic: $('#col-topics'),
     task: $('#col-tasks'),
@@ -323,7 +447,7 @@ function renderBoard() {
 
   Object.values(cols).forEach((ul) => (ul.innerHTML = ''));
   ['topic', 'task', 'note'].forEach((type) => {
-    const items = sortEntities(filtered.filter((e) => e.type === type));
+    const items = annotated.filter((e) => e.type === type);
     counts[type] = items.length;
     if (!items.length) {
       cols[type].appendChild(el('li', 'empty-col', 'Пусто'));
@@ -342,6 +466,7 @@ function buildTop(e) {
   const top = document.createElement('div');
   top.className = 'card-top';
   top.appendChild(badge(TYPE_LABEL[e.type] || e.type, `badge-${e.type}`));
+  if (e.visualPriority) top.appendChild(badge(e.visualPriority, `badge-${e.visualPriority}`));
   if (e.type === 'task' && e.priority) top.appendChild(badge(e.priority, `badge-${e.priority}`));
   if (e.type === 'topic' && e.urgency) top.appendChild(badge(URGENCY_LABEL[e.urgency] || e.urgency, sevClass(e.urgency)));
   return top;
@@ -430,7 +555,8 @@ async function onSearch() {
     status.hidden = true;
     answerEl.textContent = explanation || (results.length ? '' : 'Ничего не найдено.');
     answerEl.hidden = !answerEl.textContent;
-    results.forEach((e) => resultsEl.appendChild(buildCard(e)));
+    // Сохраняем порядок, выбранный AI, но добавляем метку приоритета.
+    results.map(annotate).forEach((e) => resultsEl.appendChild(buildCard(e)));
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
@@ -498,4 +624,5 @@ function showStatus(elm, msg, isError = false) {
   elm.hidden = false;
 }
 
-init();
+// Запускаем приложение только в браузере (в Node модуль импортируется для тестов).
+if (typeof document !== 'undefined' && document.querySelector) init();
