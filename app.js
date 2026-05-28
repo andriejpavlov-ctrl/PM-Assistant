@@ -8,6 +8,7 @@ import { processCapture, processQuery, generateDailySummary } from './agent.js';
 // config.js (необязательный) может задать window.PM_CONFIG = { apiKey, model }.
 const fileConfig = window.PM_CONFIG || {};
 
+const DEFAULT_MODEL = 'claude-3-5-haiku-20241022';
 const TYPE_LABEL = { topic: 'Обсудить', task: 'Задача', note: 'Заметка' };
 const URGENCY_LABEL = { urgent: 'срочно', high: 'высокая', medium: 'средняя', low: 'низкая' };
 const IMPORTANCE_LABEL = { critical: 'критично', high: 'высокая', medium: 'средняя', low: 'низкая' };
@@ -23,9 +24,11 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Прокинуть сохранённый ключ в window.CLAUDE_API_KEY, откуда его читает agent.js. */
+/** Прокинуть ключ и модель из настроек в window.*, откуда их читает agent.js. */
 function syncApiKey() {
-  window.CLAUDE_API_KEY = store.getSettings().apiKey || '';
+  const s = store.getSettings();
+  window.CLAUDE_API_KEY = s.apiKey || '';
+  window.CLAUDE_MODEL = s.model || DEFAULT_MODEL;
 }
 
 /** Уровень важности/срочности/приоритета -> CSS-класс цвета. */
@@ -58,7 +61,7 @@ function setDraftTitle(draft, value) {
 function init() {
   const settings = store.getSettings();
   if (!settings.apiKey && fileConfig.apiKey) store.updateSettings({ apiKey: fileConfig.apiKey });
-  if (fileConfig.model && settings.model === 'claude-opus-4-8') store.updateSettings({ model: fileConfig.model });
+  if (fileConfig.model && settings.model === DEFAULT_MODEL) store.updateSettings({ model: fileConfig.model });
   applyTheme(store.getSettings().theme);
   syncApiKey();
 
@@ -398,7 +401,7 @@ function bindSettings() {
   $('#settings-save').addEventListener('click', () => {
     store.updateSettings({
       apiKey: $('#api-key-input').value.trim(),
-      model: $('#model-input').value.trim() || 'claude-opus-4-8',
+      model: $('#model-input').value.trim() || DEFAULT_MODEL,
     });
     syncApiKey();
     modal.hidden = true;
