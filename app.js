@@ -1,21 +1,23 @@
 // app.js — контроллер. Единственный модуль, который трогает DOM.
-// Связывает UI ⟷ storage.js ⟷ agent.js. Работает с тремя типами сущностей:
-// topic (обсудить с коллегой) | task (задача) | note (заметка).
+// Вкладки: capture (захват) | board (доска из трёх колонок) | search (поиск).
 
 import * as store from './storage.js';
-import { processCapture, processQuery, generateDailySummary } from './agent.js';
+import { processCapture, processQuery } from './agent.js';
 
-// config.js (необязательный) может задать window.PM_CONFIG = { apiKey, model }.
 const fileConfig = window.PM_CONFIG || {};
-
 const DEFAULT_MODEL = 'claude-3-5-haiku-20241022';
-const TYPE_LABEL = { topic: 'Обсудить', task: 'Задача', note: 'Заметка' };
+
+const TYPE_LABEL = { topic: 'Тема', task: 'Задача', note: 'Заметка' };
 const URGENCY_LABEL = { urgent: 'срочно', high: 'высокая', medium: 'средняя', low: 'низкая' };
 const IMPORTANCE_LABEL = { critical: 'критично', high: 'высокая', medium: 'средняя', low: 'низкая' };
-const TASK_STATUS_LABEL = { todo: 'к выполнению', in_progress: 'в работе', done: 'готово', blocked: 'заблок.' };
 
-let drafts = []; // черновики после разбора, ещё не сохранены
-const filters = { type: 'all', status: 'active' };
+const URGENCY_RANK = { urgent: 3, high: 2, medium: 1, low: 0 };
+const IMPORTANCE_RANK = { critical: 3, high: 2, medium: 1, low: 0 };
+const PRIORITY_RANK = { P1: 4, P2: 3, P3: 2, P4: 1 };
+
+let captureDraft = null; // результат processCapture, ещё не сохранён
+const filters = { person: '', project: '', priority: '', status: 'active' };
+let sortMode = 'default';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -31,19 +33,10 @@ function syncApiKey() {
   window.CLAUDE_MODEL = s.model || DEFAULT_MODEL;
 }
 
-/** Уровень важности/срочности/приоритета -> CSS-класс цвета. */
-function sevClass(level) {
-  if (['urgent', 'critical', 'high', 'P1'].includes(level)) return 'badge-prio-high';
-  if (['medium', 'P2'].includes(level)) return 'badge-prio-medium';
-  return 'badge-prio-low';
-}
-
-/** Закрыта ли сущность (выполнена/обсуждена). */
+// ===== Производные от типа =====
 function isClosed(e) {
   return (e.type === 'task' && e.status === 'done') || (e.type === 'topic' && e.status === 'discussed');
 }
-
-// Заголовок и тело для отображения зависят от типа.
 function displayTitle(e) {
   return e.type === 'topic' ? e.topic || '(без темы)' : e.title || '(без названия)';
 }
@@ -52,9 +45,21 @@ function displayBody(e) {
   if (e.type === 'task') return [e.description, e.expectedResult && `🎯 ${e.expectedResult}`].filter(Boolean).join('\n');
   return e.content || '';
 }
-function setDraftTitle(draft, value) {
-  if (draft.type === 'topic') draft.topic = value;
-  else draft.title = value;
+function peopleOf(e) {
+  return e.type === 'topic' ? (e.person ? [e.person] : []) : e.relatedPeople || [];
+}
+function projectsOf(e) {
+  return e.relatedProjects || [];
+}
+function sevClass(level) {
+  if (['urgent', 'critical', 'high', 'P1'].includes(level)) return 'badge-sev-high';
+  if (['medium', 'P2'].includes(level)) return 'badge-sev-medium';
+  return 'badge-sev-low';
+}
+function scoreEntity(e) {
+  if (e.type === 'topic') return (URGENCY_RANK[e.urgency] || 0) + (IMPORTANCE_RANK[e.importance] || 0);
+  if (e.type === 'task') return (PRIORITY_RANK[e.priority] || 0) * 2;
+  return 0;
 }
 
 // ===== Инициализация =====
@@ -67,23 +72,23 @@ function init() {
 
   bindNav();
   bindCapture();
-  bindTasks();
-  bindFind();
+  bindBoard();
+  bindSearch();
   bindSettings();
   bindTheme();
-
-  renderItems();
 }
 
-// ===== Навигация по вкладкам =====
+// ===== Навигация =====
 function bindNav() {
   $$('.tab').forEach((tab) => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
 }
-
 function switchTab(name) {
   $$('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== name));
-  if (name === 'tasks') renderItems();
+  if (name === 'board') {
+    populateFilters();
+    renderBoard();
+  }
 }
 
 // ===== Тема =====
@@ -91,7 +96,6 @@ function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   $('#theme-toggle').textContent = theme === 'dark' ? '☾' : '☀';
 }
-
 function bindTheme() {
   $('#theme-toggle').addEventListener('click', () => {
     const next = store.getSettings().theme === 'dark' ? 'light' : 'dark';
@@ -103,7 +107,12 @@ function bindTheme() {
 // ===== Вкладка «Захватить» =====
 function bindCapture() {
   $('#parse-btn').addEventListener('click', onParse);
-  $('#save-all-btn').addEventListener('click', onSaveAllDrafts);
+  $('#capture-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      onParse();
+    }
+  });
 }
 
 async function onParse() {
@@ -112,224 +121,238 @@ async function onParse() {
 
   const btn = $('#parse-btn');
   const status = $('#capture-status');
-  setBusy(btn, status, 'Claude разбирает заметки…');
+  btn.disabled = true;
+  showStatus(status, 'Claude обрабатывает…');
 
   try {
-    // processCapture возвращает одну структурированную запись.
     const result = await processCapture(raw);
-    drafts = result && result.type ? [result] : [];
+    captureDraft = result && result.type ? result : null;
     status.hidden = true;
-    renderDrafts();
-    if (!drafts.length) showStatus(status, 'Ничего не удалось извлечь — попробуй переформулировать.');
+    if (captureDraft) renderCaptureResult();
+    else showStatus(status, 'Не удалось разобрать — попробуйте переформулировать.');
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
-    clearBusy(btn, 'Разобрать ✦');
-  }
-}
-
-function renderDrafts() {
-  const wrap = $('#drafts');
-  const list = $('#drafts-list');
-  list.innerHTML = '';
-  if (!drafts.length) {
-    wrap.hidden = true;
-    return;
-  }
-  wrap.hidden = false;
-  drafts.forEach((draft, idx) => list.appendChild(renderDraftCard(draft, idx)));
-}
-
-function renderDraftCard(draft, idx) {
-  const li = document.createElement('li');
-  li.className = 'card';
-
-  const main = document.createElement('div');
-  main.className = 'card-main';
-
-  // Редактируемый заголовок (topic.topic либо title).
-  const title = document.createElement('input');
-  title.className = 'text-input draft-edit';
-  title.value = displayTitle(draft);
-  title.addEventListener('input', () => setDraftTitle(drafts[idx], title.value));
-  main.appendChild(title);
-
-  main.appendChild(buildMeta(draft));
-
-  const bodyText = displayBody(draft);
-  if (bodyText) {
-    const body = document.createElement('p');
-    body.className = 'card-body';
-    body.textContent = bodyText;
-    main.appendChild(body);
-  }
-
-  const actions = document.createElement('div');
-  actions.className = 'card-actions';
-  const del = iconBtn('✕', 'Убрать из черновиков');
-  del.addEventListener('click', () => {
-    drafts.splice(idx, 1);
-    renderDrafts();
-  });
-  actions.appendChild(del);
-
-  li.append(main, actions);
-  return li;
-}
-
-function onSaveAllDrafts() {
-  drafts.forEach((draft) => store.createEntity(draft));
-  drafts = [];
-  renderDrafts();
-  $('#capture-input').value = '';
-  showStatus($('#capture-status'), 'Сохранено ✓ — смотри на вкладке «Задачи».');
-  renderItems();
-}
-
-// ===== Вкладка «Задачи» (список всех сущностей) =====
-function bindTasks() {
-  $$('#type-filters .chip').forEach((c) =>
-    c.addEventListener('click', () => {
-      filters.type = c.dataset.filterType;
-      setActiveChip('#type-filters', c);
-      renderItems();
-    })
-  );
-  $$('#status-filters .chip').forEach((c) =>
-    c.addEventListener('click', () => {
-      filters.status = c.dataset.filterStatus;
-      setActiveChip('#status-filters', c);
-      renderItems();
-    })
-  );
-  $('#summary-btn').addEventListener('click', onSummary);
-}
-
-// ===== Сводка дня =====
-async function onSummary() {
-  const btn = $('#summary-btn');
-  const box = $('#daily-summary');
-  btn.disabled = true;
-  btn.textContent = 'Готовлю сводку…';
-  try {
-    const s = await generateDailySummary(store.getAll());
-    renderSummary(box, s);
-  } catch (e) {
-    box.textContent = e.message;
-    box.classList.add('is-error');
-    box.hidden = false;
-  } finally {
     btn.disabled = false;
-    btn.textContent = 'Сводка дня ✦';
+    btn.textContent = 'Обработать';
   }
 }
 
-function renderSummary(box, s) {
-  box.classList.remove('is-error');
+function renderCaptureResult() {
+  const box = $('#capture-result');
   box.innerHTML = '';
+  if (!captureDraft) return;
 
-  if (s.greeting) box.appendChild(el('p', 'summary-greeting', s.greeting));
-  if (s.summary) box.appendChild(el('p', 'card-body', s.summary));
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.appendChild(buildTop(captureDraft));
+  card.appendChild(el('p', 'card-title', displayTitle(captureDraft)));
+  const body = displayBody(captureDraft);
+  if (body) card.appendChild(el('p', 'card-body', body));
+  card.appendChild(buildMeta(captureDraft));
 
-  const section = (heading, rows) => {
-    if (!rows || !rows.length) return;
-    box.appendChild(el('h3', 'summary-h', heading));
-    const ul = document.createElement('ul');
-    ul.className = 'summary-list';
-    rows.forEach((r) => ul.appendChild(el('li', '', r)));
-    box.appendChild(ul);
-  };
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const editBtn = el('button', 'btn btn-ghost btn-sm', 'Редактировать');
+  editBtn.addEventListener('click', () => renderCaptureEdit());
+  const saveBtn = el('button', 'btn btn-primary btn-sm', 'Сохранить');
+  saveBtn.addEventListener('click', saveCaptureDraft);
+  footer.append(editBtn, saveBtn);
+  card.appendChild(footer);
 
-  section('🔥 Срочные задачи', (s.urgentTasks || []).map((t) => `${t.title}${t.why ? ` — ${t.why}` : ''}`));
-  section('🗣 Ближайшие обсуждения', (s.upcomingTopics || []).map((t) => `${t.person ? t.person + ': ' : ''}${t.topic}${t.why ? ` — ${t.why}` : ''}`));
-  section('🎯 Фокус на сегодня', s.todayFocus || []);
+  box.appendChild(card);
+}
 
-  box.hidden = false;
+function renderCaptureEdit() {
+  const box = $('#capture-result');
+  box.innerHTML = '';
+  const d = captureDraft;
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  const form = document.createElement('div');
+  form.className = 'edit-form';
+
+  const titleLabel = d.type === 'topic' ? 'Тема' : 'Заголовок';
+  form.appendChild(field(titleLabel, inputFor(d.type === 'topic' ? 'topic' : 'title')));
+
+  if (d.type === 'topic') {
+    form.appendChild(field('Человек', inputFor('person')));
+    form.appendChild(field('Срочность', selectFor('urgency', store.ENUMS.topicUrgency, URGENCY_LABEL)));
+    form.appendChild(field('Важность', selectFor('importance', store.ENUMS.topicImportance, IMPORTANCE_LABEL)));
+    form.appendChild(field('Дедлайн', inputFor('deadline', 'date')));
+  } else if (d.type === 'task') {
+    form.appendChild(field('Что сделать', inputFor('description')));
+    form.appendChild(field('Образ результата', inputFor('expectedResult')));
+    form.appendChild(field('Приоритет', selectFor('priority', store.ENUMS.taskPriority)));
+    form.appendChild(field('Дедлайн', inputFor('deadline', 'date')));
+  } else {
+    form.appendChild(field('Содержание', inputFor('content')));
+  }
+  form.appendChild(field('Теги (через запятую)', tagsInput()));
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const cancel = el('button', 'btn btn-ghost btn-sm', 'Отмена');
+  cancel.addEventListener('click', renderCaptureResult);
+  const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
+  save.addEventListener('click', saveCaptureDraft);
+  footer.append(cancel, save);
+
+  card.append(form, footer);
+  box.appendChild(card);
+
+  // ---- helpers замыкаются на captureDraft ----
+  function inputFor(key, type = 'text') {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.type = type;
+    inp.value = d[key] || '';
+    inp.addEventListener('input', () => (d[key] = inp.value));
+    return inp;
+  }
+  function selectFor(key, options, labels) {
+    const sel = document.createElement('select');
+    sel.className = 'select';
+    options.forEach((opt) => {
+      const o = document.createElement('option');
+      o.value = opt;
+      o.textContent = labels ? labels[opt] || opt : opt;
+      if (d[key] === opt) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => (d[key] = sel.value));
+    return sel;
+  }
+  function tagsInput() {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.value = (d.tags || []).join(', ');
+    inp.addEventListener('input', () => (d.tags = inp.value.split(',').map((s) => s.trim()).filter(Boolean)));
+    return inp;
+  }
+}
+
+function saveCaptureDraft() {
+  if (!captureDraft) return;
+  store.createEntity(captureDraft);
+  captureDraft = null;
+  $('#capture-result').innerHTML = '';
+  $('#capture-input').value = '';
+  showStatus($('#capture-status'), 'Сохранено ✓ — смотрите на доске «Задачи и темы».');
+}
+
+// ===== Вкладка «Доска» =====
+function bindBoard() {
+  $('#filter-person').addEventListener('change', (e) => { filters.person = e.target.value; renderBoard(); });
+  $('#filter-project').addEventListener('change', (e) => { filters.project = e.target.value; renderBoard(); });
+  $('#filter-priority').addEventListener('change', (e) => { filters.priority = e.target.value; renderBoard(); });
+  $('#filter-status').addEventListener('change', (e) => { filters.status = e.target.value; renderBoard(); });
+  $$('#sort-toggles .chip').forEach((c) =>
+    c.addEventListener('click', () => {
+      sortMode = c.dataset.sort;
+      $$('#sort-toggles .chip').forEach((x) => x.classList.toggle('is-active', x === c));
+      renderBoard();
+    })
+  );
+  $('#filter-reset').addEventListener('click', () => {
+    filters.person = filters.project = filters.priority = '';
+    filters.status = 'active';
+    sortMode = 'default';
+    $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
+    $('#filter-status').value = 'active';
+    $$('#sort-toggles .chip').forEach((x) => x.classList.toggle('is-active', x.dataset.sort === 'default'));
+    populateFilters();
+    renderBoard();
+  });
+}
+
+/** Наполнить выпадающие списки людей и проектов из данных, сохранив выбор. */
+function populateFilters() {
+  const all = store.getAll();
+  const people = [...new Set(all.flatMap(peopleOf).filter(Boolean))].sort();
+  const projects = [...new Set(all.flatMap(projectsOf).filter(Boolean))].sort();
+  fillSelect($('#filter-person'), people, filters.person);
+  fillSelect($('#filter-project'), projects, filters.project);
+}
+function fillSelect(sel, values, current) {
+  sel.innerHTML = '<option value="">Все</option>';
+  values.forEach((v) => {
+    const o = document.createElement('option');
+    o.value = v;
+    o.textContent = v;
+    if (v === current) o.selected = true;
+    sel.appendChild(o);
+  });
 }
 
 function passesFilter(e) {
-  if (filters.type !== 'all' && e.type !== filters.type) return false;
   if (filters.status === 'active' && isClosed(e)) return false;
   if (filters.status === 'done' && !isClosed(e)) return false;
+  if (filters.person && !peopleOf(e).includes(filters.person)) return false;
+  if (filters.project && !projectsOf(e).includes(filters.project)) return false;
+  if (filters.priority && e.priority !== filters.priority) return false;
   return true;
 }
 
-function renderItems() {
-  const list = $('#items-list');
-  const empty = $('#items-empty');
-  const entities = store.getAll().filter(passesFilter);
-
-  list.innerHTML = '';
-  empty.hidden = entities.length > 0;
-  entities.forEach((e) => list.appendChild(renderItemCard(e)));
+function sortEntities(list) {
+  const arr = [...list];
+  const byStr = (fn) => (a, b) => (fn(a) || '').localeCompare(fn(b) || '', 'ru');
+  switch (sortMode) {
+    case 'deadline':
+      return arr.sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
+    case 'priority':
+      return arr.sort((a, b) => scoreEntity(b) - scoreEntity(a));
+    case 'person':
+      return arr.sort(byStr((e) => peopleOf(e)[0]));
+    case 'project':
+      return arr.sort(byStr((e) => projectsOf(e)[0]));
+    default: // важность + срочность
+      return arr.sort((a, b) => scoreEntity(b) - scoreEntity(a));
+  }
 }
 
-function renderItemCard(e) {
-  const li = document.createElement('li');
-  li.className = 'card' + (isClosed(e) ? ' is-done' : '');
+function renderBoard() {
+  const filtered = store.getAll().filter(passesFilter);
+  const cols = {
+    topic: $('#col-topics'),
+    task: $('#col-tasks'),
+    note: $('#col-notes'),
+  };
+  const counts = { topic: 0, task: 0, note: 0 };
 
-  // Чекбокс закрытия: task -> done, topic -> discussed.
-  if (e.type === 'task' || e.type === 'topic') {
-    const check = document.createElement('input');
-    check.type = 'checkbox';
-    check.className = 'card-check';
-    check.checked = isClosed(e);
-    check.addEventListener('change', () => {
-      const patch = e.type === 'task'
-        ? { status: check.checked ? 'done' : 'todo' }
-        : { status: check.checked ? 'discussed' : 'open' };
-      store.update(e.id, patch);
-      renderItems();
-    });
-    li.appendChild(check);
-  }
-
-  const main = document.createElement('div');
-  main.className = 'card-main';
-
-  const title = document.createElement('p');
-  title.className = 'card-title';
-  title.textContent = displayTitle(e);
-  main.appendChild(title);
-
-  const bodyText = displayBody(e);
-  if (bodyText) {
-    const body = document.createElement('p');
-    body.className = 'card-body';
-    body.textContent = bodyText;
-    main.appendChild(body);
-  }
-
-  main.appendChild(buildMeta(e));
-
-  const actions = document.createElement('div');
-  actions.className = 'card-actions';
-  const del = iconBtn('🗑', 'Удалить');
-  del.addEventListener('click', () => {
-    store.remove(e.id);
-    renderItems();
+  Object.values(cols).forEach((ul) => (ul.innerHTML = ''));
+  ['topic', 'task', 'note'].forEach((type) => {
+    const items = sortEntities(filtered.filter((e) => e.type === type));
+    counts[type] = items.length;
+    if (!items.length) {
+      cols[type].appendChild(el('li', 'empty-col', 'Пусто'));
+    } else {
+      items.forEach((e) => cols[type].appendChild(buildCard(e)));
+    }
   });
-  actions.appendChild(del);
 
-  li.append(main, actions);
-  return li;
+  $('#count-topics').textContent = counts.topic;
+  $('#count-tasks').textContent = counts.task;
+  $('#count-notes').textContent = counts.note;
 }
 
-/** Построить блок мета-бейджей под конкретный тип (работает и для черновика, и для сохранённого). */
+// ===== Карточки =====
+function buildTop(e) {
+  const top = document.createElement('div');
+  top.className = 'card-top';
+  top.appendChild(badge(TYPE_LABEL[e.type] || e.type, `badge-${e.type}`));
+  if (e.type === 'task' && e.priority) top.appendChild(badge(e.priority, `badge-${e.priority}`));
+  if (e.type === 'topic' && e.urgency) top.appendChild(badge(URGENCY_LABEL[e.urgency] || e.urgency, sevClass(e.urgency)));
+  return top;
+}
+
 function buildMeta(e) {
   const meta = document.createElement('div');
   meta.className = 'card-meta';
-  meta.appendChild(badge(TYPE_LABEL[e.type] || e.type, `badge-${e.type}`));
-
-  if (e.type === 'topic') {
-    if (e.urgency) meta.appendChild(badge(`⚡ ${URGENCY_LABEL[e.urgency] || e.urgency}`, sevClass(e.urgency)));
-    if (e.importance) meta.appendChild(badge(`★ ${IMPORTANCE_LABEL[e.importance] || e.importance}`, sevClass(e.importance)));
-    if (e.person) meta.appendChild(metaSpan(`👤 ${e.person}`));
-  } else if (e.type === 'task') {
-    if (e.priority) meta.appendChild(badge(e.priority, sevClass(e.priority)));
-    if (e.status && e.status !== 'done') meta.appendChild(metaSpan(`• ${TASK_STATUS_LABEL[e.status] || e.status}`));
-  }
-
+  peopleOf(e).forEach((p) => meta.appendChild(metaSpan(`👤 ${p}`)));
+  projectsOf(e).forEach((p) => meta.appendChild(metaSpan(`📁 ${p}`)));
+  if (e.type === 'topic' && e.importance) meta.appendChild(metaSpan(`★ ${IMPORTANCE_LABEL[e.importance] || e.importance}`));
   if (e.deadline) {
     const overdue = !isClosed(e) && e.deadline < todayISO();
     const span = metaSpan(`⏱ ${e.deadline}`);
@@ -337,51 +360,82 @@ function buildMeta(e) {
     if (overdue) span.classList.add('is-overdue');
     meta.appendChild(span);
   }
-
-  (e.relatedPeople || []).forEach((p) => meta.appendChild(metaSpan(`👤 ${p}`)));
-  (e.relatedProjects || []).forEach((p) => meta.appendChild(metaSpan(`📁 ${p}`)));
   (e.tags || []).forEach((t) => meta.appendChild(metaSpan(`#${t}`)));
   return meta;
 }
 
+function buildCard(e) {
+  const li = document.createElement('li');
+  li.className = 'card' + (isClosed(e) ? ' is-done' : '');
+  li.appendChild(buildTop(e));
+  li.appendChild(el('p', 'card-title', displayTitle(e)));
+  const body = displayBody(e);
+  if (body) li.appendChild(el('p', 'card-body', body));
+  li.appendChild(buildMeta(e));
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  if (e.type === 'task' || e.type === 'topic') {
+    const doneBtn = el('button', 'btn btn-ghost btn-sm', isClosed(e) ? 'Вернуть' : 'Выполнено');
+    doneBtn.addEventListener('click', () => {
+      const closed = isClosed(e);
+      const patch = e.type === 'task'
+        ? { status: closed ? 'todo' : 'done' }
+        : { status: closed ? 'open' : 'discussed' };
+      store.update(e.id, patch);
+      renderBoard();
+    });
+    footer.appendChild(doneBtn);
+  }
+  const del = el('button', 'btn btn-ghost btn-sm', '🗑');
+  del.title = 'Удалить';
+  del.addEventListener('click', () => {
+    store.remove(e.id);
+    renderBoard();
+  });
+  footer.appendChild(del);
+  li.appendChild(footer);
+  return li;
+}
+
 // ===== Вкладка «Найти» =====
-function bindFind() {
-  $('#find-btn').addEventListener('click', onFind);
-  $('#find-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') onFind();
+function bindSearch() {
+  $('#search-btn').addEventListener('click', onSearch);
+  $('#search-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') onSearch();
   });
   $$('.suggestion').forEach((s) =>
     s.addEventListener('click', () => {
-      $('#find-input').value = s.textContent;
-      onFind();
+      $('#search-input').value = s.textContent;
+      onSearch();
     })
   );
 }
 
-async function onFind() {
-  const question = $('#find-input').value.trim();
+async function onSearch() {
+  const question = $('#search-input').value.trim();
   if (!question) return;
 
-  const btn = $('#find-btn');
-  const status = $('#find-status');
-  const answerEl = $('#find-answer');
-  const resultsEl = $('#find-results');
+  const btn = $('#search-btn');
+  const status = $('#search-status');
+  const answerEl = $('#search-answer');
+  const resultsEl = $('#search-results');
   answerEl.hidden = true;
   resultsEl.innerHTML = '';
-  setBusy(btn, status, 'Claude думает…');
+  btn.disabled = true;
+  showStatus(status, 'Claude ищет…');
 
   try {
     const { explanation, results } = await processQuery(question, store.getAll());
-
     status.hidden = true;
     answerEl.textContent = explanation || (results.length ? '' : 'Ничего не найдено.');
     answerEl.hidden = !answerEl.textContent;
-
-    results.forEach((e) => resultsEl.appendChild(renderItemCard(e)));
+    results.forEach((e) => resultsEl.appendChild(buildCard(e)));
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
-    clearBusy(btn, 'Спросить');
+    btn.disabled = false;
+    btn.textContent = 'Найти';
   }
 }
 
@@ -420,53 +474,28 @@ function exportData() {
 }
 
 // ===== Хелперы DOM =====
-function badge(text, cls) {
-  const el = document.createElement('span');
-  el.className = `badge ${cls}`;
-  el.textContent = text;
-  return el;
-}
-
 function el(tag, cls, text) {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
   if (text != null) node.textContent = text;
   return node;
 }
-
+function field(labelText, inputNode) {
+  const wrap = document.createElement('label');
+  wrap.appendChild(el('span', '', labelText));
+  wrap.appendChild(inputNode);
+  return wrap;
+}
+function badge(text, cls) {
+  return el('span', `badge ${cls}`, text);
+}
 function metaSpan(text) {
-  const el = document.createElement('span');
-  el.className = 'meta-tag';
-  el.textContent = text;
-  return el;
+  return el('span', 'meta-tag', text);
 }
-
-function iconBtn(symbol, title) {
-  const b = document.createElement('button');
-  b.className = 'icon-btn';
-  b.textContent = symbol;
-  b.title = title;
-  return b;
-}
-
-function setActiveChip(group, active) {
-  $$(`${group} .chip`).forEach((c) => c.classList.toggle('is-active', c === active));
-}
-
-function setBusy(btn, statusEl, msg) {
-  btn.disabled = true;
-  showStatus(statusEl, msg);
-}
-
-function clearBusy(btn, label) {
-  btn.disabled = false;
-  btn.textContent = label;
-}
-
-function showStatus(el, msg, isError = false) {
-  el.textContent = msg;
-  el.classList.toggle('is-error', isError);
-  el.hidden = false;
+function showStatus(elm, msg, isError = false) {
+  elm.textContent = msg;
+  elm.classList.toggle('is-error', isError);
+  elm.hidden = false;
 }
 
 init();

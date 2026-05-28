@@ -13,9 +13,9 @@
       <h1>PM Assistant</h1>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="capture" aria-selected="true">Захватить</button>
-      <button class="tab" role="tab" data-tab="tasks" aria-selected="false">Задачи</button>
-      <button class="tab" role="tab" data-tab="find" aria-selected="false">Найти</button>
+      <button class="tab" role="tab" data-tab="capture" aria-selected="true">📝 Захватить</button>
+      <button class="tab" role="tab" data-tab="board" aria-selected="false">📋 Задачи и темы</button>
+      <button class="tab" role="tab" data-tab="search" aria-selected="false">🔍 Найти</button>
     </nav>
     <div class="topbar-actions">
       <button id="theme-toggle" class="icon-btn" title="Переключить тему" aria-label="Переключить тему">☾</button>
@@ -24,78 +24,97 @@
   </header>
 
   <main class="content">
-    <!-- ВКЛАДКА: ЗАХВАТИТЬ -->
-    <section id="view-capture" class="view" data-view="capture">
-      <div class="panel">
-        <label class="field-label" for="capture-input">Запиши всё, что в голове</label>
-        <textarea
-          id="capture-input"
-          class="capture-input"
-          rows="6"
-          placeholder="Напр.: Обсудить с Леной роадмап Q3 до пятницы. Не забыть отписать в Slack про релиз. Идея: сделать onboarding короче..."
-        ></textarea>
-        <div class="capture-actions">
-          <span class="hint">Claude разберёт текст на задачи, заметки и темы для 1:1.</span>
-          <button id="parse-btn" class="btn btn-primary">Разобрать ✦</button>
-        </div>
+    <!-- ВКЛАДКА 1: ЗАХВАТИТЬ -->
+    <section id="view-capture" class="view view-capture" data-view="capture">
+      <textarea
+        id="capture-input"
+        class="capture-input"
+        placeholder="Напишите что угодно: задачу, тему для обсуждения с коллегой, заметку...
+Например: «Обсудить с Наташей приоритизацию бэклога на следующий квартал, это важно сделать до пятницы» или «Написать регламент ревью спецификаций, срок — конец месяца»"
+      ></textarea>
+      <div class="capture-actions">
+        <span class="hint">⌘/Ctrl + Enter — обработать</span>
+        <button id="parse-btn" class="btn btn-primary">Обработать</button>
       </div>
-
       <div id="capture-status" class="status-line" hidden></div>
+      <div id="capture-result" class="capture-result"></div>
+    </section>
 
-      <!-- Черновики предложенных элементов -->
-      <div id="drafts" class="drafts" hidden>
-        <div class="drafts-header">
-          <h2>Предложено</h2>
-          <button id="save-all-btn" class="btn btn-primary">Сохранить всё</button>
+    <!-- ВКЛАДКА 2: ЗАДАЧИ И ТЕМЫ -->
+    <section id="view-board" class="view" data-view="board" hidden>
+      <div class="filters-panel">
+        <div class="filter-group">
+          <label for="filter-person">Человек</label>
+          <select id="filter-person" class="select"><option value="">Все</option></select>
         </div>
-        <ul id="drafts-list" class="card-list"></ul>
+        <div class="filter-group">
+          <label for="filter-project">Проект</label>
+          <select id="filter-project" class="select"><option value="">Все</option></select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-priority">Приоритет</label>
+          <select id="filter-priority" class="select">
+            <option value="">Все</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+            <option value="P3">P3</option>
+            <option value="P4">P4</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-status">Статус</label>
+          <select id="filter-status" class="select">
+            <option value="active">Активные</option>
+            <option value="done">Закрытые</option>
+            <option value="all">Все</option>
+          </select>
+        </div>
+        <div class="filter-group sort-group">
+          <label>Сортировка</label>
+          <div class="sort-toggles" id="sort-toggles">
+            <button class="chip is-active" data-sort="default">по умолчанию</button>
+            <button class="chip" data-sort="deadline">по сроку</button>
+            <button class="chip" data-sort="priority">по приоритету</button>
+            <button class="chip" data-sort="person">по человеку</button>
+            <button class="chip" data-sort="project">по проекту</button>
+          </div>
+        </div>
+        <button id="filter-reset" class="btn btn-ghost">Сбросить</button>
+      </div>
+
+      <div class="board">
+        <div class="column">
+          <div class="column-head"><span>💬 Темы для обсуждения</span><span class="count" id="count-topics">0</span></div>
+          <ul id="col-topics" class="card-list"></ul>
+        </div>
+        <div class="column">
+          <div class="column-head"><span>✅ Мои задачи</span><span class="count" id="count-tasks">0</span></div>
+          <ul id="col-tasks" class="card-list"></ul>
+        </div>
+        <div class="column">
+          <div class="column-head"><span>🗒 Заметки</span><span class="count" id="count-notes">0</span></div>
+          <ul id="col-notes" class="card-list"></ul>
+        </div>
       </div>
     </section>
 
-    <!-- ВКЛАДКА: ЗАДАЧИ -->
-    <section id="view-tasks" class="view" data-view="tasks" hidden>
-      <div class="summary-bar">
-        <button id="summary-btn" class="btn">Сводка дня ✦</button>
-      </div>
-      <div id="daily-summary" class="answer" hidden></div>
-      <div class="toolbar">
-        <div class="filters" id="type-filters">
-          <button class="chip is-active" data-filter-type="all">Все</button>
-          <button class="chip" data-filter-type="topic">Обсудить</button>
-          <button class="chip" data-filter-type="task">Задачи</button>
-          <button class="chip" data-filter-type="note">Заметки</button>
-        </div>
-        <div class="filters" id="status-filters">
-          <button class="chip is-active" data-filter-status="active">Активные</button>
-          <button class="chip" data-filter-status="done">Готово</button>
-          <button class="chip" data-filter-status="all">Все статусы</button>
-        </div>
-      </div>
-      <ul id="items-list" class="card-list"></ul>
-      <p id="items-empty" class="empty-state" hidden>Пока пусто. Захвати первую мысль на вкладке «Захватить».</p>
-    </section>
-
-    <!-- ВКЛАДКА: НАЙТИ -->
-    <section id="view-find" class="view" data-view="find" hidden>
+    <!-- ВКЛАДКА 3: НАЙТИ -->
+    <section id="view-search" class="view" data-view="search" hidden>
       <div class="panel">
         <div class="find-bar">
-          <input
-            id="find-input"
-            class="find-input"
-            type="text"
-            placeholder="Что я хотел обсудить с Леной? Какие задачи горят на этой неделе?"
-          />
-          <button id="find-btn" class="btn btn-primary">Спросить</button>
+          <input id="search-input" class="find-input" type="text" placeholder="Спросите свободным текстом…" />
+          <button id="search-btn" class="btn btn-primary">Найти</button>
         </div>
         <div class="find-suggestions">
-          <button class="chip suggestion">Что обсудить на ближайших 1:1?</button>
-          <button class="chip suggestion">Какие задачи просрочены?</button>
-          <button class="chip suggestion">Собери заметки про onboarding</button>
+          <button class="chip suggestion">Найди темы для Наташи Ивановой</button>
+          <button class="chip suggestion">Покажи задачи по проекту X</button>
+          <button class="chip suggestion">Что срочного на этой неделе?</button>
+          <button class="chip suggestion">Все задачи связанные с редизайном</button>
         </div>
       </div>
-      <div id="find-status" class="status-line" hidden></div>
-      <div id="find-answer" class="answer" hidden></div>
-      <ul id="find-results" class="card-list"></ul>
+      <div id="search-status" class="status-line" hidden></div>
+      <div id="search-answer" class="answer" hidden></div>
+      <ul id="search-results" class="card-list"></ul>
     </section>
   </main>
 
@@ -111,16 +130,15 @@
       <p class="hint">Хранится только в этом браузере (localStorage) и шлётся напрямую в api.anthropic.com.</p>
 
       <label class="field-label" for="model-input">Модель</label>
-      <input id="model-input" class="text-input" type="text" />
+      <input id="model-input" class="text-input" type="text" placeholder="claude-3-5-haiku-20241022" />
 
       <div class="modal-footer">
-        <button id="export-btn" class="btn">Экспорт данных</button>
+        <button id="export-btn" class="btn btn-ghost">Экспорт данных</button>
         <button id="settings-save" class="btn btn-primary">Сохранить</button>
       </div>
     </div>
   </div>
 
-  <!-- Загрузка как ES-модули -->
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>
 </body>
