@@ -1,29 +1,28 @@
-// agent.js — обёртка над Claude API. Вызывается напрямую из браузера.
-// Не трогает DOM и localStorage; получает ключ/модель параметрами.
+// agent.js — AI-агент на Claude API. Прямые вызовы через fetch().
+// Ключ берётся из window.CLAUDE_API_KEY (пользователь вводит его в настройках).
+// Модель: claude-3-5-haiku-20241022. Все системные промпты — на русском,
+// агент всегда отвечает валидным JSON.
 
+const MODEL = 'claude-3-5-haiku-20241022';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const API_VERSION = '2023-06-01';
 
-/**
- * Низкоуровневый запрос к Claude.
- * @param {object} opts
- * @param {string} opts.apiKey
- * @param {string} opts.model
- * @param {Array}  opts.messages
- * @param {string} [opts.system]
- * @param {Array}  [opts.tools]
- * @param {object} [opts.tool_choice]
- * @param {number} [opts.max_tokens]
- */
-async function callClaude({ apiKey, model, messages, system, tools, tool_choice, max_tokens = 2048 }) {
-  if (!apiKey) {
-    throw new Error('Не задан API-ключ. Открой Настройки (⚙) и вставь ключ Claude.');
-  }
+/** Текущая дата в ISO (YYYY-MM-DD) — передаётся в промпты для расчёта дедлайнов. */
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
 
-  const body = { model, max_tokens, messages };
-  if (system) body.system = system;
-  if (tools) body.tools = tools;
-  if (tool_choice) body.tool_choice = tool_choice;
+/**
+ * Низкоуровневый вызов Claude. Возвращает текст ответа (первый text-блок).
+ * @param {string} system  системный промпт (на русском)
+ * @param {string} user    пользовательское сообщение
+ * @param {object} [opts]  { maxTokens }
+ */
+async function callClaude(system, user, { maxTokens = 1500 } = {}) {
+  const apiKey = window.CLAUDE_API_KEY;
+  if (!apiKey) {
+    throw new Error('Не задан API-ключ. Введите ключ Claude в настройках приложения.');
+  }
 
   const res = await fetch(API_URL, {
     method: 'POST',
@@ -31,10 +30,15 @@ async function callClaude({ apiKey, model, messages, system, tools, tool_choice,
       'content-type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': API_VERSION,
-      // Разрешает вызов прямо из браузера (личное использование).
+      // Разрешает вызов напрямую из браузера.
       'anthropic-dangerous-direct-browser-access': 'true',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content: user }],
+    }),
   });
 
   if (!res.ok) {
@@ -47,154 +51,185 @@ async function callClaude({ apiKey, model, messages, system, tools, tool_choice,
     }
     throw new Error(`Claude API ${res.status}: ${detail}`);
   }
-  return res.json();
-}
 
-/** Достать первый text-блок из ответа. */
-function getText(response) {
-  return (response.content || [])
+  const data = await res.json();
+  return (data.content || [])
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
-    .join('\n')
+    .join('')
     .trim();
 }
 
-/** Достать вход tool_use по имени инструмента. */
-function getToolInput(response, toolName) {
-  const block = (response.content || []).find((b) => b.type === 'tool_use' && b.name === toolName);
-  return block ? block.input : null;
-}
-
-// ===== Инструмент для структурированного разбора захвата =====
-// Один общий элемент с дискриминатором type; поля каждого типа — опциональны,
-// заполняются по релевантности. Соответствует фабрикам в storage.js.
-const EXTRACT_TOOL = {
-  name: 'extract_entities',
-  description: 'Сохранить структурированные сущности, извлечённые из заметок директора по продукту.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      entities: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            type: {
-              type: 'string',
-              enum: ['topic', 'task', 'note'],
-              description: 'topic — тема для обсуждения с коллегой; task — задача для себя; note — общая заметка/идея',
-            },
-            // Общие
-            tags: { type: 'array', items: { type: 'string' } },
-            aiSummary: { type: 'string', description: 'Краткое резюме сути в 1 предложение' },
-            // TOPIC
-            person: { type: 'string', description: '[topic] имя коллеги для обсуждения' },
-            topic: { type: 'string', description: '[topic] суть темы' },
-            urgency: { type: 'string', enum: ['urgent', 'high', 'medium', 'low'], description: '[topic] срочность' },
-            importance: { type: 'string', enum: ['critical', 'high', 'medium', 'low'], description: '[topic] важность' },
-            // TASK
-            title: { type: 'string', description: '[task|note] короткое название' },
-            description: { type: 'string', description: '[task] что конкретно сделать' },
-            expectedResult: { type: 'string', description: '[task] образ результата' },
-            priority: { type: 'string', enum: ['P1', 'P2', 'P3', 'P4'], description: '[task] приоритет' },
-            // NOTE
-            content: { type: 'string', description: '[note] содержание заметки' },
-            // TASK + NOTE
-            relatedPeople: { type: 'array', items: { type: 'string' }, description: '[task|note] упомянутые люди' },
-            relatedProjects: { type: 'array', items: { type: 'string' }, description: '[task|note] упомянутые проекты' },
-            // Общий дедлайн (topic, task)
-            deadline: { type: ['string', 'null'], description: 'Дедлайн ISO YYYY-MM-DD или null' },
-          },
-          required: ['type'],
-        },
-      },
-    },
-    required: ['entities'],
-  },
-};
-
 /**
- * Разобрать сырой текст на черновики сущностей (topic | task | note).
- * Каждый черновик кладёт rawText = исходный текст и готов к store.createEntity.
- * Возвращает массив draft-объектов.
+ * Надёжный разбор JSON из ответа модели: срезает markdown-ограждения ```json,
+ * при необходимости вырезает первый сбалансированный объект/массив.
  */
-export async function parseCapture({ apiKey, model, rawText, people = [], today }) {
-  const peopleHint = people.length ? `Известные коллеги: ${people.join(', ')}.` : '';
-  const system =
-    `Ты — ассистент директора по продукту. Разбери сырые заметки на отдельные сущности трёх типов:\n` +
-    `• topic — тема для обсуждения с конкретным коллегой (заполни person, topic, urgency, importance);\n` +
-    `• task — задача для себя (заполни title, description, expectedResult, priority);\n` +
-    `• note — общая заметка/идея без явного действия (заполни title, content).\n` +
-    `Сегодня ${today}. Относительные даты («до пятницы», «завтра») переводи в ISO YYYY-MM-DD, иначе deadline=null. ` +
-    `Заполняй только релевантные типу поля; для task/note выноси упомянутых людей и проекты в relatedPeople/relatedProjects. ` +
-    `Добавляй краткий aiSummary. Не выдумывай детали, которых нет в тексте. ` +
-    `Отвечай ТОЛЬКО через инструмент extract_entities. ${peopleHint}`;
+function safeParseJSON(text) {
+  if (!text) throw new Error('Пустой ответ от модели');
+  let s = text.trim();
 
-  const response = await callClaude({
-    apiKey,
-    model,
-    system,
-    messages: [{ role: 'user', content: rawText }],
-    tools: [EXTRACT_TOOL],
-    tool_choice: { type: 'tool', name: 'extract_entities' },
-    max_tokens: 2048,
-  });
+  // Убрать ограждения ```json ... ```
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
 
-  const input = getToolInput(response, 'extract_entities');
-  const entities = input?.entities || [];
-  // Прокинуть исходный текст в каждый черновик.
-  return entities.map((e) => ({ ...e, rawText }));
-}
-
-/**
- * Ответить на вопрос пользователя по всей базе элементов.
- * Возвращает { answer, relevantIds }.
- */
-export async function ask({ apiKey, model, question, entities, today }) {
-  // Компактная проекция: только значимые поля каждого типа.
-  const compact = entities.map((e) => {
-    const base = { id: e.id, type: e.type, tags: e.tags, deadline: e.deadline || null };
-    if (e.type === 'topic') {
-      return { ...base, person: e.person, topic: e.topic, urgency: e.urgency, importance: e.importance, status: e.status, summary: e.aiSummary };
+  try {
+    return JSON.parse(s);
+  } catch {
+    // Попытаться вырезать первый JSON-объект или массив.
+    const start = s.search(/[{[]/);
+    const lastObj = s.lastIndexOf('}');
+    const lastArr = s.lastIndexOf(']');
+    const end = Math.max(lastObj, lastArr);
+    if (start !== -1 && end > start) {
+      return JSON.parse(s.slice(start, end + 1));
     }
-    if (e.type === 'task') {
-      return { ...base, title: e.title, description: e.description, expectedResult: e.expectedResult, priority: e.priority, status: e.status, people: e.relatedPeople, projects: e.relatedProjects, summary: e.aiSummary };
-    }
-    return { ...base, title: e.title, content: e.content, people: e.relatedPeople, projects: e.relatedProjects, summary: e.aiSummary };
-  });
-
-  const system =
-    `Ты — ассистент директора по продукту. Сегодня ${today}. ` +
-    `Отвечай на вопрос, опираясь ТОЛЬКО на переданные сущности (JSON ниже): topic — темы для 1:1, task — задачи, note — заметки. ` +
-    `Будь краток и по делу. В конце ответа на отдельной строке выведи: ` +
-    `RELEVANT_IDS: id1, id2 — перечисли id сущностей, на которые опираешься (или "нет").`;
-
-  const response = await callClaude({
-    apiKey,
-    model,
-    system,
-    messages: [
-      {
-        role: 'user',
-        content: `Сущности (JSON):\n${JSON.stringify(compact)}\n\nВопрос: ${question}`,
-      },
-    ],
-    max_tokens: 1024,
-  });
-
-  const text = getText(response);
-  const relevantIds = [];
-  let answer = text;
-
-  const match = text.match(/RELEVANT_IDS:\s*(.+)$/im);
-  if (match) {
-    answer = text.slice(0, match.index).trim();
-    match[1]
-      .split(/[,\s]+/)
-      .map((s) => s.trim())
-      .filter((s) => /^(top|tsk|not)_/.test(s))
-      .forEach((id) => relevantIds.push(id));
+    throw new Error('Не удалось разобрать JSON из ответа модели');
   }
+}
 
-  return { answer, relevantIds };
+// ============================================================
+// ФУНКЦИЯ 1: processCapture(rawText)
+// ============================================================
+
+const CAPTURE_SYSTEM = `Ты — ассистент директора по продукту. Твоя задача — разобрать свободный текст пользователя и превратить его в одну структурированную запись.
+
+Сначала определи ТИП записи:
+• "topic" — тема, которую нужно обсудить с конкретным человеком (упомянут коллега, встреча, "обсудить с…", "спросить у…").
+• "task"  — задача для самого пользователя (нужно что-то сделать).
+• "note"  — заметка, мысль, идея, факт без явного действия и без собеседника.
+
+Определяй СРОЧНОСТЬ (urgency) и ВАЖНОСТЬ (importance) по ключевым словам:
+СРОЧНОСТЬ:
+• "urgent"  — "срочно", "горит", "сегодня", "завтра", "немедленно", "asap".
+• "high"    — "на этой неделе", "в конце недели", "до пятницы", "скоро".
+• "medium"  — "на следующей неделе", "через неделю", конкретная дата без спешки.
+• "low"     — "через месяц", "не горит", "когда-нибудь", "потом".
+ВАЖНОСТЬ:
+• "critical" — "критично", "блокер", "очень важно", "обязательно".
+• "high"     — "важно", "приоритет".
+• "medium"   — по умолчанию, если важность не подчёркнута.
+• "low"      — "мелочь", "необязательно", "если будет время".
+
+ДЕДЛАЙН (deadline): переводи относительные даты в ISO YYYY-MM-DD относительно сегодняшней даты, которую тебе передадут. Если даты нет — null.
+
+ПРИОРИТЕТ задачи (priority): выведи из срочности и важности —
+P1 (срочно и важно), P2 (важно, не срочно), P3 (срочно, не важно), P4 (ни то, ни другое).
+
+Верни ТОЛЬКО валидный JSON без пояснений и без markdown. Формат по типу:
+
+topic: {"type":"topic","person":"имя","topic":"суть темы","urgency":"...","importance":"...","deadline":null|"YYYY-MM-DD","tags":["..."]}
+task:  {"type":"task","title":"название","description":"что конкретно сделать","expectedResult":"образ результата","deadline":null|"YYYY-MM-DD","priority":"P1|P2|P3|P4","urgency":"...","importance":"...","tags":["..."]}
+note:  {"type":"note","title":"заголовок","tags":["..."]}
+
+Не выдумывай данные, которых нет в тексте: отсутствующие строки оставляй пустыми "", отсутствующие даты — null, теги — [].`;
+
+/**
+ * Разбирает свободный текст в структурированный объект записи.
+ * @param {string} rawText
+ * @returns {Promise<object>} объект с полем type и извлечёнными данными
+ */
+export async function processCapture(rawText) {
+  const user = `Сегодняшняя дата: ${todayISO()}.\n\nТекст пользователя:\n"""${rawText}"""\n\nРазбери и верни JSON.`;
+  const text = await callClaude(CAPTURE_SYSTEM, user, { maxTokens: 1024 });
+  const result = safeParseJSON(text);
+  // Сохраняем исходный текст для трассируемости.
+  result.rawText = rawText;
+  return result;
+}
+
+// ============================================================
+// ФУНКЦИЯ 2: processQuery(queryText, allData)
+// ============================================================
+
+const QUERY_SYSTEM = `Ты — поисковый ассистент директора по продукту. Тебе дают запрос на естественном языке и массив записей (JSON): тип "topic" (темы для обсуждения с людьми), "task" (задачи), "note" (заметки).
+
+Найди записи, релевантные запросу, и отсортируй их по полезности для пользователя
+(учитывай совпадение по человеку/теме/проекту, срочность, важность, дедлайн).
+
+Верни ТОЛЬКО валидный JSON без markdown в формате:
+{"explanation":"короткое объяснение, как ты отфильтровал и отсортировал","resultIds":["id1","id2", ...]}
+
+resultIds — id релевантных записей строго в порядке от самой релевантной к наименее.
+Если ничего не подходит — resultIds: [] и поясни это в explanation. Используй только переданные id, ничего не выдумывай.`;
+
+/**
+ * Находит, фильтрует и сортирует релевантные записи под запрос пользователя.
+ * @param {string} queryText
+ * @param {Array<object>} allData  все записи из БД
+ * @returns {Promise<{explanation: string, results: object[]}>}
+ */
+export async function processQuery(queryText, allData) {
+  // Компактная проекция, чтобы не раздувать контекст лишними полями.
+  const compact = (allData || []).map((e) => ({
+    id: e.id,
+    type: e.type,
+    person: e.person || null,
+    topic: e.topic || null,
+    title: e.title || null,
+    urgency: e.urgency || null,
+    importance: e.importance || null,
+    priority: e.priority || null,
+    status: e.status || null,
+    deadline: e.deadline || null,
+    relatedPeople: e.relatedPeople || [],
+    relatedProjects: e.relatedProjects || [],
+    tags: e.tags || [],
+  }));
+
+  const user = `Запрос: "${queryText}"\n\nЗаписи (JSON):\n${JSON.stringify(compact)}`;
+  const text = await callClaude(QUERY_SYSTEM, user, { maxTokens: 1024 });
+  const parsed = safeParseJSON(text);
+
+  // Восстанавливаем полные записи в порядке, заданном моделью.
+  const byId = new Map((allData || []).map((e) => [e.id, e]));
+  const results = (parsed.resultIds || [])
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+
+  return { explanation: parsed.explanation || '', results };
+}
+
+// ============================================================
+// ФУНКЦИЯ 3: generateDailySummary(allData)
+// ============================================================
+
+const SUMMARY_SYSTEM = `Ты — личный ассистент директора по продукту. На основе всех записей сформируй краткую сводку на сегодня.
+
+Учитывай типы записей: "task" (задачи со статусом и приоритетом P1-P4), "topic" (темы для обсуждения с людьми, со срочностью/важностью), "note" (заметки).
+Сегодняшнюю дату тебе передадут — выделяй просроченные и сегодняшние дедлайны.
+
+Верни ТОЛЬКО валидный JSON без markdown в формате:
+{
+  "greeting":"короткое приветствие/общая фраза",
+  "urgentTasks":[{"id":"...","title":"...","why":"почему срочно"}],
+  "upcomingTopics":[{"id":"...","person":"...","topic":"...","why":"почему обсудить скоро"}],
+  "todayFocus":["3-5 пунктов: что важнее всего сделать сегодня"],
+  "summary":"связный абзац-сводка на 2-3 предложения"
+}
+
+Не включай выполненные задачи (status "done") и обсуждённые темы (status "discussed"). Используй только реальные id из данных. Если данных мало — верни пустые массивы, но заполни summary.`;
+
+/**
+ * Формирует краткую сводку на день: срочные задачи, темы для ближайших встреч,
+ * фокус на сегодня.
+ * @param {Array<object>} allData
+ * @returns {Promise<object>} { greeting, urgentTasks, upcomingTopics, todayFocus, summary }
+ */
+export async function generateDailySummary(allData) {
+  const compact = (allData || []).map((e) => ({
+    id: e.id,
+    type: e.type,
+    person: e.person || null,
+    topic: e.topic || null,
+    title: e.title || null,
+    urgency: e.urgency || null,
+    importance: e.importance || null,
+    priority: e.priority || null,
+    status: e.status || null,
+    deadline: e.deadline || null,
+  }));
+
+  const user = `Сегодняшняя дата: ${todayISO()}.\n\nВсе записи (JSON):\n${JSON.stringify(compact)}\n\nСформируй сводку на день.`;
+  const text = await callClaude(SUMMARY_SYSTEM, user, { maxTokens: 1500 });
+  return safeParseJSON(text);
 }

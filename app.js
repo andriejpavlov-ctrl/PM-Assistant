@@ -3,7 +3,7 @@
 // topic (обсудить с коллегой) | task (задача) | note (заметка).
 
 import * as store from './storage.js';
-import { parseCapture, ask } from './agent.js';
+import { processCapture, processQuery, generateDailySummary } from './agent.js';
 
 // config.js (необязательный) может задать window.PM_CONFIG = { apiKey, model }.
 const fileConfig = window.PM_CONFIG || {};
@@ -21,6 +21,11 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Прокинуть сохранённый ключ в window.CLAUDE_API_KEY, откуда его читает agent.js. */
+function syncApiKey() {
+  window.CLAUDE_API_KEY = store.getSettings().apiKey || '';
 }
 
 /** Уровень важности/срочности/приоритета -> CSS-класс цвета. */
@@ -55,6 +60,7 @@ function init() {
   if (!settings.apiKey && fileConfig.apiKey) store.updateSettings({ apiKey: fileConfig.apiKey });
   if (fileConfig.model && settings.model === 'claude-opus-4-8') store.updateSettings({ model: fileConfig.model });
   applyTheme(store.getSettings().theme);
+  syncApiKey();
 
   bindNav();
   bindCapture();
@@ -106,10 +112,9 @@ async function onParse() {
   setBusy(btn, status, 'Claude разбирает заметки…');
 
   try {
-    const { apiKey, model } = store.getSettings();
-    // Передаём имена известных коллег для подсказки распознавания.
-    const people = [...new Set(store.getAll().flatMap((e) => (e.type === 'topic' ? [e.person] : e.relatedPeople || [])).filter(Boolean))];
-    drafts = await parseCapture({ apiKey, model, rawText: raw, people, today: todayISO() });
+    // processCapture возвращает одну структурированную запись.
+    const result = await processCapture(raw);
+    drafts = result && result.type ? [result] : [];
     status.hidden = true;
     renderDrafts();
     if (!drafts.length) showStatus(status, 'Ничего не удалось извлечь — попробуй переформулировать.');
@@ -194,6 +199,49 @@ function bindTasks() {
       renderItems();
     })
   );
+  $('#summary-btn').addEventListener('click', onSummary);
+}
+
+// ===== Сводка дня =====
+async function onSummary() {
+  const btn = $('#summary-btn');
+  const box = $('#daily-summary');
+  btn.disabled = true;
+  btn.textContent = 'Готовлю сводку…';
+  try {
+    const s = await generateDailySummary(store.getAll());
+    renderSummary(box, s);
+  } catch (e) {
+    box.textContent = e.message;
+    box.classList.add('is-error');
+    box.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Сводка дня ✦';
+  }
+}
+
+function renderSummary(box, s) {
+  box.classList.remove('is-error');
+  box.innerHTML = '';
+
+  if (s.greeting) box.appendChild(el('p', 'summary-greeting', s.greeting));
+  if (s.summary) box.appendChild(el('p', 'card-body', s.summary));
+
+  const section = (heading, rows) => {
+    if (!rows || !rows.length) return;
+    box.appendChild(el('h3', 'summary-h', heading));
+    const ul = document.createElement('ul');
+    ul.className = 'summary-list';
+    rows.forEach((r) => ul.appendChild(el('li', '', r)));
+    box.appendChild(ul);
+  };
+
+  section('🔥 Срочные задачи', (s.urgentTasks || []).map((t) => `${t.title}${t.why ? ` — ${t.why}` : ''}`));
+  section('🗣 Ближайшие обсуждения', (s.upcomingTopics || []).map((t) => `${t.person ? t.person + ': ' : ''}${t.topic}${t.why ? ` — ${t.why}` : ''}`));
+  section('🎯 Фокус на сегодня', s.todayFocus || []);
+
+  box.hidden = false;
 }
 
 function passesFilter(e) {
@@ -320,18 +368,13 @@ async function onFind() {
   setBusy(btn, status, 'Claude думает…');
 
   try {
-    const { apiKey, model } = store.getSettings();
-    const entities = store.getAll();
-    const { answer, relevantIds } = await ask({ apiKey, model, question, entities, today: todayISO() });
+    const { explanation, results } = await processQuery(question, store.getAll());
 
     status.hidden = true;
-    answerEl.textContent = answer;
-    answerEl.hidden = false;
+    answerEl.textContent = explanation || (results.length ? '' : 'Ничего не найдено.');
+    answerEl.hidden = !answerEl.textContent;
 
-    relevantIds
-      .map((id) => store.getById(id))
-      .filter(Boolean)
-      .forEach((e) => resultsEl.appendChild(renderItemCard(e)));
+    results.forEach((e) => resultsEl.appendChild(renderItemCard(e)));
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
@@ -357,6 +400,7 @@ function bindSettings() {
       apiKey: $('#api-key-input').value.trim(),
       model: $('#model-input').value.trim() || 'claude-opus-4-8',
     });
+    syncApiKey();
     modal.hidden = true;
   });
   $('#export-btn').addEventListener('click', exportData);
@@ -378,6 +422,13 @@ function badge(text, cls) {
   el.className = `badge ${cls}`;
   el.textContent = text;
   return el;
+}
+
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text != null) node.textContent = text;
+  return node;
 }
 
 function metaSpan(text) {
