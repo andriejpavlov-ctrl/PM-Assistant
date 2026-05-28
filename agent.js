@@ -66,45 +66,69 @@ function getToolInput(response, toolName) {
 }
 
 // ===== Инструмент для структурированного разбора захвата =====
+// Один общий элемент с дискриминатором type; поля каждого типа — опциональны,
+// заполняются по релевантности. Соответствует фабрикам в storage.js.
 const EXTRACT_TOOL = {
-  name: 'extract_items',
-  description: 'Сохранить структурированные элементы, извлечённые из заметок пользователя.',
+  name: 'extract_entities',
+  description: 'Сохранить структурированные сущности, извлечённые из заметок директора по продукту.',
   input_schema: {
     type: 'object',
     properties: {
-      items: {
+      entities: {
         type: 'array',
         items: {
           type: 'object',
           properties: {
-            type: { type: 'string', enum: ['task', 'note', 'discussion'], description: 'task — действие; note — мысль/факт; discussion — тема для 1:1 с человеком' },
-            title: { type: 'string', description: 'Короткий заголовок (до ~80 символов)' },
-            body: { type: 'string', description: 'Доп. детали или контекст, может быть пустым' },
-            priority: { type: 'string', enum: ['low', 'medium', 'high'] },
-            due: { type: ['string', 'null'], description: 'Дедлайн ISO YYYY-MM-DD или null' },
-            person: { type: ['string', 'null'], description: 'Имя коллеги для discussion, иначе null' },
+            type: {
+              type: 'string',
+              enum: ['topic', 'task', 'note'],
+              description: 'topic — тема для обсуждения с коллегой; task — задача для себя; note — общая заметка/идея',
+            },
+            // Общие
             tags: { type: 'array', items: { type: 'string' } },
+            aiSummary: { type: 'string', description: 'Краткое резюме сути в 1 предложение' },
+            // TOPIC
+            person: { type: 'string', description: '[topic] имя коллеги для обсуждения' },
+            topic: { type: 'string', description: '[topic] суть темы' },
+            urgency: { type: 'string', enum: ['urgent', 'high', 'medium', 'low'], description: '[topic] срочность' },
+            importance: { type: 'string', enum: ['critical', 'high', 'medium', 'low'], description: '[topic] важность' },
+            // TASK
+            title: { type: 'string', description: '[task|note] короткое название' },
+            description: { type: 'string', description: '[task] что конкретно сделать' },
+            expectedResult: { type: 'string', description: '[task] образ результата' },
+            priority: { type: 'string', enum: ['P1', 'P2', 'P3', 'P4'], description: '[task] приоритет' },
+            // NOTE
+            content: { type: 'string', description: '[note] содержание заметки' },
+            // TASK + NOTE
+            relatedPeople: { type: 'array', items: { type: 'string' }, description: '[task|note] упомянутые люди' },
+            relatedProjects: { type: 'array', items: { type: 'string' }, description: '[task|note] упомянутые проекты' },
+            // Общий дедлайн (topic, task)
+            deadline: { type: ['string', 'null'], description: 'Дедлайн ISO YYYY-MM-DD или null' },
           },
-          required: ['type', 'title'],
+          required: ['type'],
         },
       },
     },
-    required: ['items'],
+    required: ['entities'],
   },
 };
 
 /**
- * Разобрать сырой текст на черновики элементов.
- * Возвращает массив объектов вида storage-draft (person -> строка имени).
+ * Разобрать сырой текст на черновики сущностей (topic | task | note).
+ * Каждый черновик кладёт rawText = исходный текст и готов к store.createEntity.
+ * Возвращает массив draft-объектов.
  */
 export async function parseCapture({ apiKey, model, rawText, people = [], today }) {
-  const peopleHint = people.length ? `Известные коллеги: ${people.map((p) => p.name).join(', ')}.` : '';
+  const peopleHint = people.length ? `Известные коллеги: ${people.join(', ')}.` : '';
   const system =
-    `Ты — ассистент директора по продукту. Разбирай сырые заметки на отдельные элементы: ` +
-    `задачи (task), заметки (note) и темы для обсуждения 1:1 (discussion). ` +
-    `Сегодня ${today}. Относительные даты («до пятницы», «завтра») переводи в ISO YYYY-MM-DD. ` +
-    `Если упомянут человек для обсуждения — клади имя в person. ` +
-    `Не выдумывай детали, которых нет. Отвечай ТОЛЬКО через инструмент extract_items. ${peopleHint}`;
+    `Ты — ассистент директора по продукту. Разбери сырые заметки на отдельные сущности трёх типов:\n` +
+    `• topic — тема для обсуждения с конкретным коллегой (заполни person, topic, urgency, importance);\n` +
+    `• task — задача для себя (заполни title, description, expectedResult, priority);\n` +
+    `• note — общая заметка/идея без явного действия (заполни title, content).\n` +
+    `Сегодня ${today}. Относительные даты («до пятницы», «завтра») переводи в ISO YYYY-MM-DD, иначе deadline=null. ` +
+    `Заполняй только релевантные типу поля; для task/note выноси упомянутых людей и проекты в relatedPeople/relatedProjects. ` +
+    `Добавляй краткий aiSummary. Не выдумывай детали, которых нет в тексте. ` +
+    `Отвечай ТОЛЬКО через инструмент extract_entities. ${peopleHint}`;
 
   const response = await callClaude({
     apiKey,
@@ -112,37 +136,38 @@ export async function parseCapture({ apiKey, model, rawText, people = [], today 
     system,
     messages: [{ role: 'user', content: rawText }],
     tools: [EXTRACT_TOOL],
-    tool_choice: { type: 'tool', name: 'extract_items' },
+    tool_choice: { type: 'tool', name: 'extract_entities' },
     max_tokens: 2048,
   });
 
-  const input = getToolInput(response, 'extract_items');
-  return input?.items || [];
+  const input = getToolInput(response, 'extract_entities');
+  const entities = input?.entities || [];
+  // Прокинуть исходный текст в каждый черновик.
+  return entities.map((e) => ({ ...e, rawText }));
 }
 
 /**
  * Ответить на вопрос пользователя по всей базе элементов.
  * Возвращает { answer, relevantIds }.
  */
-export async function ask({ apiKey, model, question, items, today }) {
-  // Компактная проекция элементов, чтобы не раздувать контекст.
-  const compact = items.map((it) => ({
-    id: it.id,
-    type: it.type,
-    title: it.title,
-    body: it.body,
-    status: it.status,
-    priority: it.priority,
-    due: it.due,
-    person: it.personName || null,
-    tags: it.tags,
-  }));
+export async function ask({ apiKey, model, question, entities, today }) {
+  // Компактная проекция: только значимые поля каждого типа.
+  const compact = entities.map((e) => {
+    const base = { id: e.id, type: e.type, tags: e.tags, deadline: e.deadline || null };
+    if (e.type === 'topic') {
+      return { ...base, person: e.person, topic: e.topic, urgency: e.urgency, importance: e.importance, status: e.status, summary: e.aiSummary };
+    }
+    if (e.type === 'task') {
+      return { ...base, title: e.title, description: e.description, expectedResult: e.expectedResult, priority: e.priority, status: e.status, people: e.relatedPeople, projects: e.relatedProjects, summary: e.aiSummary };
+    }
+    return { ...base, title: e.title, content: e.content, people: e.relatedPeople, projects: e.relatedProjects, summary: e.aiSummary };
+  });
 
   const system =
     `Ты — ассистент директора по продукту. Сегодня ${today}. ` +
-    `Отвечай на вопрос, опираясь ТОЛЬКО на переданные элементы (JSON ниже). ` +
+    `Отвечай на вопрос, опираясь ТОЛЬКО на переданные сущности (JSON ниже): topic — темы для 1:1, task — задачи, note — заметки. ` +
     `Будь краток и по делу. В конце ответа на отдельной строке выведи: ` +
-    `RELEVANT_IDS: id1, id2 — перечисли id элементов, на которые опираешься (или "нет").`;
+    `RELEVANT_IDS: id1, id2 — перечисли id сущностей, на которые опираешься (или "нет").`;
 
   const response = await callClaude({
     apiKey,
@@ -151,7 +176,7 @@ export async function ask({ apiKey, model, question, items, today }) {
     messages: [
       {
         role: 'user',
-        content: `Элементы (JSON):\n${JSON.stringify(compact)}\n\nВопрос: ${question}`,
+        content: `Сущности (JSON):\n${JSON.stringify(compact)}\n\nВопрос: ${question}`,
       },
     ],
     max_tokens: 1024,
@@ -167,7 +192,7 @@ export async function ask({ apiKey, model, question, items, today }) {
     match[1]
       .split(/[,\s]+/)
       .map((s) => s.trim())
-      .filter((s) => s.startsWith('itm_'))
+      .filter((s) => /^(top|tsk|not)_/.test(s))
       .forEach((id) => relevantIds.push(id));
   }
 

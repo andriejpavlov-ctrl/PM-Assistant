@@ -1,5 +1,6 @@
 // app.js — контроллер. Единственный модуль, который трогает DOM.
-// Связывает UI ⟷ storage.js ⟷ agent.js.
+// Связывает UI ⟷ storage.js ⟷ agent.js. Работает с тремя типами сущностей:
+// topic (обсудить с коллегой) | task (задача) | note (заметка).
 
 import * as store from './storage.js';
 import { parseCapture, ask } from './agent.js';
@@ -7,10 +8,12 @@ import { parseCapture, ask } from './agent.js';
 // config.js (необязательный) может задать window.PM_CONFIG = { apiKey, model }.
 const fileConfig = window.PM_CONFIG || {};
 
-const TYPE_LABEL = { task: 'Задача', note: 'Заметка', discussion: 'Обсудить' };
-const PRIO_LABEL = { high: 'высокий', medium: 'средний', low: 'низкий' };
+const TYPE_LABEL = { topic: 'Обсудить', task: 'Задача', note: 'Заметка' };
+const URGENCY_LABEL = { urgent: 'срочно', high: 'высокая', medium: 'средняя', low: 'низкая' };
+const IMPORTANCE_LABEL = { critical: 'критично', high: 'высокая', medium: 'средняя', low: 'низкая' };
+const TASK_STATUS_LABEL = { todo: 'к выполнению', in_progress: 'в работе', done: 'готово', blocked: 'заблок.' };
 
-let draftItems = []; // черновики после разбора, ещё не сохранены
+let drafts = []; // черновики после разбора, ещё не сохранены
 const filters = { type: 'all', status: 'active' };
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -20,16 +23,37 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Уровень важности/срочности/приоритета -> CSS-класс цвета. */
+function sevClass(level) {
+  if (['urgent', 'critical', 'high', 'P1'].includes(level)) return 'badge-prio-high';
+  if (['medium', 'P2'].includes(level)) return 'badge-prio-medium';
+  return 'badge-prio-low';
+}
+
+/** Закрыта ли сущность (выполнена/обсуждена). */
+function isClosed(e) {
+  return (e.type === 'task' && e.status === 'done') || (e.type === 'topic' && e.status === 'discussed');
+}
+
+// Заголовок и тело для отображения зависят от типа.
+function displayTitle(e) {
+  return e.type === 'topic' ? e.topic || '(без темы)' : e.title || '(без названия)';
+}
+function displayBody(e) {
+  if (e.type === 'topic') return e.aiSummary || '';
+  if (e.type === 'task') return [e.description, e.expectedResult && `🎯 ${e.expectedResult}`].filter(Boolean).join('\n');
+  return e.content || '';
+}
+function setDraftTitle(draft, value) {
+  if (draft.type === 'topic') draft.topic = value;
+  else draft.title = value;
+}
+
 // ===== Инициализация =====
 function init() {
-  // Применить сохранённые настройки (с фолбэком на config.js).
   const settings = store.getSettings();
-  if (!settings.apiKey && fileConfig.apiKey) {
-    store.updateSettings({ apiKey: fileConfig.apiKey });
-  }
-  if (fileConfig.model && settings.model === 'claude-opus-4-8') {
-    store.updateSettings({ model: fileConfig.model });
-  }
+  if (!settings.apiKey && fileConfig.apiKey) store.updateSettings({ apiKey: fileConfig.apiKey });
+  if (fileConfig.model && settings.model === 'claude-opus-4-8') store.updateSettings({ model: fileConfig.model });
   applyTheme(store.getSettings().theme);
 
   bindNav();
@@ -44,9 +68,7 @@ function init() {
 
 // ===== Навигация по вкладкам =====
 function bindNav() {
-  $$('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-  });
+  $$('.tab').forEach((tab) => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
 }
 
 function switchTab(name) {
@@ -76,8 +98,7 @@ function bindCapture() {
 }
 
 async function onParse() {
-  const input = $('#capture-input');
-  const raw = input.value.trim();
+  const raw = $('#capture-input').value.trim();
   if (!raw) return;
 
   const btn = $('#parse-btn');
@@ -86,17 +107,12 @@ async function onParse() {
 
   try {
     const { apiKey, model } = store.getSettings();
-    const items = await parseCapture({
-      apiKey,
-      model,
-      rawText: raw,
-      people: store.getPeople(),
-      today: todayISO(),
-    });
-    draftItems = items;
+    // Передаём имена известных коллег для подсказки распознавания.
+    const people = [...new Set(store.getAll().flatMap((e) => (e.type === 'topic' ? [e.person] : e.relatedPeople || [])).filter(Boolean))];
+    drafts = await parseCapture({ apiKey, model, rawText: raw, people, today: todayISO() });
     status.hidden = true;
     renderDrafts();
-    if (!items.length) showStatus(status, 'Ничего не удалось извлечь — попробуй переформулировать.');
+    if (!drafts.length) showStatus(status, 'Ничего не удалось извлечь — попробуй переформулировать.');
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
@@ -108,12 +124,12 @@ function renderDrafts() {
   const wrap = $('#drafts');
   const list = $('#drafts-list');
   list.innerHTML = '';
-  if (!draftItems.length) {
+  if (!drafts.length) {
     wrap.hidden = true;
     return;
   }
   wrap.hidden = false;
-  draftItems.forEach((draft, idx) => list.appendChild(renderDraftCard(draft, idx)));
+  drafts.forEach((draft, idx) => list.appendChild(renderDraftCard(draft, idx)));
 }
 
 function renderDraftCard(draft, idx) {
@@ -123,27 +139,20 @@ function renderDraftCard(draft, idx) {
   const main = document.createElement('div');
   main.className = 'card-main';
 
-  // Редактируемый заголовок.
+  // Редактируемый заголовок (topic.topic либо title).
   const title = document.createElement('input');
   title.className = 'text-input draft-edit';
-  title.value = draft.title || '';
-  title.addEventListener('input', () => (draftItems[idx].title = title.value));
+  title.value = displayTitle(draft);
+  title.addEventListener('input', () => setDraftTitle(drafts[idx], title.value));
   main.appendChild(title);
 
-  // Мета: тип, приоритет, дедлайн, человек.
-  const meta = document.createElement('div');
-  meta.className = 'card-meta';
-  meta.appendChild(badge(TYPE_LABEL[draft.type] || draft.type, `badge-${draft.type}`));
-  if (draft.type === 'task') meta.appendChild(badge(PRIO_LABEL[draft.priority] || 'средний', `badge-prio-${draft.priority || 'medium'}`));
-  if (draft.due) meta.appendChild(metaSpan(`⏱ ${draft.due}`));
-  if (draft.person) meta.appendChild(metaSpan(`👤 ${draft.person}`));
-  (draft.tags || []).forEach((t) => meta.appendChild(metaSpan(`#${t}`)));
-  main.appendChild(meta);
+  main.appendChild(buildMeta(draft));
 
-  if (draft.body) {
+  const bodyText = displayBody(draft);
+  if (bodyText) {
     const body = document.createElement('p');
     body.className = 'card-body';
-    body.textContent = draft.body;
+    body.textContent = bodyText;
     main.appendChild(body);
   }
 
@@ -151,7 +160,7 @@ function renderDraftCard(draft, idx) {
   actions.className = 'card-actions';
   const del = iconBtn('✕', 'Убрать из черновиков');
   del.addEventListener('click', () => {
-    draftItems.splice(idx, 1);
+    drafts.splice(idx, 1);
     renderDrafts();
   });
   actions.appendChild(del);
@@ -161,26 +170,15 @@ function renderDraftCard(draft, idx) {
 }
 
 function onSaveAllDrafts() {
-  draftItems.forEach((draft) => {
-    const personId = draft.person ? store.ensurePerson(draft.person)?.id : null;
-    store.addItem({
-      type: draft.type,
-      title: draft.title,
-      body: draft.body || '',
-      priority: draft.priority || 'medium',
-      due: draft.due || null,
-      personId,
-      tags: draft.tags || [],
-    });
-  });
-  draftItems = [];
+  drafts.forEach((draft) => store.createEntity(draft));
+  drafts = [];
   renderDrafts();
   $('#capture-input').value = '';
   showStatus($('#capture-status'), 'Сохранено ✓ — смотри на вкладке «Задачи».');
   renderItems();
 }
 
-// ===== Вкладка «Задачи» =====
+// ===== Вкладка «Задачи» (список всех сущностей) =====
 function bindTasks() {
   $$('#type-filters .chip').forEach((c) =>
     c.addEventListener('click', () => {
@@ -198,36 +196,38 @@ function bindTasks() {
   );
 }
 
-function passesFilter(item) {
-  if (filters.type !== 'all' && item.type !== filters.type) return false;
-  if (filters.status === 'active' && (item.status === 'done' || item.status === 'archived')) return false;
-  if (filters.status === 'done' && item.status !== 'done') return false;
+function passesFilter(e) {
+  if (filters.type !== 'all' && e.type !== filters.type) return false;
+  if (filters.status === 'active' && isClosed(e)) return false;
+  if (filters.status === 'done' && !isClosed(e)) return false;
   return true;
 }
 
 function renderItems() {
   const list = $('#items-list');
   const empty = $('#items-empty');
-  const people = store.getPeople();
-  const items = store.getItems().filter(passesFilter);
+  const entities = store.getAll().filter(passesFilter);
 
   list.innerHTML = '';
-  empty.hidden = items.length > 0;
-  items.forEach((item) => list.appendChild(renderItemCard(item, people)));
+  empty.hidden = entities.length > 0;
+  entities.forEach((e) => list.appendChild(renderItemCard(e)));
 }
 
-function renderItemCard(item, people) {
+function renderItemCard(e) {
   const li = document.createElement('li');
-  li.className = 'card' + (item.status === 'done' ? ' is-done' : '');
+  li.className = 'card' + (isClosed(e) ? ' is-done' : '');
 
-  // Чекбокс «готово» только для задач.
-  if (item.type === 'task') {
+  // Чекбокс закрытия: task -> done, topic -> discussed.
+  if (e.type === 'task' || e.type === 'topic') {
     const check = document.createElement('input');
     check.type = 'checkbox';
     check.className = 'card-check';
-    check.checked = item.status === 'done';
+    check.checked = isClosed(e);
     check.addEventListener('change', () => {
-      store.updateItem(item.id, { status: check.checked ? 'done' : 'open' });
+      const patch = e.type === 'task'
+        ? { status: check.checked ? 'done' : 'todo' }
+        : { status: check.checked ? 'discussed' : 'open' };
+      store.update(e.id, patch);
       renderItems();
     });
     li.appendChild(check);
@@ -238,45 +238,59 @@ function renderItemCard(item, people) {
 
   const title = document.createElement('p');
   title.className = 'card-title';
-  title.textContent = item.title;
+  title.textContent = displayTitle(e);
   main.appendChild(title);
 
-  if (item.body) {
+  const bodyText = displayBody(e);
+  if (bodyText) {
     const body = document.createElement('p');
     body.className = 'card-body';
-    body.textContent = item.body;
+    body.textContent = bodyText;
     main.appendChild(body);
   }
 
-  const meta = document.createElement('div');
-  meta.className = 'card-meta';
-  meta.appendChild(badge(TYPE_LABEL[item.type] || item.type, `badge-${item.type}`));
-  if (item.type === 'task') meta.appendChild(badge(PRIO_LABEL[item.priority] || 'средний', `badge-prio-${item.priority}`));
-  if (item.due) {
-    const overdue = item.status !== 'done' && item.due < todayISO();
-    const span = metaSpan(`⏱ ${item.due}`);
-    span.classList.add('meta-due');
-    if (overdue) span.classList.add('is-overdue');
-    meta.appendChild(span);
-  }
-  if (item.personId) {
-    const person = people.find((p) => p.id === item.personId);
-    if (person) meta.appendChild(metaSpan(`👤 ${person.name}`));
-  }
-  (item.tags || []).forEach((t) => meta.appendChild(metaSpan(`#${t}`)));
-  main.appendChild(meta);
+  main.appendChild(buildMeta(e));
 
   const actions = document.createElement('div');
   actions.className = 'card-actions';
   const del = iconBtn('🗑', 'Удалить');
   del.addEventListener('click', () => {
-    store.deleteItem(item.id);
+    store.remove(e.id);
     renderItems();
   });
   actions.appendChild(del);
 
   li.append(main, actions);
   return li;
+}
+
+/** Построить блок мета-бейджей под конкретный тип (работает и для черновика, и для сохранённого). */
+function buildMeta(e) {
+  const meta = document.createElement('div');
+  meta.className = 'card-meta';
+  meta.appendChild(badge(TYPE_LABEL[e.type] || e.type, `badge-${e.type}`));
+
+  if (e.type === 'topic') {
+    if (e.urgency) meta.appendChild(badge(`⚡ ${URGENCY_LABEL[e.urgency] || e.urgency}`, sevClass(e.urgency)));
+    if (e.importance) meta.appendChild(badge(`★ ${IMPORTANCE_LABEL[e.importance] || e.importance}`, sevClass(e.importance)));
+    if (e.person) meta.appendChild(metaSpan(`👤 ${e.person}`));
+  } else if (e.type === 'task') {
+    if (e.priority) meta.appendChild(badge(e.priority, sevClass(e.priority)));
+    if (e.status && e.status !== 'done') meta.appendChild(metaSpan(`• ${TASK_STATUS_LABEL[e.status] || e.status}`));
+  }
+
+  if (e.deadline) {
+    const overdue = !isClosed(e) && e.deadline < todayISO();
+    const span = metaSpan(`⏱ ${e.deadline}`);
+    span.classList.add('meta-due');
+    if (overdue) span.classList.add('is-overdue');
+    meta.appendChild(span);
+  }
+
+  (e.relatedPeople || []).forEach((p) => meta.appendChild(metaSpan(`👤 ${p}`)));
+  (e.relatedProjects || []).forEach((p) => meta.appendChild(metaSpan(`📁 ${p}`)));
+  (e.tags || []).forEach((t) => meta.appendChild(metaSpan(`#${t}`)));
+  return meta;
 }
 
 // ===== Вкладка «Найти» =====
@@ -307,21 +321,17 @@ async function onFind() {
 
   try {
     const { apiKey, model } = store.getSettings();
-    const people = store.getPeople();
-    // Обогащаем элементы именем человека для контекста.
-    const items = store.getItems().map((it) => ({
-      ...it,
-      personName: people.find((p) => p.id === it.personId)?.name || null,
-    }));
-
-    const { answer, relevantIds } = await ask({ apiKey, model, question, items, today: todayISO() });
+    const entities = store.getAll();
+    const { answer, relevantIds } = await ask({ apiKey, model, question, entities, today: todayISO() });
 
     status.hidden = true;
     answerEl.textContent = answer;
     answerEl.hidden = false;
 
-    const relevant = relevantIds.map((id) => store.getItem(id)).filter(Boolean);
-    relevant.forEach((item) => resultsEl.appendChild(renderItemCard(item, people)));
+    relevantIds
+      .map((id) => store.getById(id))
+      .filter(Boolean)
+      .forEach((e) => resultsEl.appendChild(renderItemCard(e)));
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
