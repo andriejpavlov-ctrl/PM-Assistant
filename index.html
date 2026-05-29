@@ -13,9 +13,9 @@
       <h1>PM Assistant</h1>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="capture" aria-selected="true">📝 Захватить и найти</button>
-      <button class="tab" role="tab" data-tab="board" aria-selected="false">📋 Задачи и темы</button>
-      <button class="tab" role="tab" data-tab="archive" aria-selected="false">🗂 Архив</button>
+      <button class="tab" role="tab" data-tab="capture" aria-selected="true">🏠 Главная</button>
+      <button class="tab" role="tab" data-tab="board" aria-selected="false">🗂 Карточки</button>
+      <button class="tab" role="tab" data-tab="archive" aria-selected="false">🗄 Архив</button>
     </nav>
     <div class="topbar-actions">
       <button id="theme-toggle" class="icon-btn" title="Переключить тему" aria-label="Переключить тему">☾</button>
@@ -24,27 +24,18 @@
   </header>
 
   <main class="content">
-    <!-- ВКЛАДКА: ЗАХВАТИТЬ И НАЙТИ -->
+    <!-- ВКЛАДКА: ГЛАВНАЯ -->
     <section id="view-capture" class="view view-capture" data-view="capture">
-      <textarea
-        id="capture-input"
-        class="capture-input"
-        placeholder="Просто напишите, что у вас в голове 🧠
-
-Например: «Созвон с Наташей по бэклогу до пятницы» или «Подготовить отчёт по продажам»"
-      ></textarea>
-      <div class="capture-actions">
-        <span class="hint">⌘/Ctrl + Enter — обработать</span>
-        <button id="parse-btn" class="btn btn-primary">Обработать</button>
-      </div>
-      <div id="capture-status" class="status-line" hidden></div>
-      <div id="capture-result" class="capture-result"></div>
-
-      <!-- Поиск прямо здесь же -->
-      <div class="search-block">
+      <!-- Поиск (сверху) -->
+      <section class="home-block home-block--search">
+        <div class="home-block-head">
+          <span class="home-block-icon">🔍</span>
+          <h2 class="home-block-title">Поиск</h2>
+          <span class="home-block-hint">Спросите по своим записям</span>
+        </div>
         <div class="find-bar">
-          <input id="search-input" class="find-input" type="text" placeholder="🔍 Найти: «темы для Наташи», «что срочного на неделе?»…" />
-          <button id="search-btn" class="btn btn-primary">Найти</button>
+          <input id="search-input" class="find-input" type="text" placeholder="Например: «темы для Наташи», «что срочного на неделе?»" />
+          <button id="search-btn" class="btn">Найти</button>
         </div>
         <div class="find-suggestions">
           <button class="chip suggestion">Найди темы для Наташи Ивановой</button>
@@ -55,22 +46,32 @@
         <div id="search-status" class="status-line" hidden></div>
         <div id="search-answer" class="answer" hidden></div>
         <ul id="search-results" class="card-list"></ul>
-      </div>
+      </section>
 
-      <div class="capture-features">
-        <h3>Что умеет PM Assistant</h3>
-        <ul>
-          <li>🧠 <b>Превращает мысли в структуру.</b> Пишите свободным текстом — AI сам определит, это задача, тема для обсуждения или заметка.</li>
-          <li>👤 <b>Узнаёт людей и сроки.</b> Вытягивает коллегу, дедлайн, приоритет и теги из текста.</li>
-          <li>📋 <b>Раскладывает по канбану.</b> «Темы для обсуждения», «Мои задачи» и «Заметки» — с приоритетами P0–P4.</li>
-          <li>🎯 <b>Расставляет приоритеты.</b> Сортировка по матрице Эйзенхауэра (важность + срочность).</li>
-          <li>🔍 <b>Отвечает на вопросы.</b> «Что обсудить с Наташей?», «Что срочного на неделе?» — спросите в строке поиска выше.</li>
-          <li>🗂 <b>Хранит архив.</b> Удалённые из канбана записи не теряются — их можно вернуть.</li>
-        </ul>
-      </div>
+      <!-- Захват / обработка (снизу) -->
+      <section class="home-block home-block--capture">
+        <div class="home-block-head">
+          <span class="home-block-icon">📝</span>
+          <h2 class="home-block-title">Новая запись</h2>
+          <span class="home-block-hint">AI разложит на задачи, темы и заметки</span>
+        </div>
+        <textarea
+          id="capture-input"
+          class="capture-input"
+          placeholder="Просто напишите, что у вас в голове 🧠
+
+Например: «Созвон с Наташей по бэклогу до пятницы» или «Подготовить отчёт по продажам»"
+        ></textarea>
+        <div class="capture-actions">
+          <span class="hint">⌘/Ctrl + Enter — обработать</span>
+          <button id="parse-btn" class="btn btn-primary">Обработать</button>
+        </div>
+        <div id="capture-status" class="status-line" hidden></div>
+        <div id="capture-result" class="capture-result"></div>
+      </section>
     </section>
 
-    <!-- ВКЛАДКА 2: ЗАДАЧИ И ТЕМЫ -->
+    <!-- ВКЛАДКА: КАРТОЧКИ -->
     <section id="view-board" class="view" data-view="board" hidden>
       <div class="filters-panel">
         <div class="filter-group">
