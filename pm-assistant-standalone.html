@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PM Assistant</title>
+  <style>
+/* ===== Темы через CSS-переменные. Акцент — teal (Linear/Notion-стиль) ===== */
+:root {
+  --radius: 8px;
+  --gap: 16px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+[data-theme="dark"] {
+  --bg: #101113;
+  --bg-elev: #17181b;
+  --bg-elev-2: #1f2125;
+  --border: #2a2d33;
+  --text: #e7e9ee;
+  --text-dim: #9398a3;
+  --accent: #2dd4bf;          /* teal-400 */
+  --accent-hover: #14b8a6;
+  --accent-weak: rgba(45, 212, 191, 0.14);
+  --on-accent: #04201c;
+  --danger: #f87171;
+  --warn: #fbbf24;
+  --ok: #34d399;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="light"] {
+  --bg: #f7f8f8;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f0f1f2;
+  --border: #e4e6e9;
+  --text: #1a1d21;
+  --text-dim: #6b7280;
+  --accent: #0d9488;          /* teal-600 */
+  --accent-hover: #0f766e;
+  --accent-weak: rgba(13, 148, 136, 0.12);
+  --on-accent: #ffffff;
+  --danger: #dc2626;
+  --warn: #d97706;
+  --ok: #059669;
+  --shadow: 0 8px 30px rgba(20, 30, 40, 0.10);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ===== Шапка ===== */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 10px 18px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand .logo { color: var(--accent); font-size: 16px; }
+.brand h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+
+.tabs { display: flex; gap: 2px; margin-left: 10px; }
+.tab {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.tab:hover { color: var(--text); background: var(--bg-elev-2); }
+.tab[aria-selected="true"] { color: var(--accent); background: var(--accent-weak); }
+
+.topbar-actions { margin-left: auto; display: flex; gap: 4px; }
+.icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  width: 34px; height: 34px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 15px;
+}
+.icon-btn:hover { background: var(--bg-elev-2); color: var(--text); }
+
+/* ===== Контент ===== */
+.content { max-width: 1100px; margin: 0 auto; padding: 22px 18px 80px; }
+
+.panel {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+textarea, .text-input, .find-input, .capture-input, .select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 11px 12px;
+  font-family: inherit;
+  font-size: 15px;
+}
+textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-weak);
+}
+
+/* ===== Кнопки ===== */
+.btn {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: filter 0.15s, opacity 0.15s, background 0.15s;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn-primary:hover { background: var(--accent-hover); filter: none; }
+.btn-ghost { background: transparent; }
+.btn-sm { padding: 5px 10px; font-size: 12.5px; }
+.btn.is-active { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
+
+/* ===== Вкладка «Захватить» ===== */
+.view-capture { display: flex; flex-direction: column; }
+.capture-input {
+  min-height: 40vh;
+  resize: vertical;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.capture-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  gap: 12px;
+}
+.hint { color: var(--text-dim); font-size: 13px; }
+.capture-result { margin-top: 18px; }
+
+/* ===== Панель фильтров ===== */
+.filters-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.filter-group { display: flex; flex-direction: column; gap: 5px; }
+.filter-group > label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+.filter-group .select { min-width: 130px; padding: 7px 10px; font-size: 13.5px; }
+.sort-group { flex: 1; min-width: 220px; }
+.sort-toggles { display: flex; flex-wrap: wrap; gap: 5px; }
+.filters-panel #filter-reset { margin-left: auto; }
+
+/* ===== Чипы ===== */
+.chip {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+.chip:hover { color: var(--text); }
+.chip.is-active { background: var(--accent-weak); color: var(--accent); border-color: var(--accent); }
+.find-suggestions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ===== Доска ===== */
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.column {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.column-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+.column-head .count {
+  background: var(--bg-elev-2);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+/* ===== Карточки ===== */
+.card-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 13px;
+}
+.column .card { background: var(--bg); }
+.card.is-done { opacity: 0.5; }
+.card.is-done .card-title { text-decoration: line-through; }
+.card.is-progress { border-left: 3px solid var(--accent); }
+
+.card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.card-title { font-weight: 600; margin: 0 0 6px; font-size: 14.5px; }
+.card-body { color: var(--text-dim); font-size: 13.5px; margin: 0 0 8px; white-space: pre-wrap; }
+.card-meta { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.card-footer { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+
+/* Метки типа и приоритета */
+.badge {
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.badge-topic { background: rgba(251, 191, 36, 0.16); color: var(--warn); }
+.badge-task { background: var(--accent-weak); color: var(--accent); }
+.badge-note { background: var(--bg-elev-2); color: var(--text-dim); }
+.badge-P0 { background: var(--danger); color: #fff; }
+.badge-P1 { background: rgba(248, 113, 113, 0.16); color: var(--danger); }
+.badge-P2 { background: rgba(251, 191, 36, 0.16); color: var(--warn); }
+.badge-P3 { background: var(--accent-weak); color: var(--accent); }
+.badge-P4 { background: var(--bg-elev-2); color: var(--text-dim); }
+.badge-sev-high { background: rgba(248, 113, 113, 0.16); color: var(--danger); }
+.badge-sev-medium { background: rgba(251, 191, 36, 0.16); color: var(--warn); }
+.badge-sev-low { background: var(--bg-elev-2); color: var(--text-dim); }
+
+.meta-tag { font-size: 12px; color: var(--text-dim); }
+.meta-due.is-overdue { color: var(--danger); font-weight: 600; }
+
+/* Инлайн-форма редактирования */
+.edit-form { display: flex; flex-direction: column; gap: 8px; }
+.edit-form label { font-size: 12px; color: var(--text-dim); }
+.edit-form .text-input, .edit-form .select { padding: 7px 10px; font-size: 13.5px; }
+
+/* ===== Поиск / ответ ===== */
+.find-bar { display: flex; gap: 10px; }
+.find-input { flex: 1; }
+.answer {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+}
+
+/* ===== Статусы / пусто ===== */
+.status-line { color: var(--text-dim); font-size: 14px; padding: 8px 0; }
+.status-line.is-error { color: var(--danger); }
+.empty-col { color: var(--text-dim); font-size: 13px; text-align: center; padding: 18px 0; }
+
+/* ===== Модалка ===== */
+.modal {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+.modal-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  width: 100%; max-width: 440px;
+  box-shadow: var(--shadow);
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.modal-header h2 { margin: 0; font-size: 17px; }
+.modal-card .field-label { margin-top: 14px; }
+.modal-footer { display: flex; justify-content: space-between; margin-top: 22px; }
+
+/* ===== Мобильная адаптация (375px) ===== */
+@media (max-width: 860px) {
+  .board { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .content { padding: 16px 12px 64px; }
+  .topbar { flex-wrap: wrap; padding: 10px 12px; }
+  .tabs { order: 3; width: 100%; margin-left: 0; justify-content: space-between; }
+  .tab { flex: 1; text-align: center; padding: 7px 6px; font-size: 13px; }
+  .filters-panel { flex-direction: column; align-items: stretch; }
+  .filter-group .select { width: 100%; }
+  .filters-panel #filter-reset { margin-left: 0; }
+  .capture-input { min-height: 50vh; }
+  .find-bar { flex-direction: column; }
+}
+
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <h1>PM Assistant</h1>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="capture" aria-selected="true">📝 Захватить</button>
+      <button class="tab" role="tab" data-tab="board" aria-selected="false">📋 Задачи и темы</button>
+      <button class="tab" role="tab" data-tab="search" aria-selected="false">🔍 Найти</button>
+    </nav>
+    <div class="topbar-actions">
+      <button id="theme-toggle" class="icon-btn" title="Переключить тему" aria-label="Переключить тему">☾</button>
+      <button id="settings-btn" class="icon-btn" title="Настройки" aria-label="Настройки">⚙</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <!-- ВКЛАДКА 1: ЗАХВАТИТЬ -->
+    <section id="view-capture" class="view view-capture" data-view="capture">
+      <textarea
+        id="capture-input"
+        class="capture-input"
+        placeholder="Напишите что угодно: задачу, тему для обсуждения с коллегой, заметку...
+Например: «Обсудить с Наташей приоритизацию бэклога на следующий квартал, это важно сделать до пятницы» или «Написать регламент ревью спецификаций, срок — конец месяца»"
+      ></textarea>
+      <div class="capture-actions">
+        <span class="hint">⌘/Ctrl + Enter — обработать</span>
+        <button id="parse-btn" class="btn btn-primary">Обработать</button>
+      </div>
+      <div id="capture-status" class="status-line" hidden></div>
+      <div id="capture-result" class="capture-result"></div>
+    </section>
+
+    <!-- ВКЛАДКА 2: ЗАДАЧИ И ТЕМЫ -->
+    <section id="view-board" class="view" data-view="board" hidden>
+      <div class="filters-panel">
+        <div class="filter-group">
+          <label for="filter-person">Человек</label>
+          <select id="filter-person" class="select"><option value="">Все</option></select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-project">Проект</label>
+          <select id="filter-project" class="select"><option value="">Все</option></select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-priority">Приоритет</label>
+          <select id="filter-priority" class="select">
+            <option value="">Все</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+            <option value="P3">P3</option>
+            <option value="P4">P4</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-status">Статус</label>
+          <select id="filter-status" class="select">
+            <option value="all">Все</option>
+            <option value="open">Открытые</option>
+            <option value="in_progress">В работе</option>
+            <option value="done">Закрытые</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-daterange">Срок</label>
+          <select id="filter-daterange" class="select">
+            <option value="all">Любой</option>
+            <option value="overdue">Просроченные</option>
+            <option value="today">Сегодня</option>
+            <option value="this_week">Эта неделя</option>
+            <option value="this_month">Этот месяц</option>
+          </select>
+        </div>
+        <div class="filter-group sort-group">
+          <label>Сортировка</label>
+          <div class="sort-toggles" id="sort-toggles">
+            <button class="chip is-active" data-sort="default">по умолчанию</button>
+            <button class="chip" data-sort="deadline">по сроку</button>
+            <button class="chip" data-sort="priority">по приоритету</button>
+            <button class="chip" data-sort="person">по человеку</button>
+            <button class="chip" data-sort="project">по проекту</button>
+          </div>
+        </div>
+        <button id="filter-reset" class="btn btn-ghost">Сбросить</button>
+      </div>
+
+      <div class="board">
+        <div class="column">
+          <div class="column-head"><span>💬 Темы для обсуждения</span><span class="count" id="count-topics">0</span></div>
+          <ul id="col-topics" class="card-list"></ul>
+        </div>
+        <div class="column">
+          <div class="column-head"><span>✅ Мои задачи</span><span class="count" id="count-tasks">0</span></div>
+          <ul id="col-tasks" class="card-list"></ul>
+        </div>
+        <div class="column">
+          <div class="column-head"><span>🗒 Заметки</span><span class="count" id="count-notes">0</span></div>
+          <ul id="col-notes" class="card-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ВКЛАДКА 3: НАЙТИ -->
+    <section id="view-search" class="view" data-view="search" hidden>
+      <div class="panel">
+        <div class="find-bar">
+          <input id="search-input" class="find-input" type="text" placeholder="Спросите свободным текстом…" />
+          <button id="search-btn" class="btn btn-primary">Найти</button>
+        </div>
+        <div class="find-suggestions">
+          <button class="chip suggestion">Найди темы для Наташи Ивановой</button>
+          <button class="chip suggestion">Покажи задачи по проекту X</button>
+          <button class="chip suggestion">Что срочного на этой неделе?</button>
+          <button class="chip suggestion">Все задачи связанные с редизайном</button>
+        </div>
+      </div>
+      <div id="search-status" class="status-line" hidden></div>
+      <div id="search-answer" class="answer" hidden></div>
+      <ul id="search-results" class="card-list"></ul>
+    </section>
+  </main>
+
+  <!-- Модалка настроек -->
+  <div id="settings-modal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Настройки</h2>
+        <button id="settings-close" class="icon-btn" aria-label="Закрыть">✕</button>
+      </div>
+      <label class="field-label" for="api-key-input">Claude API ключ</label>
+      <input id="api-key-input" class="text-input" type="password" placeholder="sk-ant-..." autocomplete="off" />
+      <p class="hint">Хранится только в этом браузере (localStorage) и шлётся напрямую в api.anthropic.com.</p>
+
+      <label class="field-label" for="model-input">Модель</label>
+      <input id="model-input" class="text-input" type="text" placeholder="claude-3-5-haiku-20241022" />
+
+      <div class="modal-footer">
+        <button id="export-btn" class="btn btn-ghost">Экспорт данных</button>
+        <button id="settings-save" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+const store = (function () {
+// storage.js — слой хранения поверх localStorage.
+// Не знает о DOM и о Claude. Чистый CRUD + версия схемы.
+//
+// Модель данных (schemaVersion 2): три типа сущностей в одном массиве
+// `entities`, различаемые полем `type`: 'topic' | 'task' | 'note'.
+
+const STORAGE_KEY = 'pm_assistant_v2';
+const SCHEMA_VERSION = 2;
+
+// ===== Допустимые значения перечислений =====
+const ENUMS = {
+  topicUrgency: ['urgent', 'high', 'medium', 'low'],
+  topicImportance: ['critical', 'high', 'medium', 'low'],
+  topicStatus: ['open', 'discussed'],
+  taskPriority: ['P1', 'P2', 'P3', 'P4'],
+  taskStatus: ['todo', 'in_progress', 'done', 'blocked'],
+};
+
+const DEFAULT_STATE = {
+  schemaVersion: SCHEMA_VERSION,
+  settings: {
+    theme: 'dark',
+    model: 'claude-3-5-haiku-20241022',
+    apiKey: '',
+  },
+  entities: [],
+};
+
+let state = null;
+
+// ===== Утилиты =====
+
+/** Короткий уникальный id с префиксом типа. */
+function genId(prefix) {
+  const rand = (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
+  return `${prefix}_${rand.slice(0, 10)}`;
+}
+
+function nowISO() {
+  return new Date().toISOString();
+}
+
+/** Привести значение к допустимому из списка, иначе вернуть fallback. */
+function coerceEnum(value, allowed, fallback) {
+  return allowed.includes(value) ? value : fallback;
+}
+
+/** Гарантировать массив строк. */
+function strArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((v) => String(v).trim()).filter(Boolean);
+}
+
+/** Нормализовать дедлайн к 'YYYY-MM-DD' или null. */
+function normDeadline(value) {
+  if (!value) return null;
+  const s = String(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
+// ===== Загрузка / сохранение / миграции =====
+
+function load() {
+  if (state) return state;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      state = { ...structuredClone(DEFAULT_STATE), ...parsed };
+      state.settings = { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) };
+      state.entities = Array.isArray(parsed.entities) ? parsed.entities : [];
+    } else {
+      state = migrateFromV1() || structuredClone(DEFAULT_STATE);
+    }
+  } catch (e) {
+    console.error('Не удалось прочитать состояние, начинаю с чистого:', e);
+    state = structuredClone(DEFAULT_STATE);
+  }
+  return state;
+}
+
+/**
+ * Перенос данных со схемы v1 (ключ pm_assistant_v1, единый массив items),
+ * если v2 ещё не создан. discussion -> topic, task -> task, note -> note.
+ */
+function migrateFromV1() {
+  try {
+    const rawV1 = localStorage.getItem('pm_assistant_v1');
+    if (!rawV1) return null;
+    const v1 = JSON.parse(rawV1);
+    const people = v1.people || [];
+    const nameOf = (id) => people.find((p) => p.id === id)?.name || null;
+
+    const migrated = structuredClone(DEFAULT_STATE);
+    migrated.settings = { ...migrated.settings, ...(v1.settings || {}) };
+
+    (v1.items || []).forEach((it) => {
+      if (it.type === 'discussion') {
+        migrated.entities.push(buildTopic({
+          rawText: it.body || it.title, person: nameOf(it.personId) || '',
+          topic: it.title, deadline: it.due, tags: it.tags,
+          status: it.status === 'done' ? 'discussed' : 'open',
+          createdAt: it.createdAt,
+        }));
+      } else if (it.type === 'task') {
+        migrated.entities.push(buildTask({
+          rawText: it.body || it.title, title: it.title, description: it.body,
+          deadline: it.due, tags: it.tags,
+          relatedPeople: nameOf(it.personId) ? [nameOf(it.personId)] : [],
+          priority: { high: 'P1', medium: 'P2', low: 'P3' }[it.priority] || 'P3',
+          status: it.status === 'done' ? 'done' : 'todo',
+          createdAt: it.createdAt,
+        }));
+      } else {
+        migrated.entities.push(buildNote({
+          rawText: it.body || it.title, title: it.title, content: it.body,
+          tags: it.tags, createdAt: it.createdAt,
+        }));
+      }
+    });
+    return migrated;
+  } catch (e) {
+    console.warn('Миграция с v1 не удалась:', e);
+    return null;
+  }
+}
+
+function persist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error('Не удалось сохранить состояние:', e);
+  }
+}
+
+// ===== Фабрики сущностей (чистые, без записи в стор) =====
+
+function buildBase(prefix, type, draft) {
+  const ts = draft.createdAt || nowISO();
+  return {
+    id: genId(prefix),
+    type,
+    createdAt: ts,
+    updatedAt: ts,
+    rawText: draft.rawText || '',
+    tags: strArray(draft.tags),
+    aiSummary: draft.aiSummary || '',
+  };
+}
+
+function buildTopic(draft = {}) {
+  return {
+    ...buildBase('top', 'topic', draft),
+    person: (draft.person || '').trim(),
+    topic: draft.topic || draft.title || '(без темы)',
+    urgency: coerceEnum(draft.urgency, ENUMS.topicUrgency, 'medium'),
+    importance: coerceEnum(draft.importance, ENUMS.topicImportance, 'medium'),
+    deadline: normDeadline(draft.deadline),
+    status: coerceEnum(draft.status, ENUMS.topicStatus, 'open'),
+  };
+}
+
+function buildTask(draft = {}) {
+  return {
+    ...buildBase('tsk', 'task', draft),
+    title: draft.title || '(без названия)',
+    description: draft.description || '',
+    expectedResult: draft.expectedResult || '',
+    deadline: normDeadline(draft.deadline),
+    priority: coerceEnum(draft.priority, ENUMS.taskPriority, 'P3'),
+    relatedPeople: strArray(draft.relatedPeople),
+    relatedProjects: strArray(draft.relatedProjects),
+    status: coerceEnum(draft.status, ENUMS.taskStatus, 'todo'),
+  };
+}
+
+function buildNote(draft = {}) {
+  return {
+    ...buildBase('not', 'note', draft),
+    title: draft.title || '(без названия)',
+    content: draft.content || '',
+    relatedPeople: strArray(draft.relatedPeople),
+    relatedProjects: strArray(draft.relatedProjects),
+  };
+}
+
+// ===== Настройки =====
+
+function getSettings() {
+  return { ...load().settings };
+}
+
+function updateSettings(patch) {
+  load();
+  state.settings = { ...state.settings, ...patch };
+  persist();
+  return getSettings();
+}
+
+// ===== CREATE =====
+
+function createTopic(draft) {
+  load();
+  const topic = buildTopic(draft);
+  state.entities.unshift(topic);
+  persist();
+  return topic;
+}
+
+function createTask(draft) {
+  load();
+  const task = buildTask(draft);
+  state.entities.unshift(task);
+  persist();
+  return task;
+}
+
+function createNote(draft) {
+  load();
+  const note = buildNote(draft);
+  state.entities.unshift(note);
+  persist();
+  return note;
+}
+
+/** Создать сущность по полю draft.type ('topic' | 'task' | 'note'). */
+function createEntity(draft = {}) {
+  switch (draft.type) {
+    case 'topic': return createTopic(draft);
+    case 'task': return createTask(draft);
+    case 'note': return createNote(draft);
+    default: throw new Error(`Неизвестный тип сущности: ${draft.type}`);
+  }
+}
+
+// ===== READ =====
+
+/** Все сущности (копия массива). */
+function getAll() {
+  return [...load().entities];
+}
+
+function getById(id) {
+  return load().entities.find((e) => e.id === id) || null;
+}
+
+function getTopics() {
+  return load().entities.filter((e) => e.type === 'topic');
+}
+
+function getTasks() {
+  return load().entities.filter((e) => e.type === 'task');
+}
+
+function getNotes() {
+  return load().entities.filter((e) => e.type === 'note');
+}
+
+/** Произвольный фильтр: query(e => e.status === 'open'). */
+function query(predicate) {
+  return load().entities.filter(predicate);
+}
+
+// ===== UPDATE =====
+
+/**
+ * Частичное обновление по id. Поле type сменить нельзя; перечисления
+ * приводятся к допустимым значениям, дедлайн нормализуется.
+ */
+function update(id, patch = {}) {
+  load();
+  const entity = state.entities.find((e) => e.id === id);
+  if (!entity) return null;
+
+  const { id: _i, type: _t, createdAt: _c, ...rest } = patch;
+  const next = { ...rest };
+
+  if ('tags' in next) next.tags = strArray(next.tags);
+  if ('deadline' in next) next.deadline = normDeadline(next.deadline);
+  if ('relatedPeople' in next) next.relatedPeople = strArray(next.relatedPeople);
+  if ('relatedProjects' in next) next.relatedProjects = strArray(next.relatedProjects);
+
+  if (entity.type === 'topic') {
+    if ('urgency' in next) next.urgency = coerceEnum(next.urgency, ENUMS.topicUrgency, entity.urgency);
+    if ('importance' in next) next.importance = coerceEnum(next.importance, ENUMS.topicImportance, entity.importance);
+    if ('status' in next) next.status = coerceEnum(next.status, ENUMS.topicStatus, entity.status);
+  } else if (entity.type === 'task') {
+    if ('priority' in next) next.priority = coerceEnum(next.priority, ENUMS.taskPriority, entity.priority);
+    if ('status' in next) next.status = coerceEnum(next.status, ENUMS.taskStatus, entity.status);
+  }
+
+  Object.assign(entity, next, { updatedAt: nowISO() });
+  persist();
+  return entity;
+}
+
+// ===== DELETE =====
+
+function remove(id) {
+  load();
+  const before = state.entities.length;
+  state.entities = state.entities.filter((e) => e.id !== id);
+  const removed = state.entities.length !== before;
+  if (removed) persist();
+  return removed;
+}
+
+/** Удалить все сущности (настройки сохраняются). */
+function clearAll() {
+  load();
+  state.entities = [];
+  persist();
+}
+
+// ===== Импорт / экспорт =====
+
+function exportAll() {
+  return JSON.stringify(load(), null, 2);
+}
+
+/** Заменить состояние из JSON-строки (бэкап). Возвращает true при успехе. */
+function importAll(json) {
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed.entities)) throw new Error('нет массива entities');
+    state = {
+      ...structuredClone(DEFAULT_STATE),
+      ...parsed,
+      settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
+    };
+    persist();
+    return true;
+  } catch (e) {
+    console.error('Импорт не удался:', e);
+    return false;
+  }
+}
+
+return { ENUMS, getSettings, updateSettings, createTopic, createTask, createNote, createEntity, getAll, getById, getTopics, getTasks, getNotes, query, update, remove, clearAll, exportAll, importAll };
+})();
+
+const agent = (function () {
+// agent.js — AI-агент на Claude API. Прямые вызовы через fetch().
+// Ключ берётся из window.CLAUDE_API_KEY (пользователь вводит его в настройках).
+// Модель: claude-3-5-haiku-20241022. Все системные промпты — на русском,
+// агент всегда отвечает валидным JSON.
+
+// Модель настраивается: app.js прокидывает выбранную в настройках модель
+// в window.CLAUDE_MODEL. Если не задана — используем дефолт.
+const DEFAULT_MODEL = 'claude-3-5-haiku-20241022';
+const API_URL = 'https://api.anthropic.com/v1/messages';
+const API_VERSION = '2023-06-01';
+
+function getModel() {
+  return window.CLAUDE_MODEL || DEFAULT_MODEL;
+}
+
+/** Текущая дата в ISO (YYYY-MM-DD) — передаётся в промпты для расчёта дедлайнов. */
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Низкоуровневый вызов Claude. Возвращает текст ответа (первый text-блок).
+ * @param {string} system  системный промпт (на русском)
+ * @param {string} user    пользовательское сообщение
+ * @param {object} [opts]  { maxTokens }
+ */
+async function callClaude(system, user, { maxTokens = 1500 } = {}) {
+  const apiKey = window.CLAUDE_API_KEY;
+  if (!apiKey) {
+    throw new Error('Не задан API-ключ. Введите ключ Claude в настройках приложения.');
+  }
+
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': API_VERSION,
+      // Разрешает вызов напрямую из браузера.
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: getModel(),
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content: user }],
+    }),
+  });
+
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const err = await res.json();
+      detail = err?.error?.message || JSON.stringify(err);
+    } catch {
+      detail = await res.text();
+    }
+    throw new Error(`Claude API ${res.status}: ${detail}`);
+  }
+
+  const data = await res.json();
+  return (data.content || [])
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text)
+    .join('')
+    .trim();
+}
+
+/**
+ * Надёжный разбор JSON из ответа модели: срезает markdown-ограждения ```json,
+ * при необходимости вырезает первый сбалансированный объект/массив.
+ */
+function safeParseJSON(text) {
+  if (!text) throw new Error('Пустой ответ от модели');
+  let s = text.trim();
+
+  // Убрать ограждения ```json ... ```
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
+
+  try {
+    return JSON.parse(s);
+  } catch {
+    // Попытаться вырезать первый JSON-объект или массив.
+    const start = s.search(/[{[]/);
+    const lastObj = s.lastIndexOf('}');
+    const lastArr = s.lastIndexOf(']');
+    const end = Math.max(lastObj, lastArr);
+    if (start !== -1 && end > start) {
+      return JSON.parse(s.slice(start, end + 1));
+    }
+    throw new Error('Не удалось разобрать JSON из ответа модели');
+  }
+}
+
+// ============================================================
+// ФУНКЦИЯ 1: processCapture(rawText)
+// ============================================================
+
+const CAPTURE_SYSTEM = `Ты — персональный ассистент директора по продукту. Твоя задача — структурировать информацию из свободного текста.
+
+При определении срочности используй следующую логику:
+- "срочно", "asap", "сейчас" → urgent (🔴)
+- "важно", "критично", "завтра", "сегодня" → high (🟠)
+- "в конце недели", "на этой неделе" → medium (🟡)
+- "через месяц", "когда-нибудь", "по возможности" → low (🟢)
+- Без упоминания срока → medium по умолчанию
+
+Всегда отвечай строго в формате JSON без дополнительного текста.
+
+Сначала определи ТИП записи:
+• "topic" — тема, которую нужно обсудить с конкретным человеком (упомянут коллега, встреча, "обсудить с…", "спросить у…").
+• "task"  — задача для самого пользователя (нужно что-то сделать).
+• "note"  — заметка, мысль, идея, факт без явного действия и без собеседника.
+
+ВАЖНОСТЬ (importance): "critical" — "критично", "блокер", "обязательно"; "high" — "важно", "приоритет"; "medium" — по умолчанию; "low" — "мелочь", "необязательно".
+ДЕДЛАЙН (deadline): переводи относительные даты в ISO YYYY-MM-DD относительно переданной сегодняшней даты; если срока нет — null.
+ПРИОРИТЕТ задачи (priority): P1 (срочно и важно), P2 (важно, не срочно), P3 (срочно, не важно), P4 (ни то, ни другое).
+
+Формат JSON по типу (urgency: urgent|high|medium|low; importance: critical|high|medium|low):
+topic: {"type":"topic","person":"имя","topic":"суть темы","urgency":"...","importance":"...","deadline":null|"YYYY-MM-DD","tags":["..."]}
+task:  {"type":"task","title":"название","description":"что конкретно сделать","expectedResult":"образ результата","deadline":null|"YYYY-MM-DD","priority":"P1|P2|P3|P4","urgency":"...","importance":"...","tags":["..."]}
+note:  {"type":"note","title":"заголовок","tags":["..."]}
+
+Не выдумывай данные, которых нет в тексте: отсутствующие строки оставляй пустыми "", отсутствующие даты — null, теги — [].`;
+
+/**
+ * Разбирает свободный текст в структурированный объект записи.
+ * @param {string} rawText
+ * @returns {Promise<object>} объект с полем type и извлечёнными данными
+ */
+async function processCapture(rawText) {
+  const user = `Сегодняшняя дата: ${todayISO()}.\n\nТекст пользователя:\n"""${rawText}"""\n\nРазбери и верни JSON.`;
+  const text = await callClaude(CAPTURE_SYSTEM, user, { maxTokens: 1024 });
+  const result = safeParseJSON(text);
+  // Сохраняем исходный текст для трассируемости.
+  result.rawText = rawText;
+  return result;
+}
+
+// ============================================================
+// ФУНКЦИЯ 2: processQuery(queryText, allData)
+// ============================================================
+
+const QUERY_SYSTEM = `Ты — поисковый ассистент директора по продукту. Тебе дают запрос на естественном языке и массив записей (JSON): тип "topic" (темы для обсуждения с людьми), "task" (задачи), "note" (заметки).
+
+Найди записи, релевантные запросу, и отсортируй их по полезности для пользователя
+(учитывай совпадение по человеку/теме/проекту, срочность, важность, дедлайн).
+
+Верни ТОЛЬКО валидный JSON без markdown в формате:
+{"explanation":"короткое объяснение, как ты отфильтровал и отсортировал","resultIds":["id1","id2", ...]}
+
+resultIds — id релевантных записей строго в порядке от самой релевантной к наименее.
+Если ничего не подходит — resultIds: [] и поясни это в explanation. Используй только переданные id, ничего не выдумывай.`;
+
+/**
+ * Находит, фильтрует и сортирует релевантные записи под запрос пользователя.
+ * @param {string} queryText
+ * @param {Array<object>} allData  все записи из БД
+ * @returns {Promise<{explanation: string, results: object[]}>}
+ */
+async function processQuery(queryText, allData) {
+  // Компактная проекция, чтобы не раздувать контекст лишними полями.
+  const compact = (allData || []).map((e) => ({
+    id: e.id,
+    type: e.type,
+    person: e.person || null,
+    topic: e.topic || null,
+    title: e.title || null,
+    urgency: e.urgency || null,
+    importance: e.importance || null,
+    priority: e.priority || null,
+    status: e.status || null,
+    deadline: e.deadline || null,
+    relatedPeople: e.relatedPeople || [],
+    relatedProjects: e.relatedProjects || [],
+    tags: e.tags || [],
+  }));
+
+  const user = `Запрос: "${queryText}"\n\nЗаписи (JSON):\n${JSON.stringify(compact)}`;
+  const text = await callClaude(QUERY_SYSTEM, user, { maxTokens: 1024 });
+  const parsed = safeParseJSON(text);
+
+  // Восстанавливаем полные записи в порядке, заданном моделью.
+  const byId = new Map((allData || []).map((e) => [e.id, e]));
+  const results = (parsed.resultIds || [])
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+
+  return { explanation: parsed.explanation || '', results };
+}
+
+// ============================================================
+// ФУНКЦИЯ 3: generateDailySummary(allData)
+// ============================================================
+
+const SUMMARY_SYSTEM = `Ты — личный ассистент директора по продукту. На основе всех записей сформируй краткую сводку на сегодня.
+
+Учитывай типы записей: "task" (задачи со статусом и приоритетом P1-P4), "topic" (темы для обсуждения с людьми, со срочностью/важностью), "note" (заметки).
+Сегодняшнюю дату тебе передадут — выделяй просроченные и сегодняшние дедлайны.
+
+Верни ТОЛЬКО валидный JSON без markdown в формате:
+{
+  "greeting":"короткое приветствие/общая фраза",
+  "urgentTasks":[{"id":"...","title":"...","why":"почему срочно"}],
+  "upcomingTopics":[{"id":"...","person":"...","topic":"...","why":"почему обсудить скоро"}],
+  "todayFocus":["3-5 пунктов: что важнее всего сделать сегодня"],
+  "summary":"связный абзац-сводка на 2-3 предложения"
+}
+
+Не включай выполненные задачи (status "done") и обсуждённые темы (status "discussed"). Используй только реальные id из данных. Если данных мало — верни пустые массивы, но заполни summary.`;
+
+/**
+ * Формирует краткую сводку на день: срочные задачи, темы для ближайших встреч,
+ * фокус на сегодня.
+ * @param {Array<object>} allData
+ * @returns {Promise<object>} { greeting, urgentTasks, upcomingTopics, todayFocus, summary }
+ */
+async function generateDailySummary(allData) {
+  const compact = (allData || []).map((e) => ({
+    id: e.id,
+    type: e.type,
+    person: e.person || null,
+    topic: e.topic || null,
+    title: e.title || null,
+    urgency: e.urgency || null,
+    importance: e.importance || null,
+    priority: e.priority || null,
+    status: e.status || null,
+    deadline: e.deadline || null,
+  }));
+
+  const user = `Сегодняшняя дата: ${todayISO()}.\n\nВсе записи (JSON):\n${JSON.stringify(compact)}\n\nСформируй сводку на день.`;
+  const text = await callClaude(SUMMARY_SYSTEM, user, { maxTokens: 1500 });
+  return safeParseJSON(text);
+}
+
+return { processCapture, processQuery, generateDailySummary };
+})();
+const { processCapture, processQuery, generateDailySummary } = agent;
+
+// app.js — контроллер. Единственный модуль, который трогает DOM.
+// Вкладки: capture (захват) | board (доска из трёх колонок) | search (поиск).
+
+
+
+const fileConfig = window.PM_CONFIG || {};
+const DEFAULT_MODEL = 'claude-3-5-haiku-20241022';
+
+const TYPE_LABEL = { topic: 'Тема', task: 'Задача', note: 'Заметка' };
+const URGENCY_LABEL = { urgent: 'срочно', high: 'высокая', medium: 'средняя', low: 'низкая' };
+const IMPORTANCE_LABEL = { critical: 'критично', high: 'высокая', medium: 'средняя', low: 'низкая' };
+
+const URGENCY_RANK = { urgent: 3, high: 2, medium: 1, low: 0 };
+const IMPORTANCE_RANK = { critical: 3, high: 2, medium: 1, low: 0 };
+const PRIORITY_RANK = { P1: 4, P2: 3, P3: 2, P4: 1 };
+const VISUAL_RANK = { P0: 0, P1: 1, P2: 2, P3: 3, P4: 4 };
+// Для записей без явных urgency/importance выводим их из приоритета задачи.
+const TASK_PRIO_URGENCY = { P1: 'urgent', P2: 'high', P3: 'medium', P4: 'low' };
+const TASK_PRIO_IMPORTANCE = { P1: 'critical', P2: 'high', P3: 'medium', P4: 'low' };
+
+let captureDraft = null; // результат processCapture, ещё не сохранён
+const filters = { person: '', project: '', priority: '', status: 'all', dateRange: 'all' };
+let sortMode = 'default';
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Прокинуть ключ и модель из настроек в window.*, откуда их читает agent.js. */
+function syncApiKey() {
+  const s = store.getSettings();
+  window.CLAUDE_API_KEY = s.apiKey || '';
+  window.CLAUDE_MODEL = s.model || DEFAULT_MODEL;
+}
+
+// ===== Производные от типа =====
+function isClosed(e) {
+  return (e.type === 'task' && e.status === 'done') || (e.type === 'topic' && e.status === 'discussed');
+}
+function displayTitle(e) {
+  return e.type === 'topic' ? e.topic || '(без темы)' : e.title || '(без названия)';
+}
+function displayBody(e) {
+  if (e.type === 'topic') return e.aiSummary || '';
+  if (e.type === 'task') return [e.description, e.expectedResult && `🎯 ${e.expectedResult}`].filter(Boolean).join('\n');
+  return e.content || '';
+}
+function peopleOf(e) {
+  return e.type === 'topic' ? (e.person ? [e.person] : []) : e.relatedPeople || [];
+}
+function projectsOf(e) {
+  return e.relatedProjects || [];
+}
+function sevClass(level) {
+  if (['urgent', 'critical', 'high', 'P1'].includes(level)) return 'badge-sev-high';
+  if (['medium', 'P2'].includes(level)) return 'badge-sev-medium';
+  return 'badge-sev-low';
+}
+
+// ===== Инициализация =====
+function init() {
+  const settings = store.getSettings();
+  if (!settings.apiKey && fileConfig.apiKey) store.updateSettings({ apiKey: fileConfig.apiKey });
+  if (fileConfig.model && settings.model === DEFAULT_MODEL) store.updateSettings({ model: fileConfig.model });
+  applyTheme(store.getSettings().theme);
+  syncApiKey();
+
+  bindNav();
+  bindCapture();
+  bindBoard();
+  bindSearch();
+  bindSettings();
+  bindTheme();
+}
+
+// ===== Навигация =====
+function bindNav() {
+  $$('.tab').forEach((tab) => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+}
+function switchTab(name) {
+  $$('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
+  $$('.view').forEach((v) => (v.hidden = v.dataset.view !== name));
+  if (name === 'board') {
+    populateFilters();
+    renderBoard();
+  }
+}
+
+// ===== Тема =====
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  $('#theme-toggle').textContent = theme === 'dark' ? '☾' : '☀';
+}
+function bindTheme() {
+  $('#theme-toggle').addEventListener('click', () => {
+    const next = store.getSettings().theme === 'dark' ? 'light' : 'dark';
+    store.updateSettings({ theme: next });
+    applyTheme(next);
+  });
+}
+
+// ===== Вкладка «Захватить» =====
+function bindCapture() {
+  $('#parse-btn').addEventListener('click', onParse);
+  $('#capture-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      onParse();
+    }
+  });
+}
+
+async function onParse() {
+  const raw = $('#capture-input').value.trim();
+  if (!raw) return;
+
+  const btn = $('#parse-btn');
+  const status = $('#capture-status');
+  btn.disabled = true;
+  showStatus(status, 'Claude обрабатывает…');
+
+  try {
+    const result = await processCapture(raw);
+    captureDraft = result && result.type ? result : null;
+    status.hidden = true;
+    if (captureDraft) renderCaptureResult();
+    else showStatus(status, 'Не удалось разобрать — попробуйте переформулировать.');
+  } catch (e) {
+    showStatus(status, e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Обработать';
+  }
+}
+
+function renderCaptureResult() {
+  const box = $('#capture-result');
+  box.innerHTML = '';
+  if (!captureDraft) return;
+
+  const view = annotate(captureDraft); // для отображения метки приоритета
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.appendChild(buildTop(view));
+  card.appendChild(el('p', 'card-title', displayTitle(view)));
+  const body = displayBody(view);
+  if (body) card.appendChild(el('p', 'card-body', body));
+  card.appendChild(buildMeta(view));
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const editBtn = el('button', 'btn btn-ghost btn-sm', 'Редактировать');
+  editBtn.addEventListener('click', () => renderCaptureEdit());
+  const saveBtn = el('button', 'btn btn-primary btn-sm', 'Сохранить');
+  saveBtn.addEventListener('click', saveCaptureDraft);
+  footer.append(editBtn, saveBtn);
+  card.appendChild(footer);
+
+  box.appendChild(card);
+}
+
+function renderCaptureEdit() {
+  const box = $('#capture-result');
+  box.innerHTML = '';
+  const d = captureDraft;
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  const form = document.createElement('div');
+  form.className = 'edit-form';
+
+  const titleLabel = d.type === 'topic' ? 'Тема' : 'Заголовок';
+  form.appendChild(field(titleLabel, inputFor(d.type === 'topic' ? 'topic' : 'title')));
+
+  if (d.type === 'topic') {
+    form.appendChild(field('Человек', inputFor('person')));
+    form.appendChild(field('Срочность', selectFor('urgency', store.ENUMS.topicUrgency, URGENCY_LABEL)));
+    form.appendChild(field('Важность', selectFor('importance', store.ENUMS.topicImportance, IMPORTANCE_LABEL)));
+    form.appendChild(field('Дедлайн', inputFor('deadline', 'date')));
+  } else if (d.type === 'task') {
+    form.appendChild(field('Что сделать', inputFor('description')));
+    form.appendChild(field('Образ результата', inputFor('expectedResult')));
+    form.appendChild(field('Приоритет', selectFor('priority', store.ENUMS.taskPriority)));
+    form.appendChild(field('Дедлайн', inputFor('deadline', 'date')));
+  } else {
+    form.appendChild(field('Содержание', inputFor('content')));
+  }
+  form.appendChild(field('Теги (через запятую)', tagsInput()));
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const cancel = el('button', 'btn btn-ghost btn-sm', 'Отмена');
+  cancel.addEventListener('click', renderCaptureResult);
+  const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
+  save.addEventListener('click', saveCaptureDraft);
+  footer.append(cancel, save);
+
+  card.append(form, footer);
+  box.appendChild(card);
+
+  // ---- helpers замыкаются на captureDraft ----
+  function inputFor(key, type = 'text') {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.type = type;
+    inp.value = d[key] || '';
+    inp.addEventListener('input', () => (d[key] = inp.value));
+    return inp;
+  }
+  function selectFor(key, options, labels) {
+    const sel = document.createElement('select');
+    sel.className = 'select';
+    options.forEach((opt) => {
+      const o = document.createElement('option');
+      o.value = opt;
+      o.textContent = labels ? labels[opt] || opt : opt;
+      if (d[key] === opt) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => (d[key] = sel.value));
+    return sel;
+  }
+  function tagsInput() {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.value = (d.tags || []).join(', ');
+    inp.addEventListener('input', () => (d.tags = inp.value.split(',').map((s) => s.trim()).filter(Boolean)));
+    return inp;
+  }
+}
+
+function saveCaptureDraft() {
+  if (!captureDraft) return;
+  store.createEntity(captureDraft);
+  captureDraft = null;
+  $('#capture-result').innerHTML = '';
+  $('#capture-input').value = '';
+  showStatus($('#capture-status'), 'Сохранено ✓ — смотрите на доске «Задачи и темы».');
+}
+
+// ===== Вкладка «Доска» =====
+function bindBoard() {
+  $('#filter-person').addEventListener('change', (e) => { filters.person = e.target.value; renderBoard(); });
+  $('#filter-project').addEventListener('change', (e) => { filters.project = e.target.value; renderBoard(); });
+  $('#filter-priority').addEventListener('change', (e) => { filters.priority = e.target.value; renderBoard(); });
+  $('#filter-status').addEventListener('change', (e) => { filters.status = e.target.value; renderBoard(); });
+  $('#filter-daterange').addEventListener('change', (e) => { filters.dateRange = e.target.value; renderBoard(); });
+  $$('#sort-toggles .chip').forEach((c) =>
+    c.addEventListener('click', () => {
+      sortMode = c.dataset.sort;
+      $$('#sort-toggles .chip').forEach((x) => x.classList.toggle('is-active', x === c));
+      renderBoard();
+    })
+  );
+  $('#filter-reset').addEventListener('click', () => {
+    filters.person = filters.project = filters.priority = '';
+    filters.status = 'all';
+    filters.dateRange = 'all';
+    sortMode = 'default';
+    $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
+    $('#filter-status').value = 'all';
+    $('#filter-daterange').value = 'all';
+    $$('#sort-toggles .chip').forEach((x) => x.classList.toggle('is-active', x.dataset.sort === 'default'));
+    populateFilters();
+    renderBoard();
+  });
+}
+
+/** Наполнить выпадающие списки людей и проектов из данных, сохранив выбор. */
+function populateFilters() {
+  const all = store.getAll();
+  const people = [...new Set(all.flatMap(peopleOf).filter(Boolean))].sort();
+  const projects = [...new Set(all.flatMap(projectsOf).filter(Boolean))].sort();
+  fillSelect($('#filter-person'), people, filters.person);
+  fillSelect($('#filter-project'), projects, filters.project);
+}
+function fillSelect(sel, values, current) {
+  sel.innerHTML = '<option value="">Все</option>';
+  values.forEach((v) => {
+    const o = document.createElement('option');
+    o.value = v;
+    o.textContent = v;
+    if (v === current) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+// ===== Сортировка и фильтрация (матрица Эйзенхауэра) =====
+
+// Эффективные срочность/важность: у заметок их нет, у задач при отсутствии
+// выводим из приоритета P1-P4.
+function effUrgency(it) {
+  if (it.urgency) return it.urgency;
+  if (it.type === 'task' && it.priority) return TASK_PRIO_URGENCY[it.priority] || 'medium';
+  return it.type === 'note' ? 'low' : 'medium';
+}
+function effImportance(it) {
+  if (it.importance) return it.importance;
+  if (it.type === 'task' && it.priority) return TASK_PRIO_IMPORTANCE[it.priority] || 'medium';
+  return it.type === 'note' ? 'low' : 'medium';
+}
+
+/** Матрица Эйзенхауэра: (ранг срочности, ранг важности) → визуальный приоритет. */
+function classifyVisual(ur, ir) {
+  if (ur === 3 && ir === 3) return 'P0'; // urgent + critical
+  if (ur >= 2 && ir >= 2) return 'P1';   // высокая срочность + высокая важность
+  if (ur === 1 || ir >= 2) return 'P2';  // средняя срочность ИЛИ высокая важность
+  if (ur === 0 && ir === 1) return 'P3'; // низкая срочность + средняя важность
+  if (ur === 0 && ir === 0) return 'P4'; // низкая + низкая
+  return 'P2';                           // прочее (напр. срочно, но не важно)
+}
+
+/** Добавить к записи priorityScore (число для отладки) и visualPriority (P0-P4). */
+function annotate(it) {
+  const ur = URGENCY_RANK[effUrgency(it)] ?? 1;
+  const ir = IMPORTANCE_RANK[effImportance(it)] ?? 1;
+  const visualPriority = classifyVisual(ur, ir);
+  // Чем выше — тем раньше: банд (P0..P4) доминирует, внутри банда — срочность, затем важность.
+  const priorityScore = (4 - VISUAL_RANK[visualPriority]) * 1000 + ur * 100 + ir * 10;
+  return { ...it, priorityScore, visualPriority };
+}
+
+// --- предикаты фильтров ---
+function typeMatches(it, type) {
+  if (!type) return true;
+  return Array.isArray(type) ? type.includes(it.type) : it.type === type;
+}
+function statusMatches(it, status) {
+  if (!status || status === 'all') return true;
+  if (status === 'done') return isClosed(it);
+  if (status === 'in_progress') return it.type === 'task' && it.status === 'in_progress';
+  if (status === 'open') {
+    if (it.type === 'task') return it.status === 'todo';
+    if (it.type === 'topic') return it.status === 'open';
+    return true; // заметки считаем открытыми
+  }
+  return true;
+}
+/** Совпадение строки: точное вхождение в любую сторону (простой fuzzy). */
+function fuzzyIncludes(hay, needle) {
+  const h = (hay || '').toLowerCase();
+  const n = needle.toLowerCase();
+  return h.includes(n) || n.includes(h);
+}
+function personMatches(it, q) {
+  if (!q) return true;
+  return peopleOf(it).some((p) => fuzzyIncludes(p, q.trim()));
+}
+function projectMatches(it, q) {
+  if (!q) return true;
+  return [...projectsOf(it), ...(it.tags || [])].some((p) => fuzzyIncludes(p, q.trim()));
+}
+function priorityMatches(it, p) {
+  return !p || it.priority === p;
+}
+function dateMatches(it, range) {
+  if (!range || range === 'all') return true;
+  if (!it.deadline) return false;
+  const today = todayISO();
+  if (range === 'overdue') return !isClosed(it) && it.deadline < today;
+  if (range === 'today') return it.deadline === today;
+  if (range === 'this_week') return it.deadline >= today && it.deadline <= endOfWeekISO();
+  if (range === 'this_month') return it.deadline >= today && it.deadline <= endOfMonthISO();
+  return true;
+}
+function endOfWeekISO() {
+  const d = new Date();
+  const dow = (d.getDay() + 6) % 7; // Пн=0 … Вс=6
+  d.setDate(d.getDate() + (6 - dow));
+  return d.toISOString().slice(0, 10);
+}
+function endOfMonthISO() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+}
+
+/** Сравнение по дедлайну: просроченные первыми, затем по ближайшей дате; без срока — в конец. */
+function cmpDeadline(a, b) {
+  const key = (it) => {
+    if (!it.deadline) return ['2', '9999-99-99'];
+    const overdue = !isClosed(it) && it.deadline < todayISO();
+    return [overdue ? '0' : '1', it.deadline];
+  };
+  const [ba, da] = key(a);
+  const [bb, db] = key(b);
+  return ba.localeCompare(bb) || da.localeCompare(db);
+}
+
+/**
+ * Отфильтровать и отсортировать записи.
+ * @param {Array}  items   исходные записи
+ * @param {string} sortBy  'default'|'priority'|'deadline'|'person'|'project'
+ * @param {object} filters { person, project, status, type, dateRange, priority }
+ * @returns {Array} новые объекты с добавленными priorityScore (число) и visualPriority (P0-P4)
+ */
+function sortAndFilter(items, sortBy = 'default', filters = {}) {
+  const filtered = (items || []).filter(
+    (it) =>
+      typeMatches(it, filters.type) &&
+      statusMatches(it, filters.status) &&
+      personMatches(it, filters.person) &&
+      projectMatches(it, filters.project) &&
+      priorityMatches(it, filters.priority) &&
+      dateMatches(it, filters.dateRange)
+  );
+
+  const annotated = filtered.map(annotate);
+  const byStr = (fn) => (a, b) => (fn(a) || '').localeCompare(fn(b) || '', 'ru');
+
+  switch (sortBy) {
+    case 'deadline':
+      annotated.sort(cmpDeadline);
+      break;
+    case 'person':
+      annotated.sort(byStr((e) => peopleOf(e)[0]));
+      break;
+    case 'project':
+      annotated.sort(byStr((e) => projectsOf(e)[0]));
+      break;
+    case 'priority':
+    case 'default':
+    default:
+      // По важности + срочности: выше priorityScore — раньше, при равенстве — ближе дедлайн.
+      annotated.sort((a, b) => b.priorityScore - a.priorityScore || cmpDeadline(a, b));
+  }
+  return annotated;
+}
+
+function renderBoard() {
+  const annotated = sortAndFilter(store.getAll(), sortMode, {
+    person: filters.person,
+    project: filters.project,
+    priority: filters.priority,
+    status: filters.status,
+    dateRange: filters.dateRange,
+  });
+  const cols = {
+    topic: $('#col-topics'),
+    task: $('#col-tasks'),
+    note: $('#col-notes'),
+  };
+  const counts = { topic: 0, task: 0, note: 0 };
+
+  Object.values(cols).forEach((ul) => (ul.innerHTML = ''));
+  ['topic', 'task', 'note'].forEach((type) => {
+    const items = annotated.filter((e) => e.type === type);
+    counts[type] = items.length;
+    if (!items.length) {
+      cols[type].appendChild(el('li', 'empty-col', 'Пусто'));
+    } else {
+      items.forEach((e) => cols[type].appendChild(buildCard(e)));
+    }
+  });
+
+  $('#count-topics').textContent = counts.topic;
+  $('#count-tasks').textContent = counts.task;
+  $('#count-notes').textContent = counts.note;
+}
+
+// ===== Карточки =====
+function buildTop(e) {
+  const top = document.createElement('div');
+  top.className = 'card-top';
+  top.appendChild(badge(TYPE_LABEL[e.type] || e.type, `badge-${e.type}`));
+  if (e.visualPriority) top.appendChild(badge(e.visualPriority, `badge-${e.visualPriority}`));
+  if (e.type === 'task' && e.priority) top.appendChild(badge(e.priority, `badge-${e.priority}`));
+  if (e.type === 'topic' && e.urgency) top.appendChild(badge(URGENCY_LABEL[e.urgency] || e.urgency, sevClass(e.urgency)));
+  return top;
+}
+
+function buildMeta(e) {
+  const meta = document.createElement('div');
+  meta.className = 'card-meta';
+  if (e.type === 'task' && e.status === 'in_progress') meta.appendChild(metaSpan('🔄 в работе'));
+  peopleOf(e).forEach((p) => meta.appendChild(metaSpan(`👤 ${p}`)));
+  projectsOf(e).forEach((p) => meta.appendChild(metaSpan(`📁 ${p}`)));
+  if (e.type === 'topic' && e.importance) meta.appendChild(metaSpan(`★ ${IMPORTANCE_LABEL[e.importance] || e.importance}`));
+  if (e.deadline) {
+    const overdue = !isClosed(e) && e.deadline < todayISO();
+    const span = metaSpan(`⏱ ${e.deadline}`);
+    span.classList.add('meta-due');
+    if (overdue) span.classList.add('is-overdue');
+    meta.appendChild(span);
+  }
+  (e.tags || []).forEach((t) => meta.appendChild(metaSpan(`#${t}`)));
+  return meta;
+}
+
+function buildCard(e) {
+  const li = document.createElement('li');
+  li.className = 'card' + (isClosed(e) ? ' is-done' : '') + (e.type === 'task' && e.status === 'in_progress' ? ' is-progress' : '');
+  li.appendChild(buildTop(e));
+  li.appendChild(el('p', 'card-title', displayTitle(e)));
+  const body = displayBody(e);
+  if (body) li.appendChild(el('p', 'card-body', body));
+  li.appendChild(buildMeta(e));
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  if (e.type === 'task') {
+    // Открытую задачу можно перевести «В работу»; закрытую — только вернуть.
+    if (!isClosed(e)) {
+      const inProg = e.status === 'in_progress';
+      const progBtn = el('button', 'btn btn-ghost btn-sm' + (inProg ? ' is-active' : ''), inProg ? 'В работе ✓' : 'В работу');
+      progBtn.addEventListener('click', () => {
+        store.update(e.id, { status: inProg ? 'todo' : 'in_progress' });
+        renderBoard();
+      });
+      footer.appendChild(progBtn);
+    }
+    const doneBtn = el('button', 'btn btn-ghost btn-sm', isClosed(e) ? 'Вернуть' : 'Выполнено');
+    doneBtn.addEventListener('click', () => {
+      store.update(e.id, { status: isClosed(e) ? 'todo' : 'done' });
+      renderBoard();
+    });
+    footer.appendChild(doneBtn);
+  } else if (e.type === 'topic') {
+    const doneBtn = el('button', 'btn btn-ghost btn-sm', isClosed(e) ? 'Вернуть' : 'Обсуждено');
+    doneBtn.addEventListener('click', () => {
+      store.update(e.id, { status: isClosed(e) ? 'open' : 'discussed' });
+      renderBoard();
+    });
+    footer.appendChild(doneBtn);
+  }
+  const del = el('button', 'btn btn-ghost btn-sm', '🗑');
+  del.title = 'Удалить';
+  del.addEventListener('click', () => {
+    store.remove(e.id);
+    renderBoard();
+  });
+  footer.appendChild(del);
+  li.appendChild(footer);
+  return li;
+}
+
+// ===== Вкладка «Найти» =====
+function bindSearch() {
+  $('#search-btn').addEventListener('click', onSearch);
+  $('#search-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') onSearch();
+  });
+  $$('.suggestion').forEach((s) =>
+    s.addEventListener('click', () => {
+      $('#search-input').value = s.textContent;
+      onSearch();
+    })
+  );
+}
+
+async function onSearch() {
+  const question = $('#search-input').value.trim();
+  if (!question) return;
+
+  const btn = $('#search-btn');
+  const status = $('#search-status');
+  const answerEl = $('#search-answer');
+  const resultsEl = $('#search-results');
+  answerEl.hidden = true;
+  resultsEl.innerHTML = '';
+  btn.disabled = true;
+  showStatus(status, 'Claude ищет…');
+
+  try {
+    const { explanation, results } = await processQuery(question, store.getAll());
+    status.hidden = true;
+    answerEl.textContent = explanation || (results.length ? '' : 'Ничего не найдено.');
+    answerEl.hidden = !answerEl.textContent;
+    // Сохраняем порядок, выбранный AI, но добавляем метку приоритета.
+    results.map(annotate).forEach((e) => resultsEl.appendChild(buildCard(e)));
+  } catch (e) {
+    showStatus(status, e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Найти';
+  }
+}
+
+// ===== Настройки =====
+function bindSettings() {
+  const modal = $('#settings-modal');
+  $('#settings-btn').addEventListener('click', () => {
+    const s = store.getSettings();
+    $('#api-key-input').value = s.apiKey || '';
+    $('#model-input').value = s.model || '';
+    modal.hidden = false;
+  });
+  $('#settings-close').addEventListener('click', () => (modal.hidden = true));
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.hidden = true;
+  });
+  $('#settings-save').addEventListener('click', () => {
+    store.updateSettings({
+      apiKey: $('#api-key-input').value.trim(),
+      model: $('#model-input').value.trim() || DEFAULT_MODEL,
+    });
+    syncApiKey();
+    modal.hidden = true;
+  });
+  $('#export-btn').addEventListener('click', exportData);
+}
+
+function exportData() {
+  const blob = new Blob([store.exportAll()], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pm-assistant-${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ===== Хелперы DOM =====
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text != null) node.textContent = text;
+  return node;
+}
+function field(labelText, inputNode) {
+  const wrap = document.createElement('label');
+  wrap.appendChild(el('span', '', labelText));
+  wrap.appendChild(inputNode);
+  return wrap;
+}
+function badge(text, cls) {
+  return el('span', `badge ${cls}`, text);
+}
+function metaSpan(text) {
+  return el('span', 'meta-tag', text);
+}
+function showStatus(elm, msg, isError = false) {
+  elm.textContent = msg;
+  elm.classList.toggle('is-error', isError);
+  elm.hidden = false;
+}
+
+// Запускаем приложение только в браузере (в Node модуль импортируется для тестов).
+if (typeof document !== 'undefined' && document.querySelector) init();
+
+</script>
+</body>
+</html>
