@@ -4,6 +4,7 @@
 
 import * as store from './storage.js';
 import { processCapture, processQuery } from './agent.js';
+import * as sync from './sync.js';
 
 const fileConfig = window.PM_CONFIG || {};
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
@@ -53,6 +54,70 @@ function syncApiKey() {
   window.CLAUDE_MODEL = s.model || DEFAULT_MODEL;
 }
 
+// ===== Облачная синхронизация (Supabase) =====
+function syncCfg() {
+  const s = store.getSettings();
+  return { url: s.supabaseUrl || '', key: s.supabaseKey || '', workspace: s.workspaceId || '' };
+}
+let pushTimer = null;
+let pendingPush = false;
+
+function setSyncStatus(msg, isError = false) {
+  const elm = document.getElementById('sync-status');
+  if (!elm) return;
+  elm.textContent = msg || '';
+  elm.classList.toggle('is-error', isError);
+  elm.hidden = !msg;
+}
+
+/** Дебаунс-пуш локальных изменений в облако. */
+function schedulePush() {
+  if (!sync.isConfigured(syncCfg())) return;
+  pendingPush = true;
+  setSyncStatus('Сохранение в облако…');
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(doPush, 700);
+}
+async function doPush() {
+  if (!sync.isConfigured(syncCfg())) return;
+  try {
+    await sync.push(syncCfg(), store.getEverything());
+    pendingPush = false;
+    setSyncStatus('Синхронизировано ✓');
+  } catch (e) {
+    setSyncStatus('Ошибка синхронизации: ' + e.message, true);
+  }
+}
+/** Перерисовать текущую вкладку после применения удалённых данных. */
+function rerenderActiveView() {
+  const active = document.querySelector('.tab[aria-selected="true"]');
+  const name = active ? active.dataset.tab : 'capture';
+  if (name === 'board') { populateFilters(); afterFilterChange(); }
+  else if (name === 'archive') renderArchive();
+}
+/**
+ * Подтянуть карточки из облака. opts.auto — фоновый вызов (не трогаем,
+ * если есть несохранённые локальные правки). Если в облаке пусто — заливаем
+ * текущие локальные карточки.
+ */
+async function doPull(opts = {}) {
+  if (!sync.isConfigured(syncCfg())) return;
+  if (opts.auto && pendingPush) return;
+  try {
+    if (!opts.auto) setSyncStatus('Загрузка из облака…');
+    const remote = await sync.pull(syncCfg());
+    if (remote) {
+      store.replaceCards(remote.cards);
+      rerenderActiveView();
+      setSyncStatus('Синхронизировано ✓');
+    } else {
+      await doPush();
+    }
+  } catch (e) {
+    setSyncStatus('Ошибка синхронизации: ' + e.message, true);
+  }
+}
+
 // ===== Нормализация и объединение имён людей =====
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 function firstToken(name) { return (name || '').trim().split(/\s+/)[0] || ''; }
@@ -84,6 +149,8 @@ function init() {
   const settings = store.getSettings();
   if (!settings.apiKey && fileConfig.apiKey) store.updateSettings({ apiKey: fileConfig.apiKey });
   if (fileConfig.model && settings.model === DEFAULT_MODEL) store.updateSettings({ model: fileConfig.model });
+  if (!settings.supabaseUrl && fileConfig.supabaseUrl) store.updateSettings({ supabaseUrl: fileConfig.supabaseUrl });
+  if (!settings.supabaseKey && fileConfig.supabaseKey) store.updateSettings({ supabaseKey: fileConfig.supabaseKey });
   applyTheme(store.getSettings().theme);
   syncApiKey();
 
@@ -96,6 +163,12 @@ function init() {
 
   const saved = localStorage.getItem('pm_active_tab');
   if (saved && document.querySelector(`.tab[data-tab="${saved}"]`)) switchTab(saved);
+
+  // Облачная синхронизация: пуш при локальных изменениях, тянем при загрузке
+  // и при возврате на вкладку (чтобы видеть правки с других устройств).
+  store.onChange(schedulePush);
+  if (sync.isConfigured(syncCfg())) doPull();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) doPull({ auto: true }); });
 }
 
 // ===== Навигация =====
@@ -693,6 +766,12 @@ function bindSettings() {
     const s = store.getSettings();
     $('#api-key-input').value = s.apiKey || '';
     $('#model-input').value = s.model || '';
+    $('#supabase-url-input').value = s.supabaseUrl || '';
+    $('#supabase-key-input').value = s.supabaseKey || '';
+    $('#workspace-input').value = s.workspaceId || '';
+    setSyncStatus(sync.isConfigured(syncCfg())
+      ? 'Синхронизация включена.'
+      : 'Синхронизация выключена. Заполните URL и anon-ключ.');
     modal.hidden = false;
   });
   $('#settings-close').addEventListener('click', () => (modal.hidden = true));
@@ -701,9 +780,24 @@ function bindSettings() {
     store.updateSettings({
       apiKey: $('#api-key-input').value.trim(),
       model: $('#model-input').value.trim() || DEFAULT_MODEL,
+      supabaseUrl: $('#supabase-url-input').value.trim(),
+      supabaseKey: $('#supabase-key-input').value.trim(),
+      workspaceId: $('#workspace-input').value.trim(),
     });
     syncApiKey();
     modal.hidden = true;
+    if (sync.isConfigured(syncCfg())) doPull();
+  });
+  // «Синхронизировать сейчас» — применяет введённые ключи и тянет облако,
+  // не закрывая модалку (чтобы был виден статус).
+  $('#sync-now').addEventListener('click', () => {
+    store.updateSettings({
+      supabaseUrl: $('#supabase-url-input').value.trim(),
+      supabaseKey: $('#supabase-key-input').value.trim(),
+      workspaceId: $('#workspace-input').value.trim(),
+    });
+    if (!sync.isConfigured(syncCfg())) { setSyncStatus('Укажите Supabase URL и anon-ключ.', true); return; }
+    doPull();
   });
   $('#export-btn').addEventListener('click', exportData);
 }

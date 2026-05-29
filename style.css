@@ -627,6 +627,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 }
 .modal-card .field-label { margin-top: var(--s-4); }
 .modal-card .hint { margin-top: var(--s-2); }
+.sync-row { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-3); flex-wrap: wrap; }
+.sync-row #sync-status { padding: 0; }
 .modal-footer { display: flex; justify-content: space-between; gap: var(--s-3); margin-top: var(--s-6); }
 
 /* ===== Мобильная адаптация (до 375px) ===== */

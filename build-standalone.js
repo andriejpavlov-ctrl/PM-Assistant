@@ -6,6 +6,7 @@ const fs = require('fs');
 const css = fs.readFileSync('style.css', 'utf8');
 const storageSrc = fs.readFileSync('storage.js', 'utf8');
 const agentSrc = fs.readFileSync('agent.js', 'utf8');
+const syncSrc = fs.readFileSync('sync.js', 'utf8');
 const appSrc = fs.readFileSync('app.js', 'utf8');
 let html = fs.readFileSync('index.html', 'utf8');
 
@@ -38,7 +39,13 @@ const agentIIFE =
 // app.js: убрать import-ы и export-ы (оно само вызывает init()).
 const appCode = stripExport(stripImports(appSrc));
 
-const bundle = `${storeIIFE}\n\n${agentIIFE}\n\n${appCode}`;
+// sync.js → const sync = (function(){ ...; return { exports } })();
+const syncExports = collectExports(syncSrc);
+const syncIIFE =
+  `const sync = (function () {\n${stripExport(syncSrc)}\n` +
+  `return { ${syncExports.join(', ')} };\n})();`;
+
+const bundle = `${storeIIFE}\n\n${agentIIFE}\n\n${syncIIFE}\n\n${appCode}`;
 
 // Встроить CSS и заменить внешние скрипты на один инлайновый.
 // Замены передаём функциями: иначе String.replace трактует спецсимволы

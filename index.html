@@ -140,6 +140,20 @@
       <label class="field-label" for="model-input">Модель</label>
       <input id="model-input" class="text-input" type="text" placeholder="claude-haiku-4-5-20251001" />
 
+      <label class="field-label" for="supabase-url-input">Синхронизация: Supabase URL</label>
+      <input id="supabase-url-input" class="text-input" type="text" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off" />
+
+      <label class="field-label" for="supabase-key-input">Supabase anon-ключ</label>
+      <input id="supabase-key-input" class="text-input" type="password" placeholder="eyJhbGciOi..." autocomplete="off" />
+
+      <label class="field-label" for="workspace-input">ID рабочей области</label>
+      <input id="workspace-input" class="text-input" type="text" placeholder="default" autocomplete="off" />
+      <p class="hint">Синхронизирует карточки между устройствами. Введите одинаковые URL, ключ и ID рабочей области на всех устройствах. Ключи хранятся только в этом браузере.</p>
+      <div class="sync-row">
+        <button id="sync-now" class="btn btn-ghost">Синхронизировать сейчас</button>
+        <span id="sync-status" class="status-line" hidden></span>
+      </div>
+
       <div class="modal-footer">
         <button id="export-btn" class="btn btn-ghost">Экспорт данных</button>
         <button id="settings-save" class="btn btn-primary">Сохранить</button>

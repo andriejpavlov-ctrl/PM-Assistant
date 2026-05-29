@@ -634,6 +634,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 }
 .modal-card .field-label { margin-top: var(--s-4); }
 .modal-card .hint { margin-top: var(--s-2); }
+.sync-row { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-3); flex-wrap: wrap; }
+.sync-row #sync-status { padding: 0; }
 .modal-footer { display: flex; justify-content: space-between; gap: var(--s-3); margin-top: var(--s-6); }
 
 /* ===== Мобильная адаптация (до 375px) ===== */
@@ -792,6 +794,20 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
       <label class="field-label" for="model-input">Модель</label>
       <input id="model-input" class="text-input" type="text" placeholder="claude-haiku-4-5-20251001" />
 
+      <label class="field-label" for="supabase-url-input">Синхронизация: Supabase URL</label>
+      <input id="supabase-url-input" class="text-input" type="text" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off" />
+
+      <label class="field-label" for="supabase-key-input">Supabase anon-ключ</label>
+      <input id="supabase-key-input" class="text-input" type="password" placeholder="eyJhbGciOi..." autocomplete="off" />
+
+      <label class="field-label" for="workspace-input">ID рабочей области</label>
+      <input id="workspace-input" class="text-input" type="text" placeholder="default" autocomplete="off" />
+      <p class="hint">Синхронизирует карточки между устройствами. Введите одинаковые URL, ключ и ID рабочей области на всех устройствах. Ключи хранятся только в этом браузере.</p>
+      <div class="sync-row">
+        <button id="sync-now" class="btn btn-ghost">Синхронизировать сейчас</button>
+        <span id="sync-status" class="status-line" hidden></span>
+      </div>
+
       <div class="modal-footer">
         <button id="export-btn" class="btn btn-ghost">Экспорт данных</button>
         <button id="settings-save" class="btn btn-primary">Сохранить</button>
@@ -827,6 +843,8 @@ const DEFAULT_STATE = {
 };
 
 let state = null;
+let changeCb = null;        // вызывается после каждого локального изменения (для облака)
+let suppressChange = false; // не дёргать changeCb при применении удалённых данных
 
 // ===== Утилиты =====
 
@@ -930,6 +948,9 @@ function persist() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.error('Не удалось сохранить состояние:', e);
+  }
+  if (changeCb && !suppressChange) {
+    try { changeCb(); } catch (e) { console.error('Ошибка колбэка изменения:', e); }
   }
 }
 
@@ -1059,7 +1080,21 @@ function importAll(json) {
   }
 }
 
-return { ENUMS, getSettings, updateSettings, createCard, getAll, getArchived, getEverything, getById, update, archive, unarchive, remove, destroy, clearAll, exportAll, importAll };
+// ===== Облачная синхронизация (хуки) =====
+
+/** Зарегистрировать колбэк, вызываемый после каждого локального изменения. */
+function onChange(cb) { changeCb = cb; }
+
+/** Применить карточки из облака, не вызывая колбэк изменения (без эха обратно). */
+function replaceCards(cards) {
+  load();
+  suppressChange = true;
+  state.cards = Array.isArray(cards) ? cards : [];
+  persist();
+  suppressChange = false;
+}
+
+return { ENUMS, getSettings, updateSettings, createCard, getAll, getArchived, getEverything, getById, update, archive, unarchive, remove, destroy, clearAll, exportAll, importAll, onChange, replaceCards };
 })();
 
 const agent = (function () {
@@ -1291,9 +1326,82 @@ return { processCapture, processQuery, generateDailySummary };
 })();
 const { processCapture, processQuery, generateDailySummary } = agent;
 
+const sync = (function () {
+// sync.js — облачная синхронизация карточек через Supabase (PostgREST REST API).
+// Чистый модуль: не трогает DOM и localStorage. Конфиг передаётся аргументом.
+//
+// Модель хранения: одна строка в таблице pm_state на «рабочую область»:
+//   id (text, PK) = workspace, data (jsonb) = { cards: [...] }, updated_at (timestamptz).
+// Стратегия: последний-записавший-побеждает на уровне всего документа (для
+// личного использования между своими устройствами этого достаточно).
+
+const TABLE = 'pm_state';
+
+function headers(key) {
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+function base(cfg) {
+  return `${cfg.url.replace(/\/+$/, '')}/rest/v1/${TABLE}`;
+}
+
+function wid(cfg) {
+  return cfg.workspace && cfg.workspace.trim() ? cfg.workspace.trim() : 'default';
+}
+
+async function safeText(res) {
+  try {
+    const t = await res.text();
+    try { return JSON.parse(t).message || t; } catch { return t; }
+  } catch {
+    return '';
+  }
+}
+
+/** Готова ли синхронизация (заданы URL и ключ). */
+function isConfigured(cfg) {
+  return !!(cfg && cfg.url && cfg.key);
+}
+
+/**
+ * Забрать карточки из облака.
+ * @returns {Promise<{cards: Array, updatedAt: string|null} | null>} null — строки ещё нет
+ */
+async function pull(cfg) {
+  const url = `${base(cfg)}?id=eq.${encodeURIComponent(wid(cfg))}&select=data,updated_at`;
+  const res = await fetch(url, { headers: headers(cfg.key) });
+  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await safeText(res)}`);
+  const rows = await res.json();
+  if (!rows || !rows.length) return null;
+  const data = rows[0].data || {};
+  return { cards: Array.isArray(data.cards) ? data.cards : [], updatedAt: rows[0].updated_at || null };
+}
+
+/**
+ * Записать карточки в облако (upsert по id рабочей области).
+ */
+async function push(cfg, cards) {
+  const body = [{ id: wid(cfg), data: { cards: cards || [] }, updated_at: new Date().toISOString() }];
+  const res = await fetch(base(cfg), {
+    method: 'POST',
+    headers: { ...headers(cfg.key), Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await safeText(res)}`);
+  return true;
+}
+
+return { isConfigured, pull, push };
+})();
+
 // app.js — контроллер. Единственный модуль, который трогает DOM.
 // Вкладки: capture (Главная: захват + поиск) | board (Карточки) | archive (Архив).
 // Единая карточка: title, description, people[], projects[], priority, deadline, tags.
+
 
 
 
@@ -1345,6 +1453,70 @@ function syncApiKey() {
   window.CLAUDE_MODEL = s.model || DEFAULT_MODEL;
 }
 
+// ===== Облачная синхронизация (Supabase) =====
+function syncCfg() {
+  const s = store.getSettings();
+  return { url: s.supabaseUrl || '', key: s.supabaseKey || '', workspace: s.workspaceId || '' };
+}
+let pushTimer = null;
+let pendingPush = false;
+
+function setSyncStatus(msg, isError = false) {
+  const elm = document.getElementById('sync-status');
+  if (!elm) return;
+  elm.textContent = msg || '';
+  elm.classList.toggle('is-error', isError);
+  elm.hidden = !msg;
+}
+
+/** Дебаунс-пуш локальных изменений в облако. */
+function schedulePush() {
+  if (!sync.isConfigured(syncCfg())) return;
+  pendingPush = true;
+  setSyncStatus('Сохранение в облако…');
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(doPush, 700);
+}
+async function doPush() {
+  if (!sync.isConfigured(syncCfg())) return;
+  try {
+    await sync.push(syncCfg(), store.getEverything());
+    pendingPush = false;
+    setSyncStatus('Синхронизировано ✓');
+  } catch (e) {
+    setSyncStatus('Ошибка синхронизации: ' + e.message, true);
+  }
+}
+/** Перерисовать текущую вкладку после применения удалённых данных. */
+function rerenderActiveView() {
+  const active = document.querySelector('.tab[aria-selected="true"]');
+  const name = active ? active.dataset.tab : 'capture';
+  if (name === 'board') { populateFilters(); afterFilterChange(); }
+  else if (name === 'archive') renderArchive();
+}
+/**
+ * Подтянуть карточки из облака. opts.auto — фоновый вызов (не трогаем,
+ * если есть несохранённые локальные правки). Если в облаке пусто — заливаем
+ * текущие локальные карточки.
+ */
+async function doPull(opts = {}) {
+  if (!sync.isConfigured(syncCfg())) return;
+  if (opts.auto && pendingPush) return;
+  try {
+    if (!opts.auto) setSyncStatus('Загрузка из облака…');
+    const remote = await sync.pull(syncCfg());
+    if (remote) {
+      store.replaceCards(remote.cards);
+      rerenderActiveView();
+      setSyncStatus('Синхронизировано ✓');
+    } else {
+      await doPush();
+    }
+  } catch (e) {
+    setSyncStatus('Ошибка синхронизации: ' + e.message, true);
+  }
+}
+
 // ===== Нормализация и объединение имён людей =====
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 function firstToken(name) { return (name || '').trim().split(/\s+/)[0] || ''; }
@@ -1376,6 +1548,8 @@ function init() {
   const settings = store.getSettings();
   if (!settings.apiKey && fileConfig.apiKey) store.updateSettings({ apiKey: fileConfig.apiKey });
   if (fileConfig.model && settings.model === DEFAULT_MODEL) store.updateSettings({ model: fileConfig.model });
+  if (!settings.supabaseUrl && fileConfig.supabaseUrl) store.updateSettings({ supabaseUrl: fileConfig.supabaseUrl });
+  if (!settings.supabaseKey && fileConfig.supabaseKey) store.updateSettings({ supabaseKey: fileConfig.supabaseKey });
   applyTheme(store.getSettings().theme);
   syncApiKey();
 
@@ -1388,6 +1562,12 @@ function init() {
 
   const saved = localStorage.getItem('pm_active_tab');
   if (saved && document.querySelector(`.tab[data-tab="${saved}"]`)) switchTab(saved);
+
+  // Облачная синхронизация: пуш при локальных изменениях, тянем при загрузке
+  // и при возврате на вкладку (чтобы видеть правки с других устройств).
+  store.onChange(schedulePush);
+  if (sync.isConfigured(syncCfg())) doPull();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) doPull({ auto: true }); });
 }
 
 // ===== Навигация =====
@@ -1985,6 +2165,12 @@ function bindSettings() {
     const s = store.getSettings();
     $('#api-key-input').value = s.apiKey || '';
     $('#model-input').value = s.model || '';
+    $('#supabase-url-input').value = s.supabaseUrl || '';
+    $('#supabase-key-input').value = s.supabaseKey || '';
+    $('#workspace-input').value = s.workspaceId || '';
+    setSyncStatus(sync.isConfigured(syncCfg())
+      ? 'Синхронизация включена.'
+      : 'Синхронизация выключена. Заполните URL и anon-ключ.');
     modal.hidden = false;
   });
   $('#settings-close').addEventListener('click', () => (modal.hidden = true));
@@ -1993,9 +2179,24 @@ function bindSettings() {
     store.updateSettings({
       apiKey: $('#api-key-input').value.trim(),
       model: $('#model-input').value.trim() || DEFAULT_MODEL,
+      supabaseUrl: $('#supabase-url-input').value.trim(),
+      supabaseKey: $('#supabase-key-input').value.trim(),
+      workspaceId: $('#workspace-input').value.trim(),
     });
     syncApiKey();
     modal.hidden = true;
+    if (sync.isConfigured(syncCfg())) doPull();
+  });
+  // «Синхронизировать сейчас» — применяет введённые ключи и тянет облако,
+  // не закрывая модалку (чтобы был виден статус).
+  $('#sync-now').addEventListener('click', () => {
+    store.updateSettings({
+      supabaseUrl: $('#supabase-url-input').value.trim(),
+      supabaseKey: $('#supabase-key-input').value.trim(),
+      workspaceId: $('#workspace-input').value.trim(),
+    });
+    if (!sync.isConfigured(syncCfg())) { setSyncStatus('Укажите Supabase URL и anon-ключ.', true); return; }
+    doPull();
   });
   $('#export-btn').addEventListener('click', exportData);
 }
