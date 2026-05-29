@@ -73,44 +73,57 @@
 
     <!-- ВКЛАДКА: КАРТОЧКИ -->
     <section id="view-board" class="view" data-view="board" hidden>
-      <section class="home-block">
-        <div class="home-block-head">
-          <span class="home-block-icon">🎛️</span>
-          <h2 class="home-block-title">Фильтры</h2>
-          <button id="filter-reset" class="reset-link" hidden>Сбросить всё</button>
-        </div>
-        <div class="filters-grid">
-          <select id="filter-person" class="select" aria-label="Фильтр по человеку"><option value="">👤 Человек</option></select>
-          <select id="filter-project" class="select" aria-label="Фильтр по проекту"><option value="">📁 Проект</option></select>
-          <select id="filter-priority" class="select" aria-label="Фильтр по приоритету">
-            <option value="">🚩 Приоритет</option>
+      <div class="filter-bar" role="toolbar" aria-label="Фильтры и сортировка">
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <select id="filter-person" class="filter-field" aria-label="Фильтр по человеку"><option value="">Человек</option></select>
+        </label>
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <select id="filter-project" class="filter-field" aria-label="Фильтр по проекту"><option value="">Проект</option></select>
+        </label>
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12l-2.5 3.5L17 11H5"/></svg>
+          <select id="filter-priority" class="filter-field" aria-label="Фильтр по приоритету">
+            <option value="">Приоритет</option>
             <option value="P1">P1</option>
             <option value="P2">P2</option>
             <option value="P3">P3</option>
             <option value="P4">P4</option>
           </select>
-          <select id="filter-status" class="select" aria-label="Фильтр по статусу">
-            <option value="all">⚑ Статус</option>
+        </label>
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></svg>
+          <select id="filter-status" class="filter-field" aria-label="Фильтр по статусу">
+            <option value="all">Статус</option>
             <option value="open">Открытые</option>
             <option value="in_progress">В работе</option>
             <option value="done">Закрытые</option>
           </select>
-          <select id="filter-daterange" class="select" aria-label="Фильтр по сроку">
-            <option value="all">📅 Срок</option>
+        </label>
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>
+          <select id="filter-daterange" class="filter-field" aria-label="Фильтр по сроку">
+            <option value="all">Срок</option>
             <option value="overdue">Просроченные</option>
             <option value="today">Сегодня</option>
             <option value="this_week">Эта неделя</option>
             <option value="this_month">Этот месяц</option>
           </select>
-          <select id="sort-select" class="select sort-select" aria-label="Сортировка">
-            <option value="default">↕ По умолчанию</option>
-            <option value="deadline">↕ По сроку</option>
-            <option value="priority">↕ По приоритету</option>
-            <option value="person">↕ По человеку</option>
-            <option value="project">↕ По проекту</option>
+        </label>
+
+        <label class="filter-item filter-item--sort">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 20l-3-3M7 20l3-3"/><path d="M17 20V4M17 4l-3 3M17 4l3 3"/></svg>
+          <select id="sort-select" class="filter-field" aria-label="Сортировка">
+            <option value="default">По умолчанию</option>
+            <option value="deadline">По сроку</option>
+            <option value="priority">По приоритету</option>
+            <option value="person">По человеку</option>
+            <option value="project">По проекту</option>
           </select>
-        </div>
-      </section>
+        </label>
+        <button id="filter-reset" class="reset-link" hidden>Сбросить всё</button>
+      </div>
 
       <div class="board">
         <div class="column">
