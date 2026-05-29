@@ -429,7 +429,7 @@ function renderBoard() {
 function buildTop(c) {
   const top = document.createElement('div');
   top.className = 'card-top';
-  if (c.priority) top.appendChild(badge(PRIORITY_NAME[c.priority] || c.priority, `badge-${c.priority}`));
+  if (c.priority && PRIORITY_NAME[c.priority]) top.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
   return top;
 }
 
