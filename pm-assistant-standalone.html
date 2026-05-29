@@ -272,43 +272,78 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .hint { color: var(--text-3); font-size: var(--fs-sm); }
 .capture-result { margin-top: var(--s-4); }
 
-/* ===== Фильтры (карточка home-block, как на Главной) ===== */
-/* Контролы — равные ячейки grid: ряд выровнен идеально, без рваных ширин. */
-.filters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--s-3);
-}
-.filters-grid .select {
-  height: var(--control-h);
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* Активный фильтр — акцентная подсветка. */
-.filters-grid .select.is-filtered {
-  border-color: var(--accent);
-  color: var(--accent);
-  background-color: var(--accent-weak);
-}
-/* Сортировка визуально отделена от фильтров тонкой линией слева. */
-.filters-grid .sort-select {
-  grid-column: 1 / -1;
-  border-color: var(--border);
-  color: var(--text-2);
-}
-@media (min-width: 720px) {
-  /* На широком экране сортировка прижата к правому краю своей ячейкой. */
-  .filters-grid .sort-select { grid-column: auto; }
+/* ===== Горизонтальный бар фильтров и сортировки ===== */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-5);   /* отступ, чтобы доска не слипалась с фильтрами */
 }
 
-/* «Сбросить всё» — тихая ссылка в шапке карточки, только при активных фильтрах. */
+/* Пилюля: монохромная иконка + нативный select без рамки. */
+.filter-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--control-h-sm);
+  padding: 0 var(--s-2) 0 var(--s-3);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: border-color var(--tr), color var(--tr), background var(--tr);
+}
+.filter-item:hover { border-color: var(--border-strong); color: var(--text); }
+.filter-item:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
+
+/* Монохромная минималистичная иконка (наследует цвет текста пилюли). */
+.filter-ic {
+  flex: none;
+  width: 16px; height: 16px;
+  color: var(--text-3);
+}
+.filter-item:hover .filter-ic { color: var(--text-2); }
+
+/* Нативный select внутри пилюли — без своих рамок/фона, только текст + стрелка. */
+.filter-field {
+  appearance: none; -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  padding: 0 var(--s-4) 0 0;
+  height: 100%;
+  cursor: pointer;
+  max-width: 160px;
+  text-overflow: ellipsis;
+  /* компактная стрелка-шеврон */
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 7px) center, calc(100% - 3px) center;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+.filter-field:focus { outline: none; }
+
+/* Активный фильтр — пилюля целиком в акценте. */
+.filter-item.is-filtered {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+.filter-item.is-filtered .filter-ic { color: var(--accent); }
+
+/* Сортировка прижата к правому краю как отдельная группа. */
+.filter-item--sort { margin-left: auto; }
+
+/* «Сбросить всё» — тихая ссылка, только при активных фильтрах. */
 .reset-link {
-  margin-left: auto;
   background: none;
   border: none;
-  padding: 0;
+  padding: 0 var(--s-2);
   color: var(--text-3);
   font-family: inherit;
   font-size: var(--fs-sm);
@@ -529,9 +564,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .tabs { order: 3; width: 100%; margin-left: 0; }
   .tab { flex: 1; text-align: center; padding: var(--s-2) var(--s-1); }
   .home-block { padding: var(--s-4); }
-  /* На мобильном фильтры — 2 ровные колонки, сортировка на всю ширину. */
-  .filters-grid { grid-template-columns: 1fr 1fr; }
-  .filters-grid .sort-select { grid-column: 1 / -1; }
+  /* Фильтры на мобильном переносятся, сортировка не прижимается вправо. */
+  .filter-item--sort { margin-left: 0; }
+  .filter-field { max-width: 120px; }
   .capture-input { min-height: 40vh; }
   .find-bar { flex-direction: column; }
   .find-bar .btn { width: 100%; }
@@ -606,44 +641,57 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 
     <!-- ВКЛАДКА: КАРТОЧКИ -->
     <section id="view-board" class="view" data-view="board" hidden>
-      <section class="home-block">
-        <div class="home-block-head">
-          <span class="home-block-icon">🎛️</span>
-          <h2 class="home-block-title">Фильтры</h2>
-          <button id="filter-reset" class="reset-link" hidden>Сбросить всё</button>
-        </div>
-        <div class="filters-grid">
-          <select id="filter-person" class="select" aria-label="Фильтр по человеку"><option value="">👤 Человек</option></select>
-          <select id="filter-project" class="select" aria-label="Фильтр по проекту"><option value="">📁 Проект</option></select>
-          <select id="filter-priority" class="select" aria-label="Фильтр по приоритету">
-            <option value="">🚩 Приоритет</option>
+      <div class="filter-bar" role="toolbar" aria-label="Фильтры и сортировка">
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <select id="filter-person" class="filter-field" aria-label="Фильтр по человеку"><option value="">Человек</option></select>
+        </label>
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <select id="filter-project" class="filter-field" aria-label="Фильтр по проекту"><option value="">Проект</option></select>
+        </label>
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12l-2.5 3.5L17 11H5"/></svg>
+          <select id="filter-priority" class="filter-field" aria-label="Фильтр по приоритету">
+            <option value="">Приоритет</option>
             <option value="P1">P1</option>
             <option value="P2">P2</option>
             <option value="P3">P3</option>
             <option value="P4">P4</option>
           </select>
-          <select id="filter-status" class="select" aria-label="Фильтр по статусу">
-            <option value="all">⚑ Статус</option>
+        </label>
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></svg>
+          <select id="filter-status" class="filter-field" aria-label="Фильтр по статусу">
+            <option value="all">Статус</option>
             <option value="open">Открытые</option>
             <option value="in_progress">В работе</option>
             <option value="done">Закрытые</option>
           </select>
-          <select id="filter-daterange" class="select" aria-label="Фильтр по сроку">
-            <option value="all">📅 Срок</option>
+        </label>
+        <label class="filter-item">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>
+          <select id="filter-daterange" class="filter-field" aria-label="Фильтр по сроку">
+            <option value="all">Срок</option>
             <option value="overdue">Просроченные</option>
             <option value="today">Сегодня</option>
             <option value="this_week">Эта неделя</option>
             <option value="this_month">Этот месяц</option>
           </select>
-          <select id="sort-select" class="select sort-select" aria-label="Сортировка">
-            <option value="default">↕ По умолчанию</option>
-            <option value="deadline">↕ По сроку</option>
-            <option value="priority">↕ По приоритету</option>
-            <option value="person">↕ По человеку</option>
-            <option value="project">↕ По проекту</option>
+        </label>
+
+        <label class="filter-item filter-item--sort">
+          <svg class="filter-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 20l-3-3M7 20l3-3"/><path d="M17 20V4M17 4l-3 3M17 4l3 3"/></svg>
+          <select id="sort-select" class="filter-field" aria-label="Сортировка">
+            <option value="default">По умолчанию</option>
+            <option value="deadline">По сроку</option>
+            <option value="priority">По приоритету</option>
+            <option value="person">По человеку</option>
+            <option value="project">По проекту</option>
           </select>
-        </div>
-      </section>
+        </label>
+        <button id="filter-reset" class="reset-link" hidden>Сбросить всё</button>
+      </div>
 
       <div class="board">
         <div class="column">
@@ -1768,7 +1816,8 @@ function hasActiveFilters() {
 
 /** Реакция на смену фильтра: подсветить активные пилюли, показать «Сбросить», перерисовать. */
 function afterFilterChange() {
-  const mark = (sel, active) => sel.classList.toggle('is-filtered', active);
+  // Класс is-filtered вешаем на пилюлю .filter-item (родителя select), иначе на сам select.
+  const mark = (sel, active) => (sel.closest('.filter-item') || sel).classList.toggle('is-filtered', active);
   mark($('#filter-person'), !!filters.person);
   mark($('#filter-project'), !!filters.project);
   mark($('#filter-priority'), !!filters.priority);
@@ -1783,8 +1832,8 @@ function populateFilters() {
   const all = store.getAll();
   const people = [...new Set(all.flatMap(peopleOf).filter(Boolean))].sort();
   const projects = [...new Set(all.flatMap(projectsOf).filter(Boolean))].sort();
-  fillSelect($('#filter-person'), '👤 Человек', people, filters.person);
-  fillSelect($('#filter-project'), '📁 Проект', projects, filters.project);
+  fillSelect($('#filter-person'), 'Человек', people, filters.person);
+  fillSelect($('#filter-project'), 'Проект', projects, filters.project);
 }
 function fillSelect(sel, placeholder, values, current) {
   sel.innerHTML = '';
