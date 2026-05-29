@@ -282,10 +282,11 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   margin-bottom: var(--s-5);
 }
 
-/* Пилюля-дропдаун: самоописывающаяся (плейсхолдер = название фильтра). */
+/* Пилюля-дропдаун одной фиксированной ширины — ряд получается ровным.
+   Длинный выбранный текст (имя/проект) обрезается многоточием, а не растягивает пилюлю. */
 .filter-select {
-  width: auto;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: 150px;
   height: var(--control-h-sm);
   padding: 0 var(--s-5) 0 var(--s-3);
   background-color: var(--bg-elev);
@@ -294,6 +295,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   color: var(--text-2);
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   /* стрелка как у .select, но ближе к краю пилюли */
   background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%), linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
   background-position: calc(100% - 13px) center, calc(100% - 9px) center;
@@ -305,8 +309,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   border-color: var(--accent);
   color: var(--accent);
 }
-/* Сортировка слегка отодвинута вправо как отдельная группа. */
-.sort-select { margin-left: auto; }
+/* Сортировка — отдельная группа справа, чуть шире под свой текст. */
+.sort-select { width: 172px; margin-left: auto; }
 
 /* «Сбросить» — текстовая кнопка, появляется только при активных фильтрах. */
 .reset-btn {
@@ -535,7 +539,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .tabs { order: 3; width: 100%; margin-left: 0; }
   .tab { flex: 1; text-align: center; padding: var(--s-2) var(--s-1); }
   .home-block { padding: var(--s-4); }
-  .sort-select { margin-left: 0; }
+  /* На мобильном пилюли тянутся в 2 колонки — без «лесенки» и фикс-ширины. */
+  .filter-select { flex: 1 1 calc(50% - var(--s-1)); width: auto; }
+  .sort-select { width: auto; margin-left: 0; }
   .capture-input { min-height: 40vh; }
   .find-bar { flex-direction: column; }
   .find-bar .btn { width: 100%; }
