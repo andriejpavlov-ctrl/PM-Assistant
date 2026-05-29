@@ -119,7 +119,10 @@
     <section id="view-archive" class="view" data-view="archive" hidden>
       <div class="archive-head">
         <p class="hint">Карточки, удалённые из раздела «Карточки». Их можно вернуть или удалить навсегда.</p>
-        <span class="count" id="count-archive">0</span>
+        <div class="archive-head-actions">
+          <span class="count" id="count-archive">0</span>
+          <button id="archive-clear" class="btn btn-ghost btn-sm" hidden>Очистить архив</button>
+        </div>
       </div>
       <ul id="archive-list" class="card-list"></ul>
       <p id="archive-empty" class="empty-col" hidden>Архив пуст.</p>
