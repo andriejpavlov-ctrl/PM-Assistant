@@ -274,63 +274,43 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   margin-bottom: var(--s-5);   /* отступ, чтобы доска не слипалась с фильтрами */
 }
 
-/* Пилюля: монохромная иконка + нативный select без рамки. */
-.filter-item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
+/* Дропдаун-фильтр: равная фиксированная ширина у всех полей. */
+.filter-field {
+  appearance: none; -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 150px;
   height: var(--control-h-sm);
-  padding: 0 var(--s-2) 0 var(--s-3);
+  padding: 0 var(--s-5) 0 var(--s-3);
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--r-pill);
   color: var(--text-2);
-  cursor: pointer;
-  transition: border-color var(--tr), color var(--tr), background var(--tr);
-}
-.filter-item:hover { border-color: var(--border-strong); color: var(--text); }
-.filter-item:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
-
-/* Монохромная минималистичная иконка (наследует цвет текста пилюли). */
-.filter-ic {
-  flex: none;
-  width: 16px; height: 16px;
-  color: var(--text-3);
-}
-.filter-item:hover .filter-ic { color: var(--text-2); }
-
-/* Нативный select внутри пилюли — без своих рамок/фона, только текст + стрелка. */
-.filter-field {
-  appearance: none; -webkit-appearance: none;
-  border: none;
-  background: transparent;
-  color: inherit;
   font-family: inherit;
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
-  padding: 0 var(--s-4) 0 0;
-  height: 100%;
   cursor: pointer;
-  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
-  /* компактная стрелка-шеврон */
+  transition: border-color var(--tr), color var(--tr), background var(--tr);
+  /* компактная стрелка-шеврон у правого края */
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: calc(100% - 7px) center, calc(100% - 3px) center;
+  background-position: calc(100% - 14px) center, calc(100% - 10px) center;
   background-size: 4px 4px, 4px 4px;
   background-repeat: no-repeat;
 }
-.filter-field:focus { outline: none; }
+.filter-field:hover { border-color: var(--border-strong); color: var(--text); }
+.filter-field:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
 
 /* Активный фильтр — пилюля целиком в акценте. */
-.filter-item.is-filtered {
+.filter-field.is-filtered {
   border-color: var(--accent);
-  background: var(--accent-weak);
+  background-color: var(--accent-weak);
   color: var(--accent);
 }
-.filter-item.is-filtered .filter-ic { color: var(--accent); }
 
 /* Сортировка прижата к правому краю как отдельная группа. */
-.filter-item--sort { margin-left: auto; }
+.filter-field--sort { margin-left: auto; }
 
 /* «Сбросить всё» — тихая ссылка, только при активных фильтрах. */
 .reset-link {
@@ -456,8 +436,16 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .badge-sev-medium { background: var(--warn-weak); color: var(--warn); }
 .badge-sev-low { background: var(--bg-elev); color: var(--text-3); }
 
-.meta-tag { font-size: var(--fs-xs); color: var(--text-3); }
+/* Единая инлайновая иконка: один размер везде (мета, кнопки). */
+.ic { display: inline-flex; flex: none; }
+.ic svg { width: 14px; height: 14px; display: block; }
+
+.meta-tag { display: inline-flex; align-items: center; gap: var(--s-1); font-size: var(--fs-xs); color: var(--text-3); }
 .meta-due.is-overdue { color: var(--danger); font-weight: var(--fw-semibold); }
+
+/* Кнопки в карточках: иконка + подпись на одной линии, иконки-only квадратные. */
+.card-footer .btn { gap: 5px; }
+.card-footer .btn .ic svg { width: 15px; height: 15px; }
 
 /* Инлайн-форма редактирования */
 .edit-form { display: flex; flex-direction: column; gap: var(--s-3); }
@@ -576,9 +564,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .tabs { order: 3; width: 100%; margin-left: 0; }
   .tab { flex: 1; text-align: center; padding: var(--s-2) var(--s-1); }
   .home-block { padding: var(--s-4); }
-  /* Фильтры на мобильном переносятся, сортировка не прижимается вправо. */
-  .filter-item--sort { margin-left: 0; }
-  .filter-field { max-width: 120px; }
+  /* Фильтры на мобильном — 2 ровные колонки, сортировка не прижимается вправо. */
+  .filter-field { flex: 1 1 calc(50% - var(--s-1)); width: auto; }
+  .filter-field--sort { margin-left: 0; }
   .capture-input { min-height: 40vh; }
   .find-bar { flex-direction: column; }
   .find-bar .btn { width: 100%; }

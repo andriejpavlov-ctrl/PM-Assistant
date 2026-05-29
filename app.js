@@ -442,8 +442,7 @@ function hasActiveFilters() {
 
 /** Реакция на смену фильтра: подсветить активные пилюли, показать «Сбросить», перерисовать. */
 function afterFilterChange() {
-  // Класс is-filtered вешаем на пилюлю .filter-item (родителя select), иначе на сам select.
-  const mark = (sel, active) => (sel.closest('.filter-item') || sel).classList.toggle('is-filtered', active);
+  const mark = (sel, active) => sel.classList.toggle('is-filtered', active);
   mark($('#filter-person'), !!filters.person);
   mark($('#filter-project'), !!filters.project);
   mark($('#filter-priority'), !!filters.priority);
@@ -662,18 +661,18 @@ function buildTop(e) {
 function buildMeta(e) {
   const meta = document.createElement('div');
   meta.className = 'card-meta';
-  if (e.type === 'task' && e.status === 'in_progress') meta.appendChild(metaSpan('🔄 в работе'));
-  peopleOf(e).forEach((p) => meta.appendChild(metaSpan(`👤 ${p}`)));
-  projectsOf(e).forEach((p) => meta.appendChild(metaSpan(`📁 ${p}`)));
-  if (e.type === 'topic' && e.importance) meta.appendChild(metaSpan(`★ ${IMPORTANCE_LABEL[e.importance] || e.importance}`));
+  if (e.type === 'task' && e.status === 'in_progress') meta.appendChild(metaItem('progress', 'в работе'));
+  peopleOf(e).forEach((p) => meta.appendChild(metaItem('person', p)));
+  projectsOf(e).forEach((p) => meta.appendChild(metaItem('project', p)));
+  if (e.type === 'topic' && e.importance) meta.appendChild(metaItem('star', IMPORTANCE_LABEL[e.importance] || e.importance));
   if (e.deadline) {
     const overdue = !isClosed(e) && e.deadline < todayISO();
-    const span = metaSpan(`⏱ ${e.deadline}`);
+    const span = metaItem('clock', e.deadline);
     span.classList.add('meta-due');
     if (overdue) span.classList.add('is-overdue');
     meta.appendChild(span);
   }
-  (e.tags || []).forEach((t) => meta.appendChild(metaSpan(`#${t}`)));
+  (e.tags || []).forEach((t) => meta.appendChild(metaItem('tag', t)));
   return meta;
 }
 
@@ -697,35 +696,35 @@ function buildCard(e) {
     // Открытую задачу можно перевести «В работу»; закрытую — только вернуть.
     if (!isClosed(e)) {
       const inProg = e.status === 'in_progress';
-      const progBtn = el('button', 'btn btn-ghost btn-sm' + (inProg ? ' is-active' : ''), inProg ? 'В работе ✓' : 'В работу');
+      const progBtn = iconBtn('progress', inProg ? 'В работе' : 'В работу', inProg ? 'is-active' : '');
       progBtn.addEventListener('click', () => {
         store.update(e.id, { status: inProg ? 'todo' : 'in_progress' });
         renderBoard();
       });
       footer.appendChild(progBtn);
     }
-    const doneBtn = el('button', 'btn btn-ghost btn-sm', isClosed(e) ? 'Вернуть' : 'Выполнено');
+    const doneBtn = iconBtn(isClosed(e) ? 'restore' : 'done', isClosed(e) ? 'Вернуть' : 'Выполнено');
     doneBtn.addEventListener('click', () => {
       store.update(e.id, { status: isClosed(e) ? 'todo' : 'done' });
       renderBoard();
     });
     footer.appendChild(doneBtn);
   } else if (e.type === 'topic') {
-    const doneBtn = el('button', 'btn btn-ghost btn-sm', isClosed(e) ? 'Вернуть' : 'Обсуждено');
+    const doneBtn = iconBtn(isClosed(e) ? 'restore' : 'done', isClosed(e) ? 'Вернуть' : 'Обсуждено');
     doneBtn.addEventListener('click', () => {
       store.update(e.id, { status: isClosed(e) ? 'open' : 'discussed' });
       renderBoard();
     });
     footer.appendChild(doneBtn);
   }
-  const editBtn = el('button', 'btn btn-ghost btn-sm', '✏️');
+  const editBtn = iconBtn('edit', '');
   editBtn.title = 'Редактировать';
   editBtn.addEventListener('click', () => {
     editingId = e.id;
     renderBoard();
   });
   footer.appendChild(editBtn);
-  const del = el('button', 'btn btn-ghost btn-sm', '🗑');
+  const del = iconBtn('trash', '');
   del.title = 'В архив';
   del.addEventListener('click', () => {
     store.remove(e.id);
@@ -842,12 +841,12 @@ function buildArchiveCard(e) {
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
-  const restore = el('button', 'btn btn-ghost btn-sm', '↩️ Вернуть');
+  const restore = iconBtn('restore', 'Вернуть');
   restore.addEventListener('click', () => {
     store.unarchive(e.id);
     renderArchive();
   });
-  const del = el('button', 'btn btn-ghost btn-sm', '🗑 Удалить навсегда');
+  const del = iconBtn('trash', 'Удалить навсегда');
   del.addEventListener('click', () => {
     if (confirm('Удалить запись навсегда? Это действие необратимо.')) {
       store.destroy(e.id);
@@ -975,6 +974,41 @@ function badge(text, cls) {
 }
 function metaSpan(text) {
   return el('span', 'meta-tag', text);
+}
+
+// Единый набор монохромных SVG-иконок (16×16, currentColor) для консистентности.
+const ICONS = {
+  person: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>',
+  project: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  star: '<path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.9 6.7 19.2l1-5.8L3.5 9.2l5.9-.9z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  tag: '<path d="M3 11.5V5a2 2 0 0 1 2-2h6.5L21 12.5 12.5 21z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+  progress: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 5l4 4"/>',
+  trash: '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/>',
+  restore: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>',
+  done: '<circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/>',
+};
+/** Создать инлайновую SVG-иконку (наследует цвет/размер от родителя). */
+function icon(name) {
+  const span = document.createElement('span');
+  span.className = 'ic';
+  span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+  return span;
+}
+/** Текстовая мета-метка с ведущей иконкой (единый размер). */
+function metaItem(name, text) {
+  const span = el('span', 'meta-tag');
+  span.appendChild(icon(name));
+  span.appendChild(document.createTextNode(text));
+  return span;
+}
+/** Кнопка с иконкой + подписью для подвала карточки. */
+function iconBtn(name, label, cls = '') {
+  const b = el('button', `btn btn-ghost btn-sm ${cls}`.trim());
+  b.appendChild(icon(name));
+  if (label) b.appendChild(document.createTextNode(label));
+  return b;
 }
 function showStatus(elm, msg, isError = false) {
   elm.textContent = msg;
