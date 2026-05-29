@@ -529,9 +529,12 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .archive-head .count { background: var(--bg-elev-2); border-radius: var(--r-pill); padding: 2px var(--s-3); font-size: var(--fs-xs); color: var(--text-3); }
 #archive-clear:hover { border-color: var(--danger); color: var(--danger); }
 
-/* ===== Поиск: строка и ответ ===== */
+/* ===== Спросить ассистента: строка и ответ ===== */
 .find-bar { display: flex; gap: var(--s-2); align-items: stretch; }
 .find-input { flex: 1 1 auto; min-width: 0; }
+/* Кнопка-иконка «Спросить»: квадратная, со стрелкой вместо текста. */
+.btn-icon { flex: none; width: var(--control-h); padding: 0; }
+.btn-icon .ic svg { width: 18px; height: 18px; display: block; }
 
 /* Ответ ассистента — отдельная заметная карточка, отделённая от строки поиска */
 .answer {
@@ -643,9 +646,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .filter-cell .filter-field { width: 100%; }
   .filter-field--sort { flex: 1 1 calc(50% - var(--s-1)); width: auto; margin-left: 0; }
   .capture-input { min-height: 40vh; }
-  /* Поиск на мобильном — как полноширинные элементы «Новой записи»:
-     поле и кнопка каждое на всю ширину, друг под другом. */
-  .find-bar { flex-direction: column; align-items: stretch; gap: var(--s-3); }
-  .find-bar .find-input,
-  .find-bar .btn { width: 100%; flex: 0 0 auto; }
+  /* Поиск на мобильном — поле на всю ширину, кнопка-стрелка компактная справа. */
+  .find-bar { gap: var(--s-2); }
+  .btn-icon { width: 48px; }
 }
