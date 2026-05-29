@@ -168,6 +168,13 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .hint { color: var(--text-dim); font-size: 13px; }
 .capture-result { margin-top: 18px; }
 
+/* Блок поиска внутри раздела «Захватить и найти» */
+.search-block {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+
 /* ===== Панель фильтров ===== */
 .filters-panel {
   display: flex;
