@@ -40,6 +40,7 @@
   --fw-semibold: 600;
   --lh-tight: 1.3;
   --lh-base: 1.55;
+  --lh-normal: 1.45;
 
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
@@ -660,7 +661,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   border-color: transparent;
 }
 
-/* Бейджи типа / приоритета */
+/* Бейджи приоритета: P1 высокий (красный), P2 средний (жёлтый), P3 низкий (серый) */
 .badge {
   font-size: 10.5px;
   padding: 2px var(--s-2);
@@ -669,10 +670,6 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.badge-topic { background: var(--warn-weak); color: var(--warn); }
-.badge-task { background: var(--accent-weak); color: var(--accent); }
-.badge-note { background: var(--bg-elev); color: var(--text-3); }
-.badge-P0 { background: var(--danger); color: #fff; }
 .badge-P1 { background: var(--danger-weak); color: var(--danger); }   /* высокий */
 .badge-P2 { background: var(--warn-weak); color: var(--warn); }       /* средний */
 .badge-P3 { background: var(--bg-elev); color: var(--text-3); }       /* низкий */
@@ -721,7 +718,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .archive-head .count { background: var(--bg-elev-2); border-radius: var(--r-pill); padding: 2px var(--s-3); font-size: var(--fs-xs); color: var(--text-3); }
 #archive-clear:hover { border-color: var(--danger); color: var(--danger); }
 
-/* ===== Поиск: строка и ответ ===== */
+/* ===== Спросить ассистента: строка и ответ ===== */
 .find-bar { display: flex; gap: var(--s-2); align-items: stretch; }
 .find-input { flex: 1 1 auto; min-width: 0; }
 /* Кнопка-иконка «Спросить»: квадратная, со стрелкой вместо текста. */
@@ -2029,6 +2026,7 @@ function init() {
   bindSettings();
   bindTheme();
   bindArchive();
+  bindMeme();
 
   const saved = localStorage.getItem('pm_active_tab');
   if (saved && document.querySelector(`.tab[data-tab="${saved}"]`)) switchTab(saved);
@@ -2769,6 +2767,33 @@ function plural(n, one, few, many) {
   if (m10 === 1 && m100 !== 11) return one;
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
   return many;
+}
+
+// ===== Главная: The daily AI Meme =====
+function bindMeme() {
+  const btn = $('#meme-btn');
+  if (btn) btn.addEventListener('click', onMeme);
+}
+async function onMeme() {
+  const btn = $('#meme-btn');
+  const status = $('#meme-status');
+  const out = $('#meme-output');
+  btn.disabled = true;
+  btn.classList.add('is-loading');
+  out.hidden = true;
+  showStatus(status, 'Призываю брутальную мудрость…');
+  try {
+    const { hero, meme } = await generateMeme();
+    status.hidden = true;
+    out.querySelector('.meme-text').textContent = meme || 'Сегодня муза молчит. Жми ещё.';
+    out.querySelector('.meme-hero').textContent = hero ? `в стиле ${hero}` : '';
+    out.hidden = false;
+  } catch (e) {
+    showStatus(status, e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('is-loading');
+  }
 }
 
 // ===== Настройки =====
