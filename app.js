@@ -156,7 +156,7 @@ function switchTab(name) {
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== name));
   if (name === 'board') {
     populateFilters();
-    renderBoard();
+    afterFilterChange();
   } else if (name === 'archive') {
     renderArchive();
   }
@@ -408,18 +408,12 @@ function saveCaptureDraft() {
 
 // ===== Вкладка «Доска» =====
 function bindBoard() {
-  $('#filter-person').addEventListener('change', (e) => { filters.person = e.target.value; renderBoard(); });
-  $('#filter-project').addEventListener('change', (e) => { filters.project = e.target.value; renderBoard(); });
-  $('#filter-priority').addEventListener('change', (e) => { filters.priority = e.target.value; renderBoard(); });
-  $('#filter-status').addEventListener('change', (e) => { filters.status = e.target.value; renderBoard(); });
-  $('#filter-daterange').addEventListener('change', (e) => { filters.dateRange = e.target.value; renderBoard(); });
-  $$('#sort-toggles .chip').forEach((c) =>
-    c.addEventListener('click', () => {
-      sortMode = c.dataset.sort;
-      $$('#sort-toggles .chip').forEach((x) => x.classList.toggle('is-active', x === c));
-      renderBoard();
-    })
-  );
+  $('#filter-person').addEventListener('change', (e) => { filters.person = e.target.value; afterFilterChange(); });
+  $('#filter-project').addEventListener('change', (e) => { filters.project = e.target.value; afterFilterChange(); });
+  $('#filter-priority').addEventListener('change', (e) => { filters.priority = e.target.value; afterFilterChange(); });
+  $('#filter-status').addEventListener('change', (e) => { filters.status = e.target.value; afterFilterChange(); });
+  $('#filter-daterange').addEventListener('change', (e) => { filters.dateRange = e.target.value; afterFilterChange(); });
+  $('#sort-select').addEventListener('change', (e) => { sortMode = e.target.value; renderBoard(); });
   $('#filter-reset').addEventListener('click', () => {
     filters.person = filters.project = filters.priority = '';
     filters.status = 'all';
@@ -428,22 +422,45 @@ function bindBoard() {
     $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
     $('#filter-status').value = 'all';
     $('#filter-daterange').value = 'all';
-    $$('#sort-toggles .chip').forEach((x) => x.classList.toggle('is-active', x.dataset.sort === 'default'));
+    $('#sort-select').value = 'default';
     populateFilters();
-    renderBoard();
+    afterFilterChange();
   });
 }
 
-/** Наполнить выпадающие списки людей и проектов из данных, сохранив выбор. */
+/** Есть ли активные фильтры (кроме «все»). */
+function hasActiveFilters() {
+  return !!(filters.person || filters.project || filters.priority ||
+    (filters.status && filters.status !== 'all') ||
+    (filters.dateRange && filters.dateRange !== 'all'));
+}
+
+/** Реакция на смену фильтра: подсветить активные пилюли, показать «Сбросить», перерисовать. */
+function afterFilterChange() {
+  const mark = (sel, active) => sel.classList.toggle('is-filtered', active);
+  mark($('#filter-person'), !!filters.person);
+  mark($('#filter-project'), !!filters.project);
+  mark($('#filter-priority'), !!filters.priority);
+  mark($('#filter-status'), filters.status && filters.status !== 'all');
+  mark($('#filter-daterange'), filters.dateRange && filters.dateRange !== 'all');
+  $('#filter-reset').hidden = !hasActiveFilters();
+  renderBoard();
+}
+
+/** Наполнить дропдауны людей и проектов из данных, сохранив выбор и метку-плейсхолдер. */
 function populateFilters() {
   const all = store.getAll();
   const people = [...new Set(all.flatMap(peopleOf).filter(Boolean))].sort();
   const projects = [...new Set(all.flatMap(projectsOf).filter(Boolean))].sort();
-  fillSelect($('#filter-person'), people, filters.person);
-  fillSelect($('#filter-project'), projects, filters.project);
+  fillSelect($('#filter-person'), '👤 Человек', people, filters.person);
+  fillSelect($('#filter-project'), '📁 Проект', projects, filters.project);
 }
-function fillSelect(sel, values, current) {
-  sel.innerHTML = '<option value="">Все</option>';
+function fillSelect(sel, placeholder, values, current) {
+  sel.innerHTML = '';
+  const ph = document.createElement('option');
+  ph.value = '';
+  ph.textContent = placeholder;
+  sel.appendChild(ph);
   values.forEach((v) => {
     const o = document.createElement('option');
     o.value = v;

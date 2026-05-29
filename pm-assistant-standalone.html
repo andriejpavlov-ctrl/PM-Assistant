@@ -272,72 +272,56 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .hint { color: var(--text-3); font-size: var(--fs-sm); }
 .capture-result { margin-top: var(--s-4); }
 
-/* ===== Панель фильтров (карточка как на Главной) ===== */
-.filters-panel {
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: var(--s-5);
-  margin-bottom: var(--s-5);
-  box-shadow: var(--shadow-sm);
-}
-.filters-head {
+/* ===== Тулбар фильтров и сортировки (паттерн Linear/Notion) ===== */
+/* Тонкая горизонтальная панель компактных дропдаунов-пилюль одной высоты. */
+.board-toolbar {
   display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  margin-bottom: var(--s-4);
-}
-.filters-icon {
-  flex: none;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px;
-  border-radius: var(--r-md);
-  background: var(--accent-weak);
-  color: var(--accent);
-  font-size: var(--fs-lg);
-}
-.filters-title {
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
-  letter-spacing: -0.01em;
-  line-height: var(--lh-tight);
-}
-.filters-head #filter-reset { margin-left: auto; }
-
-/* Адаптивная сетка фильтров — все поля одного уровня и ширины */
-.filters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--s-3);
-}
-.filter-group { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
-.filter-group > label {
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.filter-group .select { width: 100%; height: var(--control-h-sm); font-size: var(--fs-sm); }
-
-/* Строка сортировки — отделена тонким разделителем */
-.sort-row {
-  display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: var(--s-2) var(--s-3);
-  margin-top: var(--s-4);
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--border);
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-5);
 }
-.sort-row-label {
-  font-size: var(--fs-xs);
+
+/* Пилюля-дропдаун: самоописывающаяся (плейсхолдер = название фильтра). */
+.filter-select {
+  width: auto;
+  min-width: 0;
+  height: var(--control-h-sm);
+  padding: 0 var(--s-5) 0 var(--s-3);
+  background-color: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  /* стрелка как у .select, но ближе к краю пилюли */
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%), linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
+  background-position: calc(100% - 13px) center, calc(100% - 9px) center;
 }
-.sort-toggles { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.filter-select:hover { border-color: var(--border-strong); color: var(--text); }
+/* Активный фильтр — акцентная подсветка пилюли. */
+.filter-select.is-filtered {
+  background-color: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* Сортировка слегка отодвинута вправо как отдельная группа. */
+.sort-select { margin-left: auto; }
+
+/* «Сбросить» — текстовая кнопка, появляется только при активных фильтрах. */
+.reset-btn {
+  height: var(--control-h-sm);
+  padding: 0 var(--s-2);
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--tr);
+}
+.reset-btn:hover { color: var(--danger); }
 
 /* ===== Чипы ===== */
 .chip {
@@ -550,8 +534,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .topbar { flex-wrap: wrap; padding: var(--s-3); gap: var(--s-3); }
   .tabs { order: 3; width: 100%; margin-left: 0; }
   .tab { flex: 1; text-align: center; padding: var(--s-2) var(--s-1); }
-  .home-block, .filters-panel { padding: var(--s-4); }
-  .filters-grid { grid-template-columns: 1fr 1fr; }
+  .home-block { padding: var(--s-4); }
+  .sort-select { margin-left: 0; }
   .capture-input { min-height: 40vh; }
   .find-bar { flex-direction: column; }
   .find-bar .btn { width: 100%; }
@@ -626,63 +610,38 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 
     <!-- ВКЛАДКА: КАРТОЧКИ -->
     <section id="view-board" class="view" data-view="board" hidden>
-      <div class="filters-panel">
-        <div class="filters-head">
-          <span class="filters-icon">⛃</span>
-          <h2 class="filters-title">Фильтры и сортировка</h2>
-          <button id="filter-reset" class="btn btn-ghost btn-sm">Сбросить</button>
-        </div>
+      <div class="board-toolbar" role="toolbar" aria-label="Фильтры и сортировка">
+        <select id="filter-person" class="filter-select" aria-label="Фильтр по человеку"><option value="">👤 Человек</option></select>
+        <select id="filter-project" class="filter-select" aria-label="Фильтр по проекту"><option value="">📁 Проект</option></select>
+        <select id="filter-priority" class="filter-select" aria-label="Фильтр по приоритету">
+          <option value="">🚩 Приоритет</option>
+          <option value="P1">P1</option>
+          <option value="P2">P2</option>
+          <option value="P3">P3</option>
+          <option value="P4">P4</option>
+        </select>
+        <select id="filter-status" class="filter-select" aria-label="Фильтр по статусу">
+          <option value="all">⚑ Статус</option>
+          <option value="open">Открытые</option>
+          <option value="in_progress">В работе</option>
+          <option value="done">Закрытые</option>
+        </select>
+        <select id="filter-daterange" class="filter-select" aria-label="Фильтр по сроку">
+          <option value="all">📅 Срок</option>
+          <option value="overdue">Просроченные</option>
+          <option value="today">Сегодня</option>
+          <option value="this_week">Эта неделя</option>
+          <option value="this_month">Этот месяц</option>
+        </select>
 
-        <div class="filters-grid">
-          <div class="filter-group">
-            <label for="filter-person">Человек</label>
-            <select id="filter-person" class="select"><option value="">Все</option></select>
-          </div>
-          <div class="filter-group">
-            <label for="filter-project">Проект</label>
-            <select id="filter-project" class="select"><option value="">Все</option></select>
-          </div>
-          <div class="filter-group">
-            <label for="filter-priority">Приоритет</label>
-            <select id="filter-priority" class="select">
-              <option value="">Все</option>
-              <option value="P1">P1</option>
-              <option value="P2">P2</option>
-              <option value="P3">P3</option>
-              <option value="P4">P4</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <label for="filter-status">Статус</label>
-            <select id="filter-status" class="select">
-              <option value="all">Все</option>
-              <option value="open">Открытые</option>
-              <option value="in_progress">В работе</option>
-              <option value="done">Закрытые</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <label for="filter-daterange">Срок</label>
-            <select id="filter-daterange" class="select">
-              <option value="all">Любой</option>
-              <option value="overdue">Просроченные</option>
-              <option value="today">Сегодня</option>
-              <option value="this_week">Эта неделя</option>
-              <option value="this_month">Этот месяц</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="sort-row">
-          <span class="sort-row-label">Сортировка</span>
-          <div class="sort-toggles" id="sort-toggles">
-            <button class="chip is-active" data-sort="default">по умолчанию</button>
-            <button class="chip" data-sort="deadline">по сроку</button>
-            <button class="chip" data-sort="priority">по приоритету</button>
-            <button class="chip" data-sort="person">по человеку</button>
-            <button class="chip" data-sort="project">по проекту</button>
-          </div>
-        </div>
+        <select id="sort-select" class="filter-select sort-select" aria-label="Сортировка">
+          <option value="default">↕ По умолчанию</option>
+          <option value="deadline">↕ По сроку</option>
+          <option value="priority">↕ По приоритету</option>
+          <option value="person">↕ По человеку</option>
+          <option value="project">↕ По проекту</option>
+        </select>
+        <button id="filter-reset" class="reset-btn" hidden>Сбросить</button>
       </div>
 
       <div class="board">
@@ -1527,7 +1486,7 @@ function switchTab(name) {
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== name));
   if (name === 'board') {
     populateFilters();
-    renderBoard();
+    afterFilterChange();
   } else if (name === 'archive') {
     renderArchive();
   }
@@ -1779,18 +1738,12 @@ function saveCaptureDraft() {
 
 // ===== Вкладка «Доска» =====
 function bindBoard() {
-  $('#filter-person').addEventListener('change', (e) => { filters.person = e.target.value; renderBoard(); });
-  $('#filter-project').addEventListener('change', (e) => { filters.project = e.target.value; renderBoard(); });
-  $('#filter-priority').addEventListener('change', (e) => { filters.priority = e.target.value; renderBoard(); });
-  $('#filter-status').addEventListener('change', (e) => { filters.status = e.target.value; renderBoard(); });
-  $('#filter-daterange').addEventListener('change', (e) => { filters.dateRange = e.target.value; renderBoard(); });
-  $$('#sort-toggles .chip').forEach((c) =>
-    c.addEventListener('click', () => {
-      sortMode = c.dataset.sort;
-      $$('#sort-toggles .chip').forEach((x) => x.classList.toggle('is-active', x === c));
-      renderBoard();
-    })
-  );
+  $('#filter-person').addEventListener('change', (e) => { filters.person = e.target.value; afterFilterChange(); });
+  $('#filter-project').addEventListener('change', (e) => { filters.project = e.target.value; afterFilterChange(); });
+  $('#filter-priority').addEventListener('change', (e) => { filters.priority = e.target.value; afterFilterChange(); });
+  $('#filter-status').addEventListener('change', (e) => { filters.status = e.target.value; afterFilterChange(); });
+  $('#filter-daterange').addEventListener('change', (e) => { filters.dateRange = e.target.value; afterFilterChange(); });
+  $('#sort-select').addEventListener('change', (e) => { sortMode = e.target.value; renderBoard(); });
   $('#filter-reset').addEventListener('click', () => {
     filters.person = filters.project = filters.priority = '';
     filters.status = 'all';
@@ -1799,22 +1752,45 @@ function bindBoard() {
     $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
     $('#filter-status').value = 'all';
     $('#filter-daterange').value = 'all';
-    $$('#sort-toggles .chip').forEach((x) => x.classList.toggle('is-active', x.dataset.sort === 'default'));
+    $('#sort-select').value = 'default';
     populateFilters();
-    renderBoard();
+    afterFilterChange();
   });
 }
 
-/** Наполнить выпадающие списки людей и проектов из данных, сохранив выбор. */
+/** Есть ли активные фильтры (кроме «все»). */
+function hasActiveFilters() {
+  return !!(filters.person || filters.project || filters.priority ||
+    (filters.status && filters.status !== 'all') ||
+    (filters.dateRange && filters.dateRange !== 'all'));
+}
+
+/** Реакция на смену фильтра: подсветить активные пилюли, показать «Сбросить», перерисовать. */
+function afterFilterChange() {
+  const mark = (sel, active) => sel.classList.toggle('is-filtered', active);
+  mark($('#filter-person'), !!filters.person);
+  mark($('#filter-project'), !!filters.project);
+  mark($('#filter-priority'), !!filters.priority);
+  mark($('#filter-status'), filters.status && filters.status !== 'all');
+  mark($('#filter-daterange'), filters.dateRange && filters.dateRange !== 'all');
+  $('#filter-reset').hidden = !hasActiveFilters();
+  renderBoard();
+}
+
+/** Наполнить дропдауны людей и проектов из данных, сохранив выбор и метку-плейсхолдер. */
 function populateFilters() {
   const all = store.getAll();
   const people = [...new Set(all.flatMap(peopleOf).filter(Boolean))].sort();
   const projects = [...new Set(all.flatMap(projectsOf).filter(Boolean))].sort();
-  fillSelect($('#filter-person'), people, filters.person);
-  fillSelect($('#filter-project'), projects, filters.project);
+  fillSelect($('#filter-person'), '👤 Человек', people, filters.person);
+  fillSelect($('#filter-project'), '📁 Проект', projects, filters.project);
 }
-function fillSelect(sel, values, current) {
-  sel.innerHTML = '<option value="">Все</option>';
+function fillSelect(sel, placeholder, values, current) {
+  sel.innerHTML = '';
+  const ph = document.createElement('option');
+  ph.value = '';
+  ph.textContent = placeholder;
+  sel.appendChild(ph);
   values.forEach((v) => {
     const o = document.createElement('option');
     o.value = v;
