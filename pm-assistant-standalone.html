@@ -374,7 +374,15 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .card.is-editing { border-color: var(--accent); box-shadow: var(--ring); }
 .card.is-archived { opacity: 0.8; }
 
-.card.is-clickable { cursor: pointer; }
+.card.is-clickable {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+/* Иконки (редактировать/удалить) всегда прижаты к нижнему краю карточки:
+   margin-top: auto держит футер внизу при любой высоте — и в свёрнутом, и в
+   раскрытом виде, и при растяжении карточки в ряду. */
+.card.is-clickable .card-footer { margin-top: auto; }
 .card-top { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-2); flex-wrap: wrap; }
 .card-title { font-weight: var(--fw-semibold); font-size: var(--fs-base); line-height: var(--lh-tight); margin-bottom: var(--s-2); }
 .card-body { color: var(--text-2); font-size: var(--fs-sm); margin-bottom: var(--s-2); white-space: pre-wrap; }
@@ -385,11 +393,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
    у сетки подтягивает карточки ряда к самой высокой. */
 .card.is-clickable:not(.is-expanded) {
   min-height: 168px;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
 }
-.card.is-clickable:not(.is-expanded) .card-footer { margin-top: auto; }
 .card.is-clickable:not(.is-expanded) .card-title {
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
