@@ -147,6 +147,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .btn-primary:hover { background: var(--accent-hover); filter: none; }
 .btn-ghost { background: transparent; }
 .btn-sm { padding: 5px 10px; font-size: 12.5px; }
+.btn.is-active { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
 
 /* ===== Вкладка «Захватить» ===== */
 .view-capture { display: flex; flex-direction: column; }
@@ -240,6 +241,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .column .card { background: var(--bg); }
 .card.is-done { opacity: 0.5; }
 .card.is-done .card-title { text-decoration: line-through; }
+.card.is-progress { border-left: 3px solid var(--accent); }
 
 .card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
 .card-title { font-weight: 600; margin: 0 0 6px; font-size: 14.5px; }

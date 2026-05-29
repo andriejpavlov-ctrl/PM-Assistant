@@ -475,6 +475,7 @@ function buildTop(e) {
 function buildMeta(e) {
   const meta = document.createElement('div');
   meta.className = 'card-meta';
+  if (e.type === 'task' && e.status === 'in_progress') meta.appendChild(metaSpan('🔄 в работе'));
   peopleOf(e).forEach((p) => meta.appendChild(metaSpan(`👤 ${p}`)));
   projectsOf(e).forEach((p) => meta.appendChild(metaSpan(`📁 ${p}`)));
   if (e.type === 'topic' && e.importance) meta.appendChild(metaSpan(`★ ${IMPORTANCE_LABEL[e.importance] || e.importance}`));
@@ -491,7 +492,7 @@ function buildMeta(e) {
 
 function buildCard(e) {
   const li = document.createElement('li');
-  li.className = 'card' + (isClosed(e) ? ' is-done' : '');
+  li.className = 'card' + (isClosed(e) ? ' is-done' : '') + (e.type === 'task' && e.status === 'in_progress' ? ' is-progress' : '');
   li.appendChild(buildTop(e));
   li.appendChild(el('p', 'card-title', displayTitle(e)));
   const body = displayBody(e);
@@ -500,14 +501,27 @@ function buildCard(e) {
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
-  if (e.type === 'task' || e.type === 'topic') {
+  if (e.type === 'task') {
+    // Открытую задачу можно перевести «В работу»; закрытую — только вернуть.
+    if (!isClosed(e)) {
+      const inProg = e.status === 'in_progress';
+      const progBtn = el('button', 'btn btn-ghost btn-sm' + (inProg ? ' is-active' : ''), inProg ? 'В работе ✓' : 'В работу');
+      progBtn.addEventListener('click', () => {
+        store.update(e.id, { status: inProg ? 'todo' : 'in_progress' });
+        renderBoard();
+      });
+      footer.appendChild(progBtn);
+    }
     const doneBtn = el('button', 'btn btn-ghost btn-sm', isClosed(e) ? 'Вернуть' : 'Выполнено');
     doneBtn.addEventListener('click', () => {
-      const closed = isClosed(e);
-      const patch = e.type === 'task'
-        ? { status: closed ? 'todo' : 'done' }
-        : { status: closed ? 'open' : 'discussed' };
-      store.update(e.id, patch);
+      store.update(e.id, { status: isClosed(e) ? 'todo' : 'done' });
+      renderBoard();
+    });
+    footer.appendChild(doneBtn);
+  } else if (e.type === 'topic') {
+    const doneBtn = el('button', 'btn btn-ghost btn-sm', isClosed(e) ? 'Вернуть' : 'Обсуждено');
+    doneBtn.addEventListener('click', () => {
+      store.update(e.id, { status: isClosed(e) ? 'open' : 'discussed' });
       renderBoard();
     });
     footer.appendChild(doneBtn);
