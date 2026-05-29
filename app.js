@@ -426,27 +426,46 @@ function renderBoard() {
 }
 
 // ===== Построение карточки =====
+/** Верхняя строка: приоритет слева, дата справа (если есть). null — если пусто. */
 function buildTop(c) {
-  const top = document.createElement('div');
-  top.className = 'card-top';
-  if (c.priority && PRIORITY_NAME[c.priority]) top.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
+  const hasPrio = c.priority && PRIORITY_NAME[c.priority];
+  if (!hasPrio && !c.deadline) return null;
+  const top = el('div', 'card-top');
+  if (hasPrio) top.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
+  if (c.deadline) {
+    const due = metaItem('clock', c.deadline);
+    due.classList.add('card-due');
+    if (c.deadline < todayISO()) due.classList.add('is-overdue');
+    top.appendChild(due);
+  }
   return top;
 }
 
-function buildMeta(c) {
-  const meta = document.createElement('div');
-  meta.className = 'card-meta';
-  (c.people || []).forEach((p) => meta.appendChild(metaItem('person', p)));
-  (c.projects || []).forEach((p) => meta.appendChild(metaItem('project', p)));
-  if (c.deadline) {
-    const overdue = c.deadline < todayISO();
-    const span = metaItem('clock', c.deadline);
-    span.classList.add('meta-due');
-    if (overdue) span.classList.add('is-overdue');
-    meta.appendChild(span);
-  }
-  (c.tags || []).forEach((t) => meta.appendChild(metaItem('tag', t)));
-  return meta;
+/** Строка одного типа сущностей (персоны / проекты / теги). null — если пусто. */
+function buildFieldLine(type, iconName, values) {
+  const list = (values || []).filter(Boolean);
+  if (!list.length) return null;
+  const line = el('div', `card-line card-line--${type}`);
+  list.forEach((v) => line.appendChild(metaItem(iconName, v)));
+  return line;
+}
+
+/**
+ * Наполнить карточку строго по порядку сверху вниз:
+ * приоритет+дата → заголовок → описание → персоны → проекты → теги.
+ * Каждая сущность — на своей строке (без смешивания в один ряд).
+ */
+function appendCardBody(li, c) {
+  const top = buildTop(c);
+  if (top) li.appendChild(top);
+  li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
+  if (c.description) li.appendChild(el('p', 'card-body', c.description));
+  const persons = buildFieldLine('person', 'person', c.people);
+  if (persons) li.appendChild(persons);
+  const projects = buildFieldLine('project', 'project', c.projects);
+  if (projects) li.appendChild(projects);
+  const tags = buildFieldLine('tag', 'tag', c.tags);
+  if (tags) li.appendChild(tags);
 }
 
 // id раскрытых карточек (показывают всё), и id редактируемой.
@@ -473,10 +492,7 @@ function buildCard(c, opts = {}) {
     });
   }
 
-  li.appendChild(buildTop(c));
-  li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
-  if (c.description) li.appendChild(el('p', 'card-body', c.description));
-  li.appendChild(buildMeta(c));
+  appendCardBody(li, c);
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
@@ -597,10 +613,7 @@ function renderArchive() {
 function buildArchiveCard(c) {
   const li = document.createElement('li');
   li.className = 'card is-archived';
-  li.appendChild(buildTop(c));
-  li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
-  if (c.description) li.appendChild(el('p', 'card-body', c.description));
-  li.appendChild(buildMeta(c));
+  appendCardBody(li, c);
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';

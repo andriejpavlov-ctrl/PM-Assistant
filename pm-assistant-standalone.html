@@ -408,31 +408,44 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
    margin-top: auto держит футер внизу при любой высоте — и в свёрнутом, и в
    раскрытом виде, и при растяжении карточки в ряду. */
 .card.is-clickable .card-footer { margin-top: auto; }
-.card-top { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-2); flex-wrap: wrap; }
-.card-title { font-weight: var(--fw-semibold); font-size: var(--fs-base); line-height: var(--lh-tight); margin-bottom: var(--s-2); }
-.card-body { color: var(--text-2); font-size: var(--fs-sm); margin-bottom: var(--s-2); white-space: pre-wrap; }
 
-/* Свёрнутая карточка на доске: строго одинаковая высота — резерв под заголовок
-   (1 строка) + описание (2 строки) + мета + кнопки. Лишнее обрезается.
-   min-height задаёт базовый резерв даже без описания, а align-items: stretch
-   у сетки подтягивает карточки ряда к самой высокой. */
-.card.is-clickable:not(.is-expanded) {
-  min-height: 168px;
-  overflow: hidden;
-}
-.card.is-clickable:not(.is-expanded) .card-title {
+/* Верхняя строка: приоритет слева, дата справа. */
+.card-top { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-2); }
+.card-due { margin-left: auto; white-space: nowrap; }
+.card-due.is-overdue { color: var(--danger); font-weight: var(--fw-semibold); }
+
+/* Заголовок — всегда ровно 1 строка; описание — ровно 2 строки. */
+.card-title {
+  font-weight: var(--fw-semibold); font-size: var(--fs-base); line-height: var(--lh-tight); margin-bottom: var(--s-2);
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
-.card.is-clickable:not(.is-expanded) .card-body {
+.card-body {
+  color: var(--text-2); font-size: var(--fs-sm); margin-bottom: var(--s-2);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   white-space: normal;
 }
-/* Мета в свёрнутом виде — одна строка. */
-.card.is-clickable:not(.is-expanded) .card-meta { flex-wrap: nowrap; overflow: hidden; }
 
-/* Раскрытая карточка показывает всё и подсвечена рамкой. */
+/* Строки сущностей: персоны / проекты / теги — каждая на своей строке.
+   Свёрнуто — одна строка; при раскрытии карточки — максимум две (жёсткий
+   предел для всех полей). Разные сущности никогда не делят один ряд. */
+.card-line {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1) var(--s-2);
+  margin-bottom: var(--s-1);
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.card.is-expanded .card-line {
+  flex-wrap: wrap;
+  max-height: 40px;   /* ровно две строки мета-элементов */
+}
+
+/* Свёрнутая карточка: общий базовый резерв высоты (выравнивание рядов). */
+.card.is-clickable:not(.is-expanded) { min-height: 168px; }
+
+/* Раскрытая карточка подсвечена рамкой. */
 .card.is-expanded { border-color: var(--border-strong); }
-.card-meta { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-2); align-items: center; }
 .card-footer { display: flex; justify-content: flex-end; gap: var(--s-1); margin-top: var(--s-3); }
 
 /* Минималистичные кнопки в карточках: без рамки, лёгкая заливка на hover. */
@@ -479,7 +492,6 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .ic svg { width: 14px; height: 14px; display: block; }
 
 .meta-tag { display: inline-flex; align-items: center; gap: var(--s-1); font-size: var(--fs-xs); color: var(--text-3); }
-.meta-due.is-overdue { color: var(--danger); font-weight: var(--fw-semibold); }
 
 /* Кнопки в карточках: иконка + подпись на одной линии, иконки-only квадратные. */
 .card-footer .btn { gap: 5px; }
@@ -1671,27 +1683,46 @@ function renderBoard() {
 }
 
 // ===== Построение карточки =====
+/** Верхняя строка: приоритет слева, дата справа (если есть). null — если пусто. */
 function buildTop(c) {
-  const top = document.createElement('div');
-  top.className = 'card-top';
-  if (c.priority && PRIORITY_NAME[c.priority]) top.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
+  const hasPrio = c.priority && PRIORITY_NAME[c.priority];
+  if (!hasPrio && !c.deadline) return null;
+  const top = el('div', 'card-top');
+  if (hasPrio) top.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
+  if (c.deadline) {
+    const due = metaItem('clock', c.deadline);
+    due.classList.add('card-due');
+    if (c.deadline < todayISO()) due.classList.add('is-overdue');
+    top.appendChild(due);
+  }
   return top;
 }
 
-function buildMeta(c) {
-  const meta = document.createElement('div');
-  meta.className = 'card-meta';
-  (c.people || []).forEach((p) => meta.appendChild(metaItem('person', p)));
-  (c.projects || []).forEach((p) => meta.appendChild(metaItem('project', p)));
-  if (c.deadline) {
-    const overdue = c.deadline < todayISO();
-    const span = metaItem('clock', c.deadline);
-    span.classList.add('meta-due');
-    if (overdue) span.classList.add('is-overdue');
-    meta.appendChild(span);
-  }
-  (c.tags || []).forEach((t) => meta.appendChild(metaItem('tag', t)));
-  return meta;
+/** Строка одного типа сущностей (персоны / проекты / теги). null — если пусто. */
+function buildFieldLine(type, iconName, values) {
+  const list = (values || []).filter(Boolean);
+  if (!list.length) return null;
+  const line = el('div', `card-line card-line--${type}`);
+  list.forEach((v) => line.appendChild(metaItem(iconName, v)));
+  return line;
+}
+
+/**
+ * Наполнить карточку строго по порядку сверху вниз:
+ * приоритет+дата → заголовок → описание → персоны → проекты → теги.
+ * Каждая сущность — на своей строке (без смешивания в один ряд).
+ */
+function appendCardBody(li, c) {
+  const top = buildTop(c);
+  if (top) li.appendChild(top);
+  li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
+  if (c.description) li.appendChild(el('p', 'card-body', c.description));
+  const persons = buildFieldLine('person', 'person', c.people);
+  if (persons) li.appendChild(persons);
+  const projects = buildFieldLine('project', 'project', c.projects);
+  if (projects) li.appendChild(projects);
+  const tags = buildFieldLine('tag', 'tag', c.tags);
+  if (tags) li.appendChild(tags);
 }
 
 // id раскрытых карточек (показывают всё), и id редактируемой.
@@ -1718,10 +1749,7 @@ function buildCard(c, opts = {}) {
     });
   }
 
-  li.appendChild(buildTop(c));
-  li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
-  if (c.description) li.appendChild(el('p', 'card-body', c.description));
-  li.appendChild(buildMeta(c));
+  appendCardBody(li, c);
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
@@ -1842,10 +1870,7 @@ function renderArchive() {
 function buildArchiveCard(c) {
   const li = document.createElement('li');
   li.className = 'card is-archived';
-  li.appendChild(buildTop(c));
-  li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
-  if (c.description) li.appendChild(el('p', 'card-body', c.description));
-  li.appendChild(buildMeta(c));
+  appendCardBody(li, c);
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
