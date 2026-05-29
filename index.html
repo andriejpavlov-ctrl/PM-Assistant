@@ -65,7 +65,11 @@
 Например: «Созвон с Наташей по бэклогу до пятницы» или «Подготовить отчёт по продажам»"
         ></textarea>
         <div class="capture-actions">
-          <span class="hint">⌘/Ctrl + Enter — обработать</span>
+          <label class="switch" title="Перед сохранением проверять, нет ли похожей карточки">
+            <input type="checkbox" id="dupcheck-toggle" checked />
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+            <span class="switch-label">Проверять дубли</span>
+          </label>
           <button id="parse-btn" class="btn btn-primary">Обработать</button>
         </div>
         <div id="capture-status" class="status-line" hidden></div>

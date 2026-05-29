@@ -265,6 +265,29 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .hint { color: var(--text-3); font-size: var(--fs-sm); }
 .capture-result { margin-top: var(--s-4); }
 
+/* Тумблер (переключатель) — например, «Проверять дубли». */
+.switch { display: inline-flex; align-items: center; gap: var(--s-2); cursor: pointer; user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch-track {
+  flex: none; position: relative;
+  width: 36px; height: 20px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  transition: background var(--tr), border-color var(--tr);
+}
+.switch-thumb {
+  position: absolute; top: 1px; left: 1px;
+  width: 16px; height: 16px;
+  background: var(--text-3);
+  border-radius: 50%;
+  transition: transform var(--tr), background var(--tr);
+}
+.switch input:checked + .switch-track { background: var(--accent-weak); border-color: var(--accent); }
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(16px); background: var(--accent); }
+.switch input:focus-visible + .switch-track { box-shadow: var(--ring); }
+.switch-label { font-size: var(--fs-sm); color: var(--text-2); }
+
 /* ===== Горизонтальный бар фильтров и сортировки ===== */
 .filter-bar {
   display: flex;
