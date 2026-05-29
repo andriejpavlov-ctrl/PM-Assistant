@@ -1,19 +1,16 @@
 // storage.js — слой хранения поверх localStorage.
 // Не знает о DOM и о Claude. Чистый CRUD + версия схемы.
 //
-// Модель данных (schemaVersion 2): три типа сущностей в одном массиве
-// `entities`, различаемые полем `type`: 'topic' | 'task' | 'note'.
+// Модель данных (schemaVersion 3): единый тип «карточка» (card) с полями
+// title, description, people[], projects[], priority, deadline, tags.
+// Статусов и типов (topic/task/note) больше нет.
 
-const STORAGE_KEY = 'pm_assistant_v2';
-const SCHEMA_VERSION = 2;
+const STORAGE_KEY = 'pm_assistant_v3';
+const SCHEMA_VERSION = 3;
 
 // ===== Допустимые значения перечислений =====
 export const ENUMS = {
-  topicUrgency: ['urgent', 'high', 'medium', 'low'],
-  topicImportance: ['critical', 'high', 'medium', 'low'],
-  topicStatus: ['open', 'discussed'],
-  taskPriority: ['P1', 'P2', 'P3', 'P4'],
-  taskStatus: ['todo', 'in_progress', 'done', 'blocked'],
+  priority: ['P1', 'P2', 'P3', 'P4'],
 };
 
 const DEFAULT_STATE = {
@@ -23,15 +20,15 @@ const DEFAULT_STATE = {
     model: 'claude-haiku-4-5-20251001',
     apiKey: '',
   },
-  entities: [],
+  cards: [],
 };
 
 let state = null;
 
 // ===== Утилиты =====
 
-/** Короткий уникальный id с префиксом типа. */
-function genId(prefix) {
+/** Короткий уникальный id с префиксом. */
+function genId(prefix = 'crd') {
   const rand = (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
   return `${prefix}_${rand.slice(0, 10)}`;
 }
@@ -47,8 +44,9 @@ function coerceEnum(value, allowed, fallback) {
 
 /** Гарантировать массив строк. */
 function strArray(value) {
-  if (!Array.isArray(value)) return [];
-  return value.map((v) => String(v).trim()).filter(Boolean);
+  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+  if (typeof value === 'string' && value.trim()) return [value.trim()];
+  return [];
 }
 
 /** Нормализовать дедлайн к 'YYYY-MM-DD' или null. */
@@ -68,9 +66,9 @@ function load() {
       const parsed = JSON.parse(raw);
       state = { ...structuredClone(DEFAULT_STATE), ...parsed };
       state.settings = { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) };
-      state.entities = Array.isArray(parsed.entities) ? parsed.entities : [];
+      state.cards = Array.isArray(parsed.cards) ? parsed.cards : [];
     } else {
-      state = migrateFromV1() || structuredClone(DEFAULT_STATE);
+      state = migrateFromV2() || structuredClone(DEFAULT_STATE);
     }
   } catch (e) {
     console.error('Не удалось прочитать состояние, начинаю с чистого:', e);
@@ -80,47 +78,36 @@ function load() {
 }
 
 /**
- * Перенос данных со схемы v1 (ключ pm_assistant_v1, единый массив items),
- * если v2 ещё не создан. discussion -> topic, task -> task, note -> note.
+ * Перенос данных со схемы v2 (ключ pm_assistant_v2, массив entities с типами
+ * topic/task/note), если v3 ещё не создан. Всё сводится к единой карточке.
  */
-function migrateFromV1() {
+function migrateFromV2() {
   try {
-    const rawV1 = localStorage.getItem('pm_assistant_v1');
-    if (!rawV1) return null;
-    const v1 = JSON.parse(rawV1);
-    const people = v1.people || [];
-    const nameOf = (id) => people.find((p) => p.id === id)?.name || null;
-
+    const rawV2 = localStorage.getItem('pm_assistant_v2');
+    if (!rawV2) return null;
+    const v2 = JSON.parse(rawV2);
     const migrated = structuredClone(DEFAULT_STATE);
-    migrated.settings = { ...migrated.settings, ...(v1.settings || {}) };
+    migrated.settings = { ...migrated.settings, ...(v2.settings || {}) };
 
-    (v1.items || []).forEach((it) => {
-      if (it.type === 'discussion') {
-        migrated.entities.push(buildTopic({
-          rawText: it.body || it.title, person: nameOf(it.personId) || '',
-          topic: it.title, deadline: it.due, tags: it.tags,
-          status: it.status === 'done' ? 'discussed' : 'open',
-          createdAt: it.createdAt,
-        }));
-      } else if (it.type === 'task') {
-        migrated.entities.push(buildTask({
-          rawText: it.body || it.title, title: it.title, description: it.body,
-          deadline: it.due, tags: it.tags,
-          relatedPeople: nameOf(it.personId) ? [nameOf(it.personId)] : [],
-          priority: { high: 'P1', medium: 'P2', low: 'P3' }[it.priority] || 'P3',
-          status: it.status === 'done' ? 'done' : 'todo',
-          createdAt: it.createdAt,
-        }));
-      } else {
-        migrated.entities.push(buildNote({
-          rawText: it.body || it.title, title: it.title, content: it.body,
-          tags: it.tags, createdAt: it.createdAt,
-        }));
-      }
+    (v2.entities || []).forEach((e) => {
+      const people = e.type === 'topic' ? (e.person ? [e.person] : []) : (e.relatedPeople || []);
+      migrated.cards.push(buildCard({
+        title: e.type === 'topic' ? e.topic : e.title,
+        description: e.type === 'note' ? e.content : [e.description, e.expectedResult].filter(Boolean).join('\n'),
+        people,
+        projects: e.relatedProjects || [],
+        priority: e.priority || '',
+        deadline: e.deadline,
+        tags: e.tags,
+        rawText: e.rawText,
+        aiSummary: e.aiSummary,
+        archived: !!e.archived,
+        createdAt: e.createdAt,
+      }));
     });
     return migrated;
   } catch (e) {
-    console.warn('Миграция с v1 не удалась:', e);
+    console.warn('Миграция с v2 не удалась:', e);
     return null;
   }
 }
@@ -133,55 +120,24 @@ function persist() {
   }
 }
 
-// ===== Фабрики сущностей (чистые, без записи в стор) =====
+// ===== Фабрика карточки (чистая, без записи в стор) =====
 
-function buildBase(prefix, type, draft) {
+function buildCard(draft = {}) {
   const ts = draft.createdAt || nowISO();
   return {
-    id: genId(prefix),
-    type,
+    id: genId(),
     createdAt: ts,
     updatedAt: ts,
-    archived: false,
+    archived: !!draft.archived,
     rawText: draft.rawText || '',
-    tags: strArray(draft.tags),
-    aiSummary: draft.aiSummary || '',
-  };
-}
-
-function buildTopic(draft = {}) {
-  return {
-    ...buildBase('top', 'topic', draft),
-    person: (draft.person || '').trim(),
-    topic: draft.topic || draft.title || '(без темы)',
-    urgency: coerceEnum(draft.urgency, ENUMS.topicUrgency, 'medium'),
-    importance: coerceEnum(draft.importance, ENUMS.topicImportance, 'medium'),
-    deadline: normDeadline(draft.deadline),
-    status: coerceEnum(draft.status, ENUMS.topicStatus, 'open'),
-  };
-}
-
-function buildTask(draft = {}) {
-  return {
-    ...buildBase('tsk', 'task', draft),
     title: draft.title || '(без названия)',
     description: draft.description || '',
-    expectedResult: draft.expectedResult || '',
+    people: strArray(draft.people),
+    projects: strArray(draft.projects),
+    priority: coerceEnum(draft.priority, ENUMS.priority, ''),
     deadline: normDeadline(draft.deadline),
-    priority: coerceEnum(draft.priority, ENUMS.taskPriority, 'P3'),
-    relatedPeople: strArray(draft.relatedPeople),
-    relatedProjects: strArray(draft.relatedProjects),
-    status: coerceEnum(draft.status, ENUMS.taskStatus, 'todo'),
-  };
-}
-
-function buildNote(draft = {}) {
-  return {
-    ...buildBase('not', 'note', draft),
-    title: draft.title || '(без названия)',
-    content: draft.content || '',
-    relatedPeople: strArray(draft.relatedPeople),
-    relatedProjects: strArray(draft.relatedProjects),
+    tags: strArray(draft.tags),
+    aiSummary: draft.aiSummary || '',
   };
 }
 
@@ -200,142 +156,71 @@ export function updateSettings(patch) {
 
 // ===== CREATE =====
 
-export function createTopic(draft) {
+export function createCard(draft) {
   load();
-  const topic = buildTopic(draft);
-  state.entities.unshift(topic);
+  const card = buildCard(draft);
+  state.cards.unshift(card);
   persist();
-  return topic;
-}
-
-export function createTask(draft) {
-  load();
-  const task = buildTask(draft);
-  state.entities.unshift(task);
-  persist();
-  return task;
-}
-
-export function createNote(draft) {
-  load();
-  const note = buildNote(draft);
-  state.entities.unshift(note);
-  persist();
-  return note;
-}
-
-/** Создать сущность по полю draft.type ('topic' | 'task' | 'note'). */
-export function createEntity(draft = {}) {
-  switch (draft.type) {
-    case 'topic': return createTopic(draft);
-    case 'task': return createTask(draft);
-    case 'note': return createNote(draft);
-    default: throw new Error(`Неизвестный тип сущности: ${draft.type}`);
-  }
+  return card;
 }
 
 // ===== READ =====
 
-/** Активные сущности (не в архиве). Это то, что показывает канбан. */
+/** Активные карточки (не в архиве). */
 export function getAll() {
-  return load().entities.filter((e) => !e.archived);
+  return load().cards.filter((c) => !c.archived);
 }
-
-/** Архивные сущности (удалённые из канбана, но сохранённые). */
+/** Архивные карточки. */
 export function getArchived() {
-  return load().entities.filter((e) => e.archived);
+  return load().cards.filter((c) => c.archived);
 }
-
-/** Вообще все сущности, включая архив. */
+/** Вообще все карточки, включая архив. */
 export function getEverything() {
-  return [...load().entities];
+  return [...load().cards];
 }
-
 export function getById(id) {
-  return load().entities.find((e) => e.id === id) || null;
-}
-
-export function getTopics() {
-  return getAll().filter((e) => e.type === 'topic');
-}
-
-export function getTasks() {
-  return getAll().filter((e) => e.type === 'task');
-}
-
-export function getNotes() {
-  return getAll().filter((e) => e.type === 'note');
-}
-
-/** Произвольный фильтр по всем сущностям: query(e => e.status === 'open'). */
-export function query(predicate) {
-  return load().entities.filter(predicate);
+  return load().cards.find((c) => c.id === id) || null;
 }
 
 // ===== UPDATE =====
 
-/**
- * Частичное обновление по id. Поле type сменить нельзя; перечисления
- * приводятся к допустимым значениям, дедлайн нормализуется.
- */
+/** Частичное обновление по id. id/createdAt сменить нельзя; поля нормализуются. */
 export function update(id, patch = {}) {
   load();
-  const entity = state.entities.find((e) => e.id === id);
-  if (!entity) return null;
+  const card = state.cards.find((c) => c.id === id);
+  if (!card) return null;
 
-  const { id: _i, type: _t, createdAt: _c, ...rest } = patch;
+  const { id: _i, createdAt: _c, ...rest } = patch;
   const next = { ...rest };
-
+  if ('people' in next) next.people = strArray(next.people);
+  if ('projects' in next) next.projects = strArray(next.projects);
   if ('tags' in next) next.tags = strArray(next.tags);
   if ('deadline' in next) next.deadline = normDeadline(next.deadline);
-  if ('relatedPeople' in next) next.relatedPeople = strArray(next.relatedPeople);
-  if ('relatedProjects' in next) next.relatedProjects = strArray(next.relatedProjects);
+  if ('priority' in next) next.priority = coerceEnum(next.priority, ENUMS.priority, '');
 
-  if (entity.type === 'topic') {
-    if ('urgency' in next) next.urgency = coerceEnum(next.urgency, ENUMS.topicUrgency, entity.urgency);
-    if ('importance' in next) next.importance = coerceEnum(next.importance, ENUMS.topicImportance, entity.importance);
-    if ('status' in next) next.status = coerceEnum(next.status, ENUMS.topicStatus, entity.status);
-  } else if (entity.type === 'task') {
-    if ('priority' in next) next.priority = coerceEnum(next.priority, ENUMS.taskPriority, entity.priority);
-    if ('status' in next) next.status = coerceEnum(next.status, ENUMS.taskStatus, entity.status);
-  }
-
-  Object.assign(entity, next, { updatedAt: nowISO() });
+  Object.assign(card, next, { updatedAt: nowISO() });
   persist();
-  return entity;
+  return card;
 }
 
 // ===== ARCHIVE / DELETE =====
 
-/** Мягкое удаление: убрать из канбана, но сохранить в архиве. */
-export function archive(id) {
-  return update(id, { archived: true });
-}
-
-/** Вернуть запись из архива обратно в канбан. */
-export function unarchive(id) {
-  return update(id, { archived: false });
-}
-
-/** Удалить из канбана = отправить в архив (данные не теряются). */
-export function remove(id) {
-  return !!archive(id);
-}
-
-/** Безвозвратное удаление (используется из архива). */
+export function archive(id) { return update(id, { archived: true }); }
+export function unarchive(id) { return update(id, { archived: false }); }
+/** Удалить из доски = отправить в архив (данные не теряются). */
+export function remove(id) { return !!archive(id); }
+/** Безвозвратное удаление (из архива). */
 export function destroy(id) {
   load();
-  const before = state.entities.length;
-  state.entities = state.entities.filter((e) => e.id !== id);
-  const removed = state.entities.length !== before;
+  const before = state.cards.length;
+  state.cards = state.cards.filter((c) => c.id !== id);
+  const removed = state.cards.length !== before;
   if (removed) persist();
   return removed;
 }
-
-/** Удалить все сущности (настройки сохраняются). */
 export function clearAll() {
   load();
-  state.entities = [];
+  state.cards = [];
   persist();
 }
 
@@ -344,12 +229,10 @@ export function clearAll() {
 export function exportAll() {
   return JSON.stringify(load(), null, 2);
 }
-
-/** Заменить состояние из JSON-строки (бэкап). Возвращает true при успехе. */
 export function importAll(json) {
   try {
     const parsed = JSON.parse(json);
-    if (!Array.isArray(parsed.entities)) throw new Error('нет массива entities');
+    if (!Array.isArray(parsed.cards)) throw new Error('нет массива cards');
     state = {
       ...structuredClone(DEFAULT_STATE),
       ...parsed,
