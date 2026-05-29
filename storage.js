@@ -24,6 +24,8 @@ const DEFAULT_STATE = {
 };
 
 let state = null;
+let changeCb = null;        // вызывается после каждого локального изменения (для облака)
+let suppressChange = false; // не дёргать changeCb при применении удалённых данных
 
 // ===== Утилиты =====
 
@@ -127,6 +129,9 @@ function persist() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.error('Не удалось сохранить состояние:', e);
+  }
+  if (changeCb && !suppressChange) {
+    try { changeCb(); } catch (e) { console.error('Ошибка колбэка изменения:', e); }
   }
 }
 
@@ -254,4 +259,18 @@ export function importAll(json) {
     console.error('Импорт не удался:', e);
     return false;
   }
+}
+
+// ===== Облачная синхронизация (хуки) =====
+
+/** Зарегистрировать колбэк, вызываемый после каждого локального изменения. */
+export function onChange(cb) { changeCb = cb; }
+
+/** Применить карточки из облака, не вызывая колбэк изменения (без эха обратно). */
+export function replaceCards(cards) {
+  load();
+  suppressChange = true;
+  state.cards = Array.isArray(cards) ? cards : [];
+  persist();
+  suppressChange = false;
 }
