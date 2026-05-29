@@ -302,12 +302,37 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .filter-field:hover { border-color: var(--border-strong); color: var(--text); }
 .filter-field:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
 
-/* Активный фильтр — пилюля целиком в акценте. */
+/* Активный фильтр — пилюля целиком в акценте; шеврон убираем, освобождая место под «✕». */
 .filter-field.is-filtered {
   border-color: var(--accent);
   background-color: var(--accent-weak);
   color: var(--accent);
+  background-image: none;
+  padding-right: 26px;
 }
+
+/* Ячейка фильтра: контейнер для пилюли и кнопки персонального сброса поверх неё. */
+.filter-cell { position: relative; flex: 0 0 auto; display: inline-flex; }
+
+/* Сброс одного фильтра — «✕» поверх правого края активной пилюли. */
+.filter-clear {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--tr), color var(--tr);
+}
+.filter-clear:hover { background: var(--accent); color: var(--on-accent); }
 
 /* Сортировка прижата к правому краю как отдельная группа. */
 .filter-field--sort { margin-left: auto; }
@@ -565,8 +590,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .tab { flex: 1; text-align: center; padding: var(--s-2) var(--s-1); }
   .home-block { padding: var(--s-4); }
   /* Фильтры на мобильном — 2 ровные колонки, сортировка не прижимается вправо. */
-  .filter-field { flex: 1 1 calc(50% - var(--s-1)); width: auto; }
-  .filter-field--sort { margin-left: 0; }
+  .filter-cell { flex: 1 1 calc(50% - var(--s-1)); }
+  .filter-cell .filter-field { width: 100%; }
+  .filter-field--sort { flex: 1 1 calc(50% - var(--s-1)); width: auto; margin-left: 0; }
   .capture-input { min-height: 40vh; }
   .find-bar { flex-direction: column; }
   .find-bar .btn { width: 100%; }
