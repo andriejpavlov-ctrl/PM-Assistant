@@ -156,11 +156,11 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .btn-sm { padding: 5px 10px; font-size: 12.5px; }
 .btn.is-active { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
 
-/* ===== Вкладка «Захватить» ===== */
+/* ===== Вкладка «Главная» ===== */
 /* :not([hidden]) — чтобы при переключении вкладки скрытый вид не оставался видимым. */
-.view-capture:not([hidden]) { display: flex; flex-direction: column; }
+.view-capture:not([hidden]) { display: flex; flex-direction: column; gap: 18px; }
 .capture-input {
-  min-height: 40vh;
+  min-height: 34vh;
   resize: vertical;
   font-size: 16px;
   line-height: 1.6;
@@ -175,12 +175,20 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .hint { color: var(--text-dim); font-size: 13px; }
 .capture-result { margin-top: 18px; }
 
-/* Блок поиска внутри раздела «Захватить и найти» */
-.search-block {
-  margin-top: 22px;
-  padding-top: 22px;
-  border-top: 1px solid var(--border);
+/* Блоки «Поиск» и «Новая запись» — визуально разделены карточками */
+.home-block {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
 }
+/* «Новая запись» — главное действие: акцентная левая полоса. */
+.home-block--capture { border-left: 3px solid var(--accent); }
+.home-block-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.home-block-icon { font-size: 16px; }
+.home-block-title { margin: 0; font-size: 15px; font-weight: 600; }
+.home-block-hint { color: var(--text-dim); font-size: 12.5px; margin-left: auto; }
+@media (max-width: 600px) { .home-block-hint { display: none; } }
 
 /* ===== Панель фильтров ===== */
 .filters-panel {
@@ -295,19 +303,6 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .card.is-editing { border-color: var(--accent); }
 .card.is-archived { opacity: 0.75; }
 
-/* Список возможностей под полем «Захватить» */
-.capture-features {
-  margin-top: 24px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 18px;
-}
-.capture-features h3 { margin: 0 0 10px; font-size: 14px; color: var(--text); }
-.capture-features ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.capture-features li { font-size: 13.5px; color: var(--text-dim); line-height: 1.45; }
-.capture-features b { color: var(--text); font-weight: 600; }
-
 /* Шапка архива */
 .archive-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .archive-head .count { background: var(--bg-elev-2); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--text-dim); }
@@ -378,9 +373,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
       <h1>PM Assistant</h1>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="capture" aria-selected="true">📝 Захватить и найти</button>
-      <button class="tab" role="tab" data-tab="board" aria-selected="false">📋 Задачи и темы</button>
-      <button class="tab" role="tab" data-tab="archive" aria-selected="false">🗂 Архив</button>
+      <button class="tab" role="tab" data-tab="capture" aria-selected="true">🏠 Главная</button>
+      <button class="tab" role="tab" data-tab="board" aria-selected="false">🗂 Карточки</button>
+      <button class="tab" role="tab" data-tab="archive" aria-selected="false">🗄 Архив</button>
     </nav>
     <div class="topbar-actions">
       <button id="theme-toggle" class="icon-btn" title="Переключить тему" aria-label="Переключить тему">☾</button>
@@ -389,27 +384,18 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   </header>
 
   <main class="content">
-    <!-- ВКЛАДКА: ЗАХВАТИТЬ И НАЙТИ -->
+    <!-- ВКЛАДКА: ГЛАВНАЯ -->
     <section id="view-capture" class="view view-capture" data-view="capture">
-      <textarea
-        id="capture-input"
-        class="capture-input"
-        placeholder="Просто напишите, что у вас в голове 🧠
-
-Например: «Созвон с Наташей по бэклогу до пятницы» или «Подготовить отчёт по продажам»"
-      ></textarea>
-      <div class="capture-actions">
-        <span class="hint">⌘/Ctrl + Enter — обработать</span>
-        <button id="parse-btn" class="btn btn-primary">Обработать</button>
-      </div>
-      <div id="capture-status" class="status-line" hidden></div>
-      <div id="capture-result" class="capture-result"></div>
-
-      <!-- Поиск прямо здесь же -->
-      <div class="search-block">
+      <!-- Поиск (сверху) -->
+      <section class="home-block home-block--search">
+        <div class="home-block-head">
+          <span class="home-block-icon">🔍</span>
+          <h2 class="home-block-title">Поиск</h2>
+          <span class="home-block-hint">Спросите по своим записям</span>
+        </div>
         <div class="find-bar">
-          <input id="search-input" class="find-input" type="text" placeholder="🔍 Найти: «темы для Наташи», «что срочного на неделе?»…" />
-          <button id="search-btn" class="btn btn-primary">Найти</button>
+          <input id="search-input" class="find-input" type="text" placeholder="Например: «темы для Наташи», «что срочного на неделе?»" />
+          <button id="search-btn" class="btn">Найти</button>
         </div>
         <div class="find-suggestions">
           <button class="chip suggestion">Найди темы для Наташи Ивановой</button>
@@ -420,19 +406,29 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
         <div id="search-status" class="status-line" hidden></div>
         <div id="search-answer" class="answer" hidden></div>
         <ul id="search-results" class="card-list"></ul>
-      </div>
+      </section>
 
-      <div class="capture-features">
-        <h3>Что умеет PM Assistant</h3>
-        <ul>
-          <li>🧠 <b>Превращает мысли в структуру.</b> Пишите свободным текстом — AI сам определит, это задача, тема для обсуждения или заметка.</li>
-          <li>👤 <b>Узнаёт людей и сроки.</b> Вытягивает коллегу, дедлайн, приоритет и теги из текста.</li>
-          <li>📋 <b>Раскладывает по канбану.</b> «Темы для обсуждения», «Мои задачи» и «Заметки» — с приоритетами P0–P4.</li>
-          <li>🎯 <b>Расставляет приоритеты.</b> Сортировка по матрице Эйзенхауэра (важность + срочность).</li>
-          <li>🔍 <b>Отвечает на вопросы.</b> «Что обсудить с Наташей?», «Что срочного на неделе?» — спросите в строке поиска выше.</li>
-          <li>🗂 <b>Хранит архив.</b> Удалённые из канбана записи не теряются — их можно вернуть.</li>
-        </ul>
-      </div>
+      <!-- Захват / обработка (снизу) -->
+      <section class="home-block home-block--capture">
+        <div class="home-block-head">
+          <span class="home-block-icon">📝</span>
+          <h2 class="home-block-title">Новая запись</h2>
+          <span class="home-block-hint">AI разложит на задачи, темы и заметки</span>
+        </div>
+        <textarea
+          id="capture-input"
+          class="capture-input"
+          placeholder="Просто напишите, что у вас в голове 🧠
+
+Например: «Созвон с Наташей по бэклогу до пятницы» или «Подготовить отчёт по продажам»"
+        ></textarea>
+        <div class="capture-actions">
+          <span class="hint">⌘/Ctrl + Enter — обработать</span>
+          <button id="parse-btn" class="btn btn-primary">Обработать</button>
+        </div>
+        <div id="capture-status" class="status-line" hidden></div>
+        <div id="capture-result" class="capture-result"></div>
+      </section>
     </section>
 
     <!-- ВКЛАДКА 2: ЗАДАЧИ И ТЕМЫ -->
