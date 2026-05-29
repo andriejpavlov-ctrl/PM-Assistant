@@ -3,7 +3,7 @@
 // Единая карточка: title, description, people[], projects[], priority, deadline, tags.
 
 import * as store from './storage.js';
-import { processCapture, processQuery, findSimilarCard, mergeCards } from './agent.js';
+import { processCapture, processQuery, findSimilarCard, mergeCards, generateMeme } from './agent.js';
 import * as sync from './sync.js';
 
 const fileConfig = window.PM_CONFIG || {};
@@ -180,6 +180,7 @@ function init() {
   bindSettings();
   bindTheme();
   bindArchive();
+  bindMeme();
 
   const saved = localStorage.getItem('pm_active_tab');
   if (saved && document.querySelector(`.tab[data-tab="${saved}"]`)) switchTab(saved);
@@ -920,6 +921,33 @@ function plural(n, one, few, many) {
   if (m10 === 1 && m100 !== 11) return one;
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
   return many;
+}
+
+// ===== Главная: The daily AI Meme =====
+function bindMeme() {
+  const btn = $('#meme-btn');
+  if (btn) btn.addEventListener('click', onMeme);
+}
+async function onMeme() {
+  const btn = $('#meme-btn');
+  const status = $('#meme-status');
+  const out = $('#meme-output');
+  btn.disabled = true;
+  btn.classList.add('is-loading');
+  out.hidden = true;
+  showStatus(status, 'Призываю брутальную мудрость…');
+  try {
+    const { hero, meme } = await generateMeme();
+    status.hidden = true;
+    out.querySelector('.meme-text').textContent = meme || 'Сегодня муза молчит. Жми ещё.';
+    out.querySelector('.meme-hero').textContent = hero ? `в стиле ${hero}` : '';
+    out.hidden = false;
+  } catch (e) {
+    showStatus(status, e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('is-loading');
+  }
 }
 
 // ===== Настройки =====
