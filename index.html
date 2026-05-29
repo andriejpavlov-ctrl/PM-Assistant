@@ -73,39 +73,44 @@
 
     <!-- ВКЛАДКА: КАРТОЧКИ -->
     <section id="view-board" class="view" data-view="board" hidden>
-      <div class="board-toolbar" role="toolbar" aria-label="Фильтры и сортировка">
-        <select id="filter-person" class="filter-select" aria-label="Фильтр по человеку"><option value="">👤 Человек</option></select>
-        <select id="filter-project" class="filter-select" aria-label="Фильтр по проекту"><option value="">📁 Проект</option></select>
-        <select id="filter-priority" class="filter-select" aria-label="Фильтр по приоритету">
-          <option value="">🚩 Приоритет</option>
-          <option value="P1">P1</option>
-          <option value="P2">P2</option>
-          <option value="P3">P3</option>
-          <option value="P4">P4</option>
-        </select>
-        <select id="filter-status" class="filter-select" aria-label="Фильтр по статусу">
-          <option value="all">⚑ Статус</option>
-          <option value="open">Открытые</option>
-          <option value="in_progress">В работе</option>
-          <option value="done">Закрытые</option>
-        </select>
-        <select id="filter-daterange" class="filter-select" aria-label="Фильтр по сроку">
-          <option value="all">📅 Срок</option>
-          <option value="overdue">Просроченные</option>
-          <option value="today">Сегодня</option>
-          <option value="this_week">Эта неделя</option>
-          <option value="this_month">Этот месяц</option>
-        </select>
-
-        <select id="sort-select" class="filter-select sort-select" aria-label="Сортировка">
-          <option value="default">↕ По умолчанию</option>
-          <option value="deadline">↕ По сроку</option>
-          <option value="priority">↕ По приоритету</option>
-          <option value="person">↕ По человеку</option>
-          <option value="project">↕ По проекту</option>
-        </select>
-        <button id="filter-reset" class="reset-btn" hidden>Сбросить</button>
-      </div>
+      <section class="home-block">
+        <div class="home-block-head">
+          <span class="home-block-icon">🎛️</span>
+          <h2 class="home-block-title">Фильтры</h2>
+          <button id="filter-reset" class="reset-link" hidden>Сбросить всё</button>
+        </div>
+        <div class="filters-grid">
+          <select id="filter-person" class="select" aria-label="Фильтр по человеку"><option value="">👤 Человек</option></select>
+          <select id="filter-project" class="select" aria-label="Фильтр по проекту"><option value="">📁 Проект</option></select>
+          <select id="filter-priority" class="select" aria-label="Фильтр по приоритету">
+            <option value="">🚩 Приоритет</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+            <option value="P3">P3</option>
+            <option value="P4">P4</option>
+          </select>
+          <select id="filter-status" class="select" aria-label="Фильтр по статусу">
+            <option value="all">⚑ Статус</option>
+            <option value="open">Открытые</option>
+            <option value="in_progress">В работе</option>
+            <option value="done">Закрытые</option>
+          </select>
+          <select id="filter-daterange" class="select" aria-label="Фильтр по сроку">
+            <option value="all">📅 Срок</option>
+            <option value="overdue">Просроченные</option>
+            <option value="today">Сегодня</option>
+            <option value="this_week">Эта неделя</option>
+            <option value="this_month">Этот месяц</option>
+          </select>
+          <select id="sort-select" class="select sort-select" aria-label="Сортировка">
+            <option value="default">↕ По умолчанию</option>
+            <option value="deadline">↕ По сроку</option>
+            <option value="priority">↕ По приоритету</option>
+            <option value="person">↕ По человеку</option>
+            <option value="project">↕ По проекту</option>
+          </select>
+        </div>
+      </section>
 
       <div class="board">
         <div class="column">
