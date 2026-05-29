@@ -657,11 +657,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .filter-cell .filter-field { width: 100%; }
   .filter-field--sort { flex: 1 1 calc(50% - var(--s-1)); width: auto; margin-left: 0; }
   .capture-input { min-height: 40vh; }
-  /* Поиск на мобильном — как полноширинные элементы «Новой записи»:
-     поле и кнопка каждое на всю ширину, друг под другом. */
-  .find-bar { flex-direction: column; align-items: stretch; gap: var(--s-3); }
-  .find-bar .find-input,
-  .find-bar .btn { width: 100%; flex: 0 0 auto; }
+  /* Поиск на мобильном — поле на всю ширину, кнопка-стрелка компактная справа. */
+  .find-bar { gap: var(--s-2); }
+  .btn-icon { width: 48px; }
 }
 
 </style>
