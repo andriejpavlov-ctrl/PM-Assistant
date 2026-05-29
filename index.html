@@ -71,48 +71,57 @@
       </section>
     </section>
 
-    <!-- ВКЛАДКА 2: ЗАДАЧИ И ТЕМЫ -->
+    <!-- ВКЛАДКА: КАРТОЧКИ -->
     <section id="view-board" class="view" data-view="board" hidden>
       <div class="filters-panel">
-        <div class="filter-group">
-          <label for="filter-person">Человек</label>
-          <select id="filter-person" class="select"><option value="">Все</option></select>
+        <div class="filters-head">
+          <span class="filters-icon">⛃</span>
+          <h2 class="filters-title">Фильтры и сортировка</h2>
+          <button id="filter-reset" class="btn btn-ghost btn-sm">Сбросить</button>
         </div>
-        <div class="filter-group">
-          <label for="filter-project">Проект</label>
-          <select id="filter-project" class="select"><option value="">Все</option></select>
+
+        <div class="filters-grid">
+          <div class="filter-group">
+            <label for="filter-person">Человек</label>
+            <select id="filter-person" class="select"><option value="">Все</option></select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-project">Проект</label>
+            <select id="filter-project" class="select"><option value="">Все</option></select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-priority">Приоритет</label>
+            <select id="filter-priority" class="select">
+              <option value="">Все</option>
+              <option value="P1">P1</option>
+              <option value="P2">P2</option>
+              <option value="P3">P3</option>
+              <option value="P4">P4</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-status">Статус</label>
+            <select id="filter-status" class="select">
+              <option value="all">Все</option>
+              <option value="open">Открытые</option>
+              <option value="in_progress">В работе</option>
+              <option value="done">Закрытые</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-daterange">Срок</label>
+            <select id="filter-daterange" class="select">
+              <option value="all">Любой</option>
+              <option value="overdue">Просроченные</option>
+              <option value="today">Сегодня</option>
+              <option value="this_week">Эта неделя</option>
+              <option value="this_month">Этот месяц</option>
+            </select>
+          </div>
         </div>
-        <div class="filter-group">
-          <label for="filter-priority">Приоритет</label>
-          <select id="filter-priority" class="select">
-            <option value="">Все</option>
-            <option value="P1">P1</option>
-            <option value="P2">P2</option>
-            <option value="P3">P3</option>
-            <option value="P4">P4</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label for="filter-status">Статус</label>
-          <select id="filter-status" class="select">
-            <option value="all">Все</option>
-            <option value="open">Открытые</option>
-            <option value="in_progress">В работе</option>
-            <option value="done">Закрытые</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label for="filter-daterange">Срок</label>
-          <select id="filter-daterange" class="select">
-            <option value="all">Любой</option>
-            <option value="overdue">Просроченные</option>
-            <option value="today">Сегодня</option>
-            <option value="this_week">Эта неделя</option>
-            <option value="this_month">Этот месяц</option>
-          </select>
-        </div>
-        <div class="filter-group sort-group">
-          <label>Сортировка</label>
+
+        <div class="sort-row">
+          <span class="sort-row-label">Сортировка</span>
           <div class="sort-toggles" id="sort-toggles">
             <button class="chip is-active" data-sort="default">по умолчанию</button>
             <button class="chip" data-sort="deadline">по сроку</button>
@@ -121,7 +130,6 @@
             <button class="chip" data-sort="project">по проекту</button>
           </div>
         </div>
-        <button id="filter-reset" class="btn btn-ghost">Сбросить</button>
       </div>
 
       <div class="board">

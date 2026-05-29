@@ -272,20 +272,45 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .hint { color: var(--text-3); font-size: var(--fs-sm); }
 .capture-result { margin-top: var(--s-4); }
 
-/* ===== Панель фильтров ===== */
+/* ===== Панель фильтров (карточка как на Главной) ===== */
 .filters-panel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--s-3);
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  padding: var(--s-4);
+  padding: var(--s-5);
   margin-bottom: var(--s-5);
   box-shadow: var(--shadow-sm);
 }
-.filter-group { display: flex; flex-direction: column; gap: var(--s-1); }
+.filters-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+.filters-icon {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: var(--r-md);
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-size: var(--fs-lg);
+}
+.filters-title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--lh-tight);
+}
+.filters-head #filter-reset { margin-left: auto; }
+
+/* Адаптивная сетка фильтров — все поля одного уровня и ширины */
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s-3);
+}
+.filter-group { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
 .filter-group > label {
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
@@ -293,10 +318,26 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.filter-group .select { min-width: 132px; height: var(--control-h-sm); font-size: var(--fs-sm); }
-.sort-group { flex: 1; min-width: 220px; }
-.sort-toggles { display: flex; flex-wrap: wrap; gap: var(--s-1); }
-.filters-panel #filter-reset { margin-left: auto; height: var(--control-h-sm); }
+.filter-group .select { width: 100%; height: var(--control-h-sm); font-size: var(--fs-sm); }
+
+/* Строка сортировки — отделена тонким разделителем */
+.sort-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+.sort-row-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sort-toggles { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 
 /* ===== Чипы ===== */
 .chip {
@@ -509,10 +550,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .topbar { flex-wrap: wrap; padding: var(--s-3); gap: var(--s-3); }
   .tabs { order: 3; width: 100%; margin-left: 0; }
   .tab { flex: 1; text-align: center; padding: var(--s-2) var(--s-1); }
-  .home-block { padding: var(--s-4); }
-  .filters-panel { flex-direction: column; align-items: stretch; }
-  .filter-group .select { width: 100%; }
-  .filters-panel #filter-reset { margin-left: 0; }
+  .home-block, .filters-panel { padding: var(--s-4); }
+  .filters-grid { grid-template-columns: 1fr 1fr; }
   .capture-input { min-height: 40vh; }
   .find-bar { flex-direction: column; }
   .find-bar .btn { width: 100%; }
@@ -585,48 +624,57 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
       </section>
     </section>
 
-    <!-- ВКЛАДКА 2: ЗАДАЧИ И ТЕМЫ -->
+    <!-- ВКЛАДКА: КАРТОЧКИ -->
     <section id="view-board" class="view" data-view="board" hidden>
       <div class="filters-panel">
-        <div class="filter-group">
-          <label for="filter-person">Человек</label>
-          <select id="filter-person" class="select"><option value="">Все</option></select>
+        <div class="filters-head">
+          <span class="filters-icon">⛃</span>
+          <h2 class="filters-title">Фильтры и сортировка</h2>
+          <button id="filter-reset" class="btn btn-ghost btn-sm">Сбросить</button>
         </div>
-        <div class="filter-group">
-          <label for="filter-project">Проект</label>
-          <select id="filter-project" class="select"><option value="">Все</option></select>
+
+        <div class="filters-grid">
+          <div class="filter-group">
+            <label for="filter-person">Человек</label>
+            <select id="filter-person" class="select"><option value="">Все</option></select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-project">Проект</label>
+            <select id="filter-project" class="select"><option value="">Все</option></select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-priority">Приоритет</label>
+            <select id="filter-priority" class="select">
+              <option value="">Все</option>
+              <option value="P1">P1</option>
+              <option value="P2">P2</option>
+              <option value="P3">P3</option>
+              <option value="P4">P4</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-status">Статус</label>
+            <select id="filter-status" class="select">
+              <option value="all">Все</option>
+              <option value="open">Открытые</option>
+              <option value="in_progress">В работе</option>
+              <option value="done">Закрытые</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-daterange">Срок</label>
+            <select id="filter-daterange" class="select">
+              <option value="all">Любой</option>
+              <option value="overdue">Просроченные</option>
+              <option value="today">Сегодня</option>
+              <option value="this_week">Эта неделя</option>
+              <option value="this_month">Этот месяц</option>
+            </select>
+          </div>
         </div>
-        <div class="filter-group">
-          <label for="filter-priority">Приоритет</label>
-          <select id="filter-priority" class="select">
-            <option value="">Все</option>
-            <option value="P1">P1</option>
-            <option value="P2">P2</option>
-            <option value="P3">P3</option>
-            <option value="P4">P4</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label for="filter-status">Статус</label>
-          <select id="filter-status" class="select">
-            <option value="all">Все</option>
-            <option value="open">Открытые</option>
-            <option value="in_progress">В работе</option>
-            <option value="done">Закрытые</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label for="filter-daterange">Срок</label>
-          <select id="filter-daterange" class="select">
-            <option value="all">Любой</option>
-            <option value="overdue">Просроченные</option>
-            <option value="today">Сегодня</option>
-            <option value="this_week">Эта неделя</option>
-            <option value="this_month">Этот месяц</option>
-          </select>
-        </div>
-        <div class="filter-group sort-group">
-          <label>Сортировка</label>
+
+        <div class="sort-row">
+          <span class="sort-row-label">Сортировка</span>
           <div class="sort-toggles" id="sort-toggles">
             <button class="chip is-active" data-sort="default">по умолчанию</button>
             <button class="chip" data-sort="deadline">по сроку</button>
@@ -635,7 +683,6 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
             <button class="chip" data-sort="project">по проекту</button>
           </div>
         </div>
-        <button id="filter-reset" class="btn btn-ghost">Сбросить</button>
       </div>
 
       <div class="board">
