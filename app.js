@@ -426,21 +426,6 @@ function renderBoard() {
 }
 
 // ===== Построение карточки =====
-/** Верхняя строка: приоритет слева, дата справа (если есть). null — если пусто. */
-function buildTop(c) {
-  const hasPrio = c.priority && PRIORITY_NAME[c.priority];
-  if (!hasPrio && !c.deadline) return null;
-  const top = el('div', 'card-top');
-  if (hasPrio) top.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
-  if (c.deadline) {
-    const due = metaItem('clock', c.deadline);
-    due.classList.add('card-due');
-    if (c.deadline < todayISO()) due.classList.add('is-overdue');
-    top.appendChild(due);
-  }
-  return top;
-}
-
 /** Строка одного типа сущностей (персоны / проекты / теги). null — если пусто. */
 function buildFieldLine(type, iconName, values) {
   const list = (values || []).filter(Boolean);
@@ -451,13 +436,11 @@ function buildFieldLine(type, iconName, values) {
 }
 
 /**
- * Наполнить карточку строго по порядку сверху вниз:
- * приоритет+дата → заголовок → описание → персоны → проекты → теги.
- * Каждая сущность — на своей строке (без смешивания в один ряд).
+ * Наполнить тело карточки сверху вниз:
+ * заголовок → описание → персоны → проекты → теги.
+ * Приоритет и дата — в подвале (см. buildFooter), на уровне кнопок.
  */
 function appendCardBody(li, c) {
-  const top = buildTop(c);
-  if (top) li.appendChild(top);
   li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
   if (c.description) li.appendChild(el('p', 'card-body', c.description));
   const persons = buildFieldLine('person', 'person', c.people);
@@ -466,6 +449,29 @@ function appendCardBody(li, c) {
   if (projects) li.appendChild(projects);
   const tags = buildFieldLine('tag', 'tag', c.tags);
   if (tags) li.appendChild(tags);
+}
+
+/** Левая часть подвала: приоритет + дата. */
+function buildFooterMeta(c) {
+  const wrap = el('div', 'card-foot-meta');
+  if (c.priority && PRIORITY_NAME[c.priority]) wrap.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
+  if (c.deadline) {
+    const due = metaItem('clock', c.deadline);
+    due.classList.add('card-due');
+    if (c.deadline < todayISO()) due.classList.add('is-overdue');
+    wrap.appendChild(due);
+  }
+  return wrap;
+}
+
+/** Подвал карточки: слева приоритет+дата, справа кнопки действий. */
+function buildFooter(c, buttons) {
+  const footer = el('div', 'card-footer');
+  footer.appendChild(buildFooterMeta(c));
+  const actions = el('div', 'card-actions');
+  buttons.forEach((b) => actions.appendChild(b));
+  footer.appendChild(actions);
+  return footer;
 }
 
 // id раскрытых карточек (показывают всё), и id редактируемой.
@@ -494,25 +500,23 @@ function buildCard(c, opts = {}) {
 
   appendCardBody(li, c);
 
-  const footer = document.createElement('div');
-  footer.className = 'card-footer';
+  let buttons;
   if (preview) {
     const editBtn = iconBtn('edit', 'Дозаполнить');
     editBtn.addEventListener('click', () => renderCaptureEditor());
     const saveBtn = el('button', 'btn btn-primary btn-sm', 'Сохранить');
     saveBtn.addEventListener('click', saveCaptureDraft);
-    footer.append(editBtn, saveBtn);
+    buttons = [editBtn, saveBtn];
   } else {
     const editBtn = iconBtn('edit', '');
     editBtn.title = 'Дозаполнить';
     editBtn.addEventListener('click', () => { editingId = c.id; renderBoard(); });
-    footer.appendChild(editBtn);
     const del = iconBtn('trash', '');
     del.title = 'В архив';
     del.addEventListener('click', () => { store.remove(c.id); renderBoard(); });
-    footer.appendChild(del);
+    buttons = [editBtn, del];
   }
-  li.appendChild(footer);
+  li.appendChild(buildFooter(c, buttons));
   return li;
 }
 
@@ -532,12 +536,20 @@ function buildCardEditor(c, isDraft) {
     inp.addEventListener('input', () => (draft[key] = inp.value));
     return inp;
   };
-  const textarea = (key) => {
+  const area = (key, rows) => {
     const t = document.createElement('textarea');
     t.className = 'text-input';
-    t.rows = 3;
+    t.rows = rows;
     t.value = draft[key] || '';
     t.addEventListener('input', () => (draft[key] = t.value));
+    return t;
+  };
+  const listArea = (key, rows) => {
+    const t = document.createElement('textarea');
+    t.className = 'text-input';
+    t.rows = rows;
+    t.value = (draft[key] || []).join(', ');
+    t.addEventListener('input', () => (draft[key] = t.value.split(',').map((s) => s.trim()).filter(Boolean)));
     return t;
   };
   const prioritySelect = () => {
@@ -560,13 +572,13 @@ function buildCardEditor(c, isDraft) {
     return inp;
   };
 
-  form.appendChild(field('Название', input('title')));
-  form.appendChild(field('Описание', textarea('description')));
+  form.appendChild(field('Название', area('title', 2)));
+  form.appendChild(field('Описание', area('description', 4)));
   form.appendChild(field('Персоны (через запятую)', listInput('people')));
-  form.appendChild(field('Проекты (через запятую)', listInput('projects')));
+  form.appendChild(field('Проекты (через запятую)', listArea('projects', 2)));
   form.appendChild(field('Приоритет', prioritySelect()));
   form.appendChild(field('Срок', input('deadline', 'date')));
-  form.appendChild(field('Теги (через запятую)', listInput('tags')));
+  form.appendChild(field('Теги (через запятую)', listArea('tags', 2)));
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
@@ -615,16 +627,13 @@ function buildArchiveCard(c) {
   li.className = 'card is-archived';
   appendCardBody(li, c);
 
-  const footer = document.createElement('div');
-  footer.className = 'card-footer';
   const restore = iconBtn('restore', 'Вернуть');
   restore.addEventListener('click', () => { store.unarchive(c.id); renderArchive(); });
   const del = iconBtn('trash', 'Удалить навсегда');
   del.addEventListener('click', () => {
     if (confirm('Удалить запись навсегда? Это действие необратимо.')) { store.destroy(c.id); renderArchive(); }
   });
-  footer.append(restore, del);
-  li.appendChild(footer);
+  li.appendChild(buildFooter(c, [restore, del]));
   return li;
 }
 

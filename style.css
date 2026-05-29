@@ -388,7 +388,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--s-3);
-  align-items: stretch;   /* все карточки ряда — одной высоты (по самой высокой) */
+  align-items: start;   /* у свёрнутых фиксированная высота — ряды не растягиваем */
 }
 
 /* ===== Карточки записей ===== */
@@ -418,12 +418,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
    раскрытом виде, и при растяжении карточки в ряду. */
 .card.is-clickable .card-footer { margin-top: auto; }
 
-/* Верхняя строка: приоритет слева, дата справа. */
-.card-top { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-2); }
-.card-due { margin-left: auto; white-space: nowrap; }
-.card-due.is-overdue { color: var(--danger); font-weight: var(--fw-semibold); }
-
-/* Заголовок — всегда ровно 1 строка; описание — ровно 2 строки. */
+/* Заголовок и описание. Свёрнуто: заголовок 1 строка, описание 2 строки.
+   Раскрыто: заголовок 2 строки, описание 4 строки. */
 .card-title {
   font-weight: var(--fw-semibold); font-size: var(--fs-base); line-height: var(--lh-tight); margin-bottom: var(--s-2);
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
@@ -433,10 +429,12 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   white-space: normal;
 }
+.card.is-expanded .card-title { -webkit-line-clamp: 2; }
+.card.is-expanded .card-body { -webkit-line-clamp: 4; }
 
 /* Строки сущностей: персоны / проекты / теги — каждая на своей строке.
-   Свёрнуто — одна строка; при раскрытии карточки — максимум две (жёсткий
-   предел для всех полей). Разные сущности никогда не делят один ряд. */
+   Свёрнуто — одна строка; раскрыто — максимум две. Разные сущности
+   никогда не делят один ряд. */
 .card-line {
   display: flex;
   align-items: center;
@@ -450,12 +448,19 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   max-height: 40px;   /* ровно две строки мета-элементов */
 }
 
-/* Свёрнутая карточка: общий базовый резерв высоты (выравнивание рядов). */
-.card.is-clickable:not(.is-expanded) { min-height: 168px; }
+/* Свёрнутая карточка: фиксированная высота — все карточки строго одинаковы.
+   Состав: заголовок (1) + описание (2) + персоны/проекты/теги (по 1) + подвал. */
+.card.is-clickable:not(.is-expanded) { height: 216px; overflow: hidden; }
 
 /* Раскрытая карточка подсвечена рамкой. */
 .card.is-expanded { border-color: var(--border-strong); }
-.card-footer { display: flex; justify-content: flex-end; gap: var(--s-1); margin-top: var(--s-3); }
+
+/* Подвал: слева приоритет+дата, справа кнопки — на одном уровне. */
+.card-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-3); }
+.card-foot-meta { display: flex; align-items: center; gap: var(--s-2); min-width: 0; overflow: hidden; }
+.card-actions { display: flex; align-items: center; gap: var(--s-1); flex: none; }
+.card-due { white-space: nowrap; }
+.card-due.is-overdue { color: var(--danger); font-weight: var(--fw-semibold); }
 
 /* Минималистичные кнопки в карточках: без рамки, лёгкая заливка на hover. */
 .card-footer .btn {
@@ -509,7 +514,11 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 /* Инлайн-форма редактирования */
 .edit-form { display: flex; flex-direction: column; gap: var(--s-3); }
 .edit-form label { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--fs-xs); font-weight: var(--fw-medium); color: var(--text-3); }
-.edit-form .text-input, .edit-form .select { height: var(--control-h-sm); font-size: var(--fs-sm); }
+.edit-form .text-input, .edit-form .select { font-size: var(--fs-sm); }
+/* Однострочные поля (персоны, срок) и селект — компактная высота. */
+.edit-form input.text-input, .edit-form .select { height: var(--control-h-sm); }
+/* Многострочные поля (название, описание, проекты, теги) — высота по rows. */
+.edit-form textarea.text-input { height: auto; padding: var(--s-2) var(--s-3); line-height: var(--lh-base); resize: vertical; }
 
 /* Шапка архива */
 .archive-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-4); }

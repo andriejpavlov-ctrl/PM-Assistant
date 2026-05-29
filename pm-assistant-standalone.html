@@ -395,7 +395,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--s-3);
-  align-items: stretch;   /* все карточки ряда — одной высоты (по самой высокой) */
+  align-items: start;   /* у свёрнутых фиксированная высота — ряды не растягиваем */
 }
 
 /* ===== Карточки записей ===== */
@@ -425,12 +425,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
    раскрытом виде, и при растяжении карточки в ряду. */
 .card.is-clickable .card-footer { margin-top: auto; }
 
-/* Верхняя строка: приоритет слева, дата справа. */
-.card-top { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-2); }
-.card-due { margin-left: auto; white-space: nowrap; }
-.card-due.is-overdue { color: var(--danger); font-weight: var(--fw-semibold); }
-
-/* Заголовок — всегда ровно 1 строка; описание — ровно 2 строки. */
+/* Заголовок и описание. Свёрнуто: заголовок 1 строка, описание 2 строки.
+   Раскрыто: заголовок 2 строки, описание 4 строки. */
 .card-title {
   font-weight: var(--fw-semibold); font-size: var(--fs-base); line-height: var(--lh-tight); margin-bottom: var(--s-2);
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
@@ -440,10 +436,12 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   white-space: normal;
 }
+.card.is-expanded .card-title { -webkit-line-clamp: 2; }
+.card.is-expanded .card-body { -webkit-line-clamp: 4; }
 
 /* Строки сущностей: персоны / проекты / теги — каждая на своей строке.
-   Свёрнуто — одна строка; при раскрытии карточки — максимум две (жёсткий
-   предел для всех полей). Разные сущности никогда не делят один ряд. */
+   Свёрнуто — одна строка; раскрыто — максимум две. Разные сущности
+   никогда не делят один ряд. */
 .card-line {
   display: flex;
   align-items: center;
@@ -457,12 +455,19 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   max-height: 40px;   /* ровно две строки мета-элементов */
 }
 
-/* Свёрнутая карточка: общий базовый резерв высоты (выравнивание рядов). */
-.card.is-clickable:not(.is-expanded) { min-height: 168px; }
+/* Свёрнутая карточка: фиксированная высота — все карточки строго одинаковы.
+   Состав: заголовок (1) + описание (2) + персоны/проекты/теги (по 1) + подвал. */
+.card.is-clickable:not(.is-expanded) { height: 216px; overflow: hidden; }
 
 /* Раскрытая карточка подсвечена рамкой. */
 .card.is-expanded { border-color: var(--border-strong); }
-.card-footer { display: flex; justify-content: flex-end; gap: var(--s-1); margin-top: var(--s-3); }
+
+/* Подвал: слева приоритет+дата, справа кнопки — на одном уровне. */
+.card-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-3); }
+.card-foot-meta { display: flex; align-items: center; gap: var(--s-2); min-width: 0; overflow: hidden; }
+.card-actions { display: flex; align-items: center; gap: var(--s-1); flex: none; }
+.card-due { white-space: nowrap; }
+.card-due.is-overdue { color: var(--danger); font-weight: var(--fw-semibold); }
 
 /* Минималистичные кнопки в карточках: без рамки, лёгкая заливка на hover. */
 .card-footer .btn {
@@ -516,7 +521,11 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 /* Инлайн-форма редактирования */
 .edit-form { display: flex; flex-direction: column; gap: var(--s-3); }
 .edit-form label { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--fs-xs); font-weight: var(--fw-medium); color: var(--text-3); }
-.edit-form .text-input, .edit-form .select { height: var(--control-h-sm); font-size: var(--fs-sm); }
+.edit-form .text-input, .edit-form .select { font-size: var(--fs-sm); }
+/* Однострочные поля (персоны, срок) и селект — компактная высота. */
+.edit-form input.text-input, .edit-form .select { height: var(--control-h-sm); }
+/* Многострочные поля (название, описание, проекты, теги) — высота по rows. */
+.edit-form textarea.text-input { height: auto; padding: var(--s-2) var(--s-3); line-height: var(--lh-base); resize: vertical; }
 
 /* Шапка архива */
 .archive-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-4); }
@@ -1699,21 +1708,6 @@ function renderBoard() {
 }
 
 // ===== Построение карточки =====
-/** Верхняя строка: приоритет слева, дата справа (если есть). null — если пусто. */
-function buildTop(c) {
-  const hasPrio = c.priority && PRIORITY_NAME[c.priority];
-  if (!hasPrio && !c.deadline) return null;
-  const top = el('div', 'card-top');
-  if (hasPrio) top.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
-  if (c.deadline) {
-    const due = metaItem('clock', c.deadline);
-    due.classList.add('card-due');
-    if (c.deadline < todayISO()) due.classList.add('is-overdue');
-    top.appendChild(due);
-  }
-  return top;
-}
-
 /** Строка одного типа сущностей (персоны / проекты / теги). null — если пусто. */
 function buildFieldLine(type, iconName, values) {
   const list = (values || []).filter(Boolean);
@@ -1724,13 +1718,11 @@ function buildFieldLine(type, iconName, values) {
 }
 
 /**
- * Наполнить карточку строго по порядку сверху вниз:
- * приоритет+дата → заголовок → описание → персоны → проекты → теги.
- * Каждая сущность — на своей строке (без смешивания в один ряд).
+ * Наполнить тело карточки сверху вниз:
+ * заголовок → описание → персоны → проекты → теги.
+ * Приоритет и дата — в подвале (см. buildFooter), на уровне кнопок.
  */
 function appendCardBody(li, c) {
-  const top = buildTop(c);
-  if (top) li.appendChild(top);
   li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
   if (c.description) li.appendChild(el('p', 'card-body', c.description));
   const persons = buildFieldLine('person', 'person', c.people);
@@ -1739,6 +1731,29 @@ function appendCardBody(li, c) {
   if (projects) li.appendChild(projects);
   const tags = buildFieldLine('tag', 'tag', c.tags);
   if (tags) li.appendChild(tags);
+}
+
+/** Левая часть подвала: приоритет + дата. */
+function buildFooterMeta(c) {
+  const wrap = el('div', 'card-foot-meta');
+  if (c.priority && PRIORITY_NAME[c.priority]) wrap.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
+  if (c.deadline) {
+    const due = metaItem('clock', c.deadline);
+    due.classList.add('card-due');
+    if (c.deadline < todayISO()) due.classList.add('is-overdue');
+    wrap.appendChild(due);
+  }
+  return wrap;
+}
+
+/** Подвал карточки: слева приоритет+дата, справа кнопки действий. */
+function buildFooter(c, buttons) {
+  const footer = el('div', 'card-footer');
+  footer.appendChild(buildFooterMeta(c));
+  const actions = el('div', 'card-actions');
+  buttons.forEach((b) => actions.appendChild(b));
+  footer.appendChild(actions);
+  return footer;
 }
 
 // id раскрытых карточек (показывают всё), и id редактируемой.
@@ -1767,25 +1782,23 @@ function buildCard(c, opts = {}) {
 
   appendCardBody(li, c);
 
-  const footer = document.createElement('div');
-  footer.className = 'card-footer';
+  let buttons;
   if (preview) {
     const editBtn = iconBtn('edit', 'Дозаполнить');
     editBtn.addEventListener('click', () => renderCaptureEditor());
     const saveBtn = el('button', 'btn btn-primary btn-sm', 'Сохранить');
     saveBtn.addEventListener('click', saveCaptureDraft);
-    footer.append(editBtn, saveBtn);
+    buttons = [editBtn, saveBtn];
   } else {
     const editBtn = iconBtn('edit', '');
     editBtn.title = 'Дозаполнить';
     editBtn.addEventListener('click', () => { editingId = c.id; renderBoard(); });
-    footer.appendChild(editBtn);
     const del = iconBtn('trash', '');
     del.title = 'В архив';
     del.addEventListener('click', () => { store.remove(c.id); renderBoard(); });
-    footer.appendChild(del);
+    buttons = [editBtn, del];
   }
-  li.appendChild(footer);
+  li.appendChild(buildFooter(c, buttons));
   return li;
 }
 
@@ -1805,12 +1818,20 @@ function buildCardEditor(c, isDraft) {
     inp.addEventListener('input', () => (draft[key] = inp.value));
     return inp;
   };
-  const textarea = (key) => {
+  const area = (key, rows) => {
     const t = document.createElement('textarea');
     t.className = 'text-input';
-    t.rows = 3;
+    t.rows = rows;
     t.value = draft[key] || '';
     t.addEventListener('input', () => (draft[key] = t.value));
+    return t;
+  };
+  const listArea = (key, rows) => {
+    const t = document.createElement('textarea');
+    t.className = 'text-input';
+    t.rows = rows;
+    t.value = (draft[key] || []).join(', ');
+    t.addEventListener('input', () => (draft[key] = t.value.split(',').map((s) => s.trim()).filter(Boolean)));
     return t;
   };
   const prioritySelect = () => {
@@ -1833,13 +1854,13 @@ function buildCardEditor(c, isDraft) {
     return inp;
   };
 
-  form.appendChild(field('Название', input('title')));
-  form.appendChild(field('Описание', textarea('description')));
+  form.appendChild(field('Название', area('title', 2)));
+  form.appendChild(field('Описание', area('description', 4)));
   form.appendChild(field('Персоны (через запятую)', listInput('people')));
-  form.appendChild(field('Проекты (через запятую)', listInput('projects')));
+  form.appendChild(field('Проекты (через запятую)', listArea('projects', 2)));
   form.appendChild(field('Приоритет', prioritySelect()));
   form.appendChild(field('Срок', input('deadline', 'date')));
-  form.appendChild(field('Теги (через запятую)', listInput('tags')));
+  form.appendChild(field('Теги (через запятую)', listArea('tags', 2)));
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
@@ -1888,16 +1909,13 @@ function buildArchiveCard(c) {
   li.className = 'card is-archived';
   appendCardBody(li, c);
 
-  const footer = document.createElement('div');
-  footer.className = 'card-footer';
   const restore = iconBtn('restore', 'Вернуть');
   restore.addEventListener('click', () => { store.unarchive(c.id); renderArchive(); });
   const del = iconBtn('trash', 'Удалить навсегда');
   del.addEventListener('click', () => {
     if (confirm('Удалить запись навсегда? Это действие необратимо.')) { store.destroy(c.id); renderArchive(); }
   });
-  footer.append(restore, del);
-  li.appendChild(footer);
+  li.appendChild(buildFooter(c, [restore, del]));
   return li;
 }
 
