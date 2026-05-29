@@ -302,22 +302,39 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .filter-field:hover { border-color: var(--border-strong); color: var(--text); }
 .filter-field:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
 
-/* Активный фильтр — пилюля целиком в акценте; место справа под «✕» + шеврон. */
+/* Активный фильтр — пилюля целиком в акценте; место справа под «✕» + стрелку. */
 .filter-field.is-filtered {
   border-color: var(--accent);
   background-color: var(--accent-weak);
   color: var(--accent);
-  padding-right: 40px;
+  padding-right: 44px;
 }
 
-/* Ячейка фильтра: контейнер для пилюли и кнопки персонального сброса поверх неё. */
+/* Ячейка фильтра: контейнер для пилюли, стрелки и кнопки персонального сброса. */
 .filter-cell { position: relative; flex: 0 0 auto; display: inline-flex; }
 
-/* Сброс одного фильтра — «✕» слева от шеврона (не перекрывает стрелку). */
+/* Стрелка вниз — глиф того же размера, что и «✕» (один уровень, один кегль).
+   Заменяет градиентный шеврон у фильтр-пилюль. */
+.filter-cell .filter-field { background-image: none; }
+.filter-cell::after {
+  content: '\25BE';   /* ▾ */
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-3);
+  pointer-events: none;
+}
+.filter-cell:hover::after { color: var(--text); }
+.filter-cell:has(.filter-field.is-filtered)::after { color: var(--accent); }
+
+/* Сброс одного фильтра — «✕» того же кегля, слева от стрелки (не перекрывает). */
 .filter-clear {
   position: absolute;
   top: 50%;
-  right: 22px;
+  right: 24px;
   transform: translateY(-50%);
   width: 18px; height: 18px;
   display: inline-flex; align-items: center; justify-content: center;
