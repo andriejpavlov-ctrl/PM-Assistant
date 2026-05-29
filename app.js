@@ -5,7 +5,7 @@ import * as store from './storage.js';
 import { processCapture, processQuery } from './agent.js';
 
 const fileConfig = window.PM_CONFIG || {};
-const DEFAULT_MODEL = 'claude-3-5-haiku-20241022';
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
 const TYPE_LABEL = { topic: 'Тема', task: 'Задача', note: 'Заметка' };
 const URGENCY_LABEL = { urgent: 'срочно', high: 'высокая', medium: 'средняя', low: 'низкая' };

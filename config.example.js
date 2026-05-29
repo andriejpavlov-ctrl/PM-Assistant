@@ -3,5 +3,5 @@
 // Альтернатива: оставить пустым и ввести ключ в окне Настройки (⚙).
 window.PM_CONFIG = {
   apiKey: '', // 'sk-ant-...'
-  model: 'claude-3-5-haiku-20241022',
+  model: 'claude-haiku-4-5-20251001',
 };

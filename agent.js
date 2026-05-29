@@ -1,11 +1,11 @@
 // agent.js — AI-агент на Claude API. Прямые вызовы через fetch().
 // Ключ берётся из window.CLAUDE_API_KEY (пользователь вводит его в настройках).
-// Модель: claude-3-5-haiku-20241022. Все системные промпты — на русском,
+// Модель: claude-haiku-4-5-20251001. Все системные промпты — на русском,
 // агент всегда отвечает валидным JSON.
 
 // Модель настраивается: app.js прокидывает выбранную в настройках модель
 // в window.CLAUDE_MODEL. Если не задана — используем дефолт.
-const DEFAULT_MODEL = 'claude-3-5-haiku-20241022';
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const API_VERSION = '2023-06-01';
 
