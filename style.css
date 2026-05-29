@@ -380,20 +380,19 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 }
 .meme-btn-ic {
   position: relative;
-  font-size: 32px;
+  font-size: 38px;
   line-height: 1;
   display: block;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
+  /* Диско-шар слегка покачивается на «нити». */
+  animation: meme-sway 3.2s ease-in-out infinite;
 }
 .meme-btn.is-loading { animation-duration: 1.1s; }
-.meme-btn.is-loading .meme-btn-ic { animation: meme-wobble 0.7s ease-in-out infinite; }
+.meme-btn.is-loading .meme-btn-ic { animation: meme-sway 0.7s ease-in-out infinite; }
 
 @keyframes meme-spin { to { transform: rotate(360deg); } }
-/* Контр-вращение иконки, чтобы ✨ не крутилась вместе с фоном. */
-.meme-btn-ic { animation: meme-anti-spin 6s linear infinite; }
-@keyframes meme-anti-spin { to { transform: rotate(-360deg); } }
+@keyframes meme-sway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
 @keyframes meme-pulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.08); } }
-@keyframes meme-wobble { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.25); } }
 @media (prefers-reduced-motion: reduce) {
   .meme-btn, .meme-btn-ic, .meme-btn-glow { animation: none; }
 }
