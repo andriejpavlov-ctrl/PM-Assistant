@@ -395,23 +395,23 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .card-title { font-weight: var(--fw-semibold); font-size: var(--fs-base); line-height: var(--lh-tight); margin-bottom: var(--s-2); }
 .card-body { color: var(--text-2); font-size: var(--fs-sm); margin-bottom: var(--s-2); white-space: pre-wrap; }
 
-/* Свёрнутая карточка: фиксированная высота, лишнее обрезается. */
-.card:not(.is-expanded) {
+/* Свёрнутая карточка на доске: фиксированная высота, лишнее обрезается. */
+.card.is-clickable:not(.is-expanded) {
   height: 132px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-.card:not(.is-expanded) .card-title {
+.card.is-clickable:not(.is-expanded) .card-title {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.card:not(.is-expanded) .card-body {
+.card.is-clickable:not(.is-expanded) .card-body {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   white-space: normal;
 }
 /* Мета в свёрнутом виде — одна строка, футер прижат к низу. */
-.card:not(.is-expanded) .card-meta { flex-wrap: nowrap; overflow: hidden; }
-.card:not(.is-expanded) .card-footer { margin-top: auto; }
+.card.is-clickable:not(.is-expanded) .card-meta { flex-wrap: nowrap; overflow: hidden; }
+.card.is-clickable:not(.is-expanded) .card-footer { margin-top: auto; }
 
 /* Раскрытая карточка показывает всё и подсвечена рамкой. */
 .card.is-expanded { border-color: var(--border-strong); }
