@@ -288,6 +288,54 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .switch input:focus-visible + .switch-track { box-shadow: var(--ring); }
 .switch-label { font-size: var(--fs-sm); color: var(--text-2); }
 
+/* ===== Раздел «Что умеет?» ===== */
+.help-grid {
+  list-style: none;
+  margin: var(--s-5) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--s-4);
+}
+.help-item {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.help-icon {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  border-radius: var(--r-md);
+  background: var(--accent-weak);
+  font-size: var(--fs-lg);
+}
+.help-body { min-width: 0; }
+.help-title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  margin: 2px 0 var(--s-2);
+}
+.help-jtbd {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: var(--lh-normal);
+  margin: 0 0 var(--s-2);
+  padding-left: var(--s-3);
+  border-left: 2px solid var(--accent);
+}
+.help-jtbd b { color: var(--text-1); font-weight: var(--fw-semibold); }
+.help-desc {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  line-height: var(--lh-normal);
+  margin: 0;
+}
+
 /* ===== Горизонтальный бар фильтров и сортировки ===== */
 .filter-bar {
   display: flex;
