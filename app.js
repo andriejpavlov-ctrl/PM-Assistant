@@ -145,6 +145,10 @@ function init() {
   bindSearch();
   bindSettings();
   bindTheme();
+
+  // Восстановить вкладку, открытую до перезагрузки.
+  const saved = localStorage.getItem('pm_active_tab');
+  if (saved && document.querySelector(`.tab[data-tab="${saved}"]`)) switchTab(saved);
 }
 
 // ===== Навигация =====
@@ -152,6 +156,7 @@ function bindNav() {
   $$('.tab').forEach((tab) => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
 }
 function switchTab(name) {
+  localStorage.setItem('pm_active_tab', name); // запоминаем для восстановления после перезагрузки
   $$('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== name));
   if (name === 'board') {
