@@ -437,7 +437,8 @@ function hasActiveFilters() {
 
 /** Реакция на смену фильтра: подсветить активные пилюли, показать «Сбросить», перерисовать. */
 function afterFilterChange() {
-  const mark = (sel, active) => sel.classList.toggle('is-filtered', active);
+  // Класс is-filtered вешаем на пилюлю .filter-item (родителя select), иначе на сам select.
+  const mark = (sel, active) => (sel.closest('.filter-item') || sel).classList.toggle('is-filtered', active);
   mark($('#filter-person'), !!filters.person);
   mark($('#filter-project'), !!filters.project);
   mark($('#filter-priority'), !!filters.priority);
@@ -452,8 +453,8 @@ function populateFilters() {
   const all = store.getAll();
   const people = [...new Set(all.flatMap(peopleOf).filter(Boolean))].sort();
   const projects = [...new Set(all.flatMap(projectsOf).filter(Boolean))].sort();
-  fillSelect($('#filter-person'), '👤 Человек', people, filters.person);
-  fillSelect($('#filter-project'), '📁 Проект', projects, filters.project);
+  fillSelect($('#filter-person'), 'Человек', people, filters.person);
+  fillSelect($('#filter-project'), 'Проект', projects, filters.project);
 }
 function fillSelect(sel, placeholder, values, current) {
   sel.innerHTML = '';
