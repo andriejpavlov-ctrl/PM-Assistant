@@ -121,7 +121,26 @@ async function doPull(opts = {}) {
 // ===== Нормализация и объединение имён людей =====
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 function firstToken(name) { return (name || '').trim().split(/\s+/)[0] || ''; }
+function lastToken(name) { const p = (name || '').trim().split(/\s+/); return p.slice(1).join(' '); }
 function isFullName(name) { return (name || '').trim().split(/\s+/).length >= 2; }
+function normKey(s) { return (s || '').toLowerCase().replace(/ё/g, 'е'); }
+
+// Множество известных имён (ключи словаря + их полные формы) для распознавания
+// «имя vs фамилия» в одиночном токене.
+const KNOWN_FIRST_NAMES = new Set([
+  ...Object.keys(DIMINUTIVES).map(normKey),
+  ...Object.values(DIMINUTIVES).map(normKey),
+]);
+// Характерные окончания русских фамилий (проверяется ПОСЛЕ словаря имён).
+const SURNAME_RE = /(ов|ова|ев|ева|ёв|ёва|ин|ина|ын|ына|ский|ская|цкий|цкая|ской|енко|енков|чук|юк|ук|швили|дзе|ян|оглы|их|ых|ко)$/i;
+
+/** Классифицировать одиночный токен: 'name' (нужна фамилия) или 'surname' (нужно имя). */
+function classifyToken(token) {
+  const k = normKey(token);
+  if (KNOWN_FIRST_NAMES.has(k)) return 'name';   // известное имя
+  if (SURNAME_RE.test(token)) return 'surname';  // похоже на фамилию
+  return 'name';                                 // по умолчанию — имя
+}
 /** Привести имя к канонической форме: развернуть уменьшительное, расставить заглавные. */
 export function canonicalize(name) {
   const n = (name || '').trim().replace(/\s+/g, ' ');
@@ -257,9 +276,10 @@ function setPersonName(draft, original, full) {
 }
 
 /**
- * Перед показом карточки уточняем недостающие фамилии. Имена уже канонизированы
- * (Настя → Анастасия). Если у персоны нет фамилии и её нельзя однозначно
- * сопоставить с известным коллегой — спрашиваем фамилию у пользователя.
+ * Перед показом карточки уточняем недостающую часть ФИО. Имена уже канонизированы
+ * (Настя → Анастасия). Для одиночного токена определяем, имя это или фамилия,
+ * и спрашиваем недостающую часть. Однозначное совпадение с известным коллегой
+ * объединяем автоматически.
  */
 function startPeopleResolution(draft) {
   const known = knownFullNames();
@@ -268,58 +288,68 @@ function startPeopleResolution(draft) {
   (draft.people || []).forEach((name) => {
     if (!name || seen.has(name)) return;
     seen.add(name);
-    if (isFullName(name)) return; // фамилия уже есть
-    const matches = [...new Set(known.filter((f) => firstToken(f).toLowerCase() === name.toLowerCase()))];
-    if (matches.length === 1) setPersonName(draft, name, matches[0]); // однозначно — объединяем
-    else pending.push({ original: name, firstName: name, candidates: matches });
+    if (isFullName(name)) return; // обе части уже есть
+
+    const kind = classifyToken(name); // 'name' → не хватает фамилии; 'surname' → имени
+    // Однозначное совпадение с известным коллегой по той же части — объединяем.
+    const matches = kind === 'surname'
+      ? [...new Set(known.filter((f) => normKey(lastToken(f)) === normKey(name)))]
+      : [...new Set(known.filter((f) => normKey(firstToken(f)) === normKey(name)))];
+    if (matches.length === 1) { setPersonName(draft, name, matches[0]); return; }
+    pending.push({ original: name, token: name, kind, candidates: matches });
   });
   if (!pending.length) renderCaptureResult();
   else renderSurnamePrompt(draft, pending);
 }
 
-/** Форма «уточните фамилию» для персон без фамилии. Можно пропустить. */
+/** Форма уточнения недостающей части имени (фамилия или имя). Можно пропустить. */
 function renderSurnamePrompt(draft, pending) {
   const box = $('#capture-result');
   box.innerHTML = '';
 
   const card = document.createElement('div');
   card.className = 'card';
-  card.appendChild(el('p', 'card-title', 'Уточните фамилию'));
-  card.appendChild(el('p', 'card-body', 'Добавьте фамилию, чтобы одна персона не превратилась в разные карточки. Можно пропустить.'));
+  card.appendChild(el('p', 'card-title', 'Уточните ФИО'));
+  card.appendChild(el('p', 'card-body', 'Добавьте недостающую часть, чтобы одна персона не превратилась в разные карточки. Можно пропустить.'));
 
   const form = document.createElement('div');
   form.className = 'edit-form';
-  const knownSurnames = [...new Set(knownFullNames().map((f) => f.split(' ').slice(1).join(' ')).filter(Boolean))];
+  const known = knownFullNames();
+  // Подсказки автодополнения: фамилии (для токена-имени) и имена (для токена-фамилии).
+  const knownSurnames = [...new Set(known.map((f) => lastToken(f)).filter(Boolean))];
+  const knownNames = [...new Set(known.map((f) => firstToken(f)).filter(Boolean))];
 
   const rows = pending.map((p) => {
+    const needSurname = p.kind === 'name'; // не хватает фамилии
     const inp = document.createElement('input');
     inp.className = 'text-input';
-    inp.placeholder = 'Фамилия';
-    inp.setAttribute('list', 'known-surnames');
-    const wrap = field(`Имя: ${p.firstName}`, inp);
-    // Быстрый выбор уже известной персоны с таким же именем.
+    inp.placeholder = needSurname ? 'Фамилия' : 'Имя';
+    inp.setAttribute('list', needSurname ? 'known-surnames' : 'known-names');
+    const labelText = needSurname ? `Имя: ${p.token} — укажите фамилию` : `Фамилия: ${p.token} — укажите имя`;
+    const wrap = field(labelText, inp);
+    // Быстрый выбор уже известной персоны (подставляем недостающую часть).
     if (p.candidates && p.candidates.length) {
       const picks = document.createElement('div');
       picks.className = 'find-suggestions';
       p.candidates.forEach((full) => {
         const b = el('button', 'chip', full);
-        b.addEventListener('click', () => (inp.value = full.split(' ').slice(1).join(' ')));
+        b.addEventListener('click', () => (inp.value = needSurname ? lastToken(full) : firstToken(full)));
         picks.appendChild(b);
       });
       wrap.appendChild(picks);
     }
     form.appendChild(wrap);
-    return { p, inp };
+    return { p, inp, needSurname };
   });
 
-  const dl = document.createElement('datalist');
-  dl.id = 'known-surnames';
-  knownSurnames.forEach((s) => {
-    const o = document.createElement('option');
-    o.value = s;
-    dl.appendChild(o);
-  });
-  form.appendChild(dl);
+  const mkDatalist = (id, values) => {
+    const dl = document.createElement('datalist');
+    dl.id = id;
+    values.forEach((v) => { const o = document.createElement('option'); o.value = v; dl.appendChild(o); });
+    return dl;
+  };
+  form.appendChild(mkDatalist('known-surnames', knownSurnames));
+  form.appendChild(mkDatalist('known-names', knownNames));
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
@@ -327,9 +357,12 @@ function renderSurnamePrompt(draft, pending) {
   skip.addEventListener('click', () => renderCaptureResult());
   const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
   save.addEventListener('click', () => {
-    rows.forEach(({ p, inp }) => {
-      const sur = inp.value.trim();
-      const full = sur ? canonicalize(`${p.firstName} ${sur}`) : p.firstName;
+    rows.forEach(({ p, inp, needSurname }) => {
+      const extra = inp.value.trim();
+      // needSurname: «Имя Фамилия»; иначе: «Имя Фамилия» = extra + токен-фамилия.
+      const full = !extra
+        ? p.token
+        : (needSurname ? canonicalize(`${p.token} ${extra}`) : canonicalize(`${extra} ${p.token}`));
       setPersonName(draft, p.original, full);
     });
     renderCaptureResult();
