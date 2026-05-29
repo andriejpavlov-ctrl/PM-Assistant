@@ -238,6 +238,15 @@ export function clearAll() {
   state.cards = [];
   persist();
 }
+/** Безвозвратно удалить все архивные карточки. Возвращает число удалённых. */
+export function destroyArchived() {
+  load();
+  const before = state.cards.length;
+  state.cards = state.cards.filter((c) => !c.archived);
+  const removed = before - state.cards.length;
+  if (removed) persist();
+  return removed;
+}
 
 // ===== Импорт / экспорт =====
 
