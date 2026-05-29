@@ -532,8 +532,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .archive-head .count { background: var(--bg-elev-2); border-radius: var(--r-pill); padding: 2px var(--s-3); font-size: var(--fs-xs); color: var(--text-3); }
 
 /* ===== Поиск: строка и ответ ===== */
-.find-bar { display: flex; gap: var(--s-2); }
-.find-input { flex: 1; }
+.find-bar { display: flex; gap: var(--s-2); align-items: stretch; }
+.find-input { flex: 1 1 auto; min-width: 0; }
 
 /* Ответ ассистента — отдельная заметная карточка, отделённая от строки поиска */
 .answer {
@@ -642,8 +642,11 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .filter-cell .filter-field { width: 100%; }
   .filter-field--sort { flex: 1 1 calc(50% - var(--s-1)); width: auto; margin-left: 0; }
   .capture-input { min-height: 40vh; }
-  .find-bar { flex-direction: column; }
-  .find-bar .btn { width: 100%; }
+  /* Поиск на мобильном — как полноширинные элементы «Новой записи»:
+     поле и кнопка каждое на всю ширину, друг под другом. */
+  .find-bar { flex-direction: column; align-items: stretch; gap: var(--s-3); }
+  .find-bar .find-input,
+  .find-bar .btn { width: 100%; flex: 0 0 auto; }
 }
 
 </style>
