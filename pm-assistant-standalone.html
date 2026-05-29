@@ -1157,43 +1157,37 @@ async function processQuery(queryText, allData) {
 // ФУНКЦИЯ 3: generateDailySummary(allData)
 // ============================================================
 
-const SUMMARY_SYSTEM = `Ты — личный ассистент директора по продукту. На основе всех записей сформируй краткую сводку на сегодня.
+const SUMMARY_SYSTEM = `Ты — личный ассистент директора по продукту. На основе всех карточек сформируй краткую сводку на сегодня.
 
-Учитывай типы записей: "task" (задачи со статусом и приоритетом P1-P4), "topic" (темы для обсуждения с людьми, со срочностью/важностью), "note" (заметки).
+У каждой карточки есть title, description, people, projects, priority (P1 высокий, P2 средний, P3 низкий), deadline, tags.
 Сегодняшнюю дату тебе передадут — выделяй просроченные и сегодняшние дедлайны.
 
 Верни ТОЛЬКО валидный JSON без markdown в формате:
 {
   "greeting":"короткое приветствие/общая фраза",
-  "urgentTasks":[{"id":"...","title":"...","why":"почему срочно"}],
-  "upcomingTopics":[{"id":"...","person":"...","topic":"...","why":"почему обсудить скоро"}],
+  "urgent":[{"id":"...","title":"...","why":"почему важно"}],
   "todayFocus":["3-5 пунктов: что важнее всего сделать сегодня"],
   "summary":"связный абзац-сводка на 2-3 предложения"
 }
 
-Не включай выполненные задачи (status "done") и обсуждённые темы (status "discussed"). Используй только реальные id из данных. Если данных мало — верни пустые массивы, но заполни summary.`;
+Используй только реальные id из данных. Если данных мало — верни пустые массивы, но заполни summary.`;
 
 /**
- * Формирует краткую сводку на день: срочные задачи, темы для ближайших встреч,
- * фокус на сегодня.
+ * Формирует краткую сводку на день по карточкам.
  * @param {Array<object>} allData
- * @returns {Promise<object>} { greeting, urgentTasks, upcomingTopics, todayFocus, summary }
+ * @returns {Promise<object>} { greeting, urgent, todayFocus, summary }
  */
 async function generateDailySummary(allData) {
-  const compact = (allData || []).map((e) => ({
-    id: e.id,
-    type: e.type,
-    person: e.person || null,
-    topic: e.topic || null,
-    title: e.title || null,
-    urgency: e.urgency || null,
-    importance: e.importance || null,
-    priority: e.priority || null,
-    status: e.status || null,
-    deadline: e.deadline || null,
+  const compact = (allData || []).map((c) => ({
+    id: c.id,
+    title: c.title || null,
+    people: c.people || [],
+    projects: c.projects || [],
+    priority: c.priority || null,
+    deadline: c.deadline || null,
   }));
 
-  const user = `Сегодняшняя дата: ${todayISO()}.\n\nВсе записи (JSON):\n${JSON.stringify(compact)}\n\nСформируй сводку на день.`;
+  const user = `Сегодняшняя дата: ${todayISO()}.\n\nВсе карточки (JSON):\n${JSON.stringify(compact)}\n\nСформируй сводку на день.`;
   const text = await callClaude(SUMMARY_SYSTEM, user, { maxTokens: 1500 });
   return safeParseJSON(text);
 }
