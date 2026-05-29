@@ -612,6 +612,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   border-radius: var(--r-lg);
   padding: var(--s-6);
   width: 100%; max-width: 440px;
+  max-height: 90vh; overflow-y: auto;
   box-shadow: var(--shadow-lg);
 }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--s-4); }
