@@ -866,8 +866,7 @@ async function onSearch() {
   try {
     const { explanation, results } = await processQuery(question, store.getAll());
     status.hidden = true;
-    answerEl.textContent = explanation || (results.length ? '' : 'Ничего не найдено.');
-    answerEl.hidden = !answerEl.textContent;
+    renderAnswer(answerEl, explanation, results.length);
     // Сохраняем порядок, выбранный AI, но добавляем метку приоритета.
     results.map(annotate).forEach((e) => resultsEl.appendChild(buildCard(e)));
   } catch (e) {
@@ -876,6 +875,29 @@ async function onSearch() {
     btn.disabled = false;
     btn.textContent = 'Найти';
   }
+}
+
+/** Карточка ответа AI: заголовок «Ответ ассистента», текст и счётчик находок. */
+function renderAnswer(box, explanation, count) {
+  box.innerHTML = '';
+  const text = explanation || (count ? '' : 'Ничего не найдено по этому запросу.');
+  if (!text && !count) { box.hidden = true; return; }
+
+  const head = el('div', 'answer-head');
+  head.append(el('span', 'answer-icon', '✦'), el('span', 'answer-label', 'Ответ ассистента'));
+  if (count) head.appendChild(el('span', 'answer-count', `${count} ${plural(count, 'находка', 'находки', 'находок')}`));
+  box.appendChild(head);
+
+  if (text) box.appendChild(el('p', 'answer-text', text));
+  box.hidden = false;
+}
+
+/** Русское склонение числительных: 1 находка / 2 находки / 5 находок. */
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
 }
 
 // ===== Настройки =====

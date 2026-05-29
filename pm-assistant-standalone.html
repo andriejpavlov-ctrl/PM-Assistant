@@ -405,17 +405,62 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 /* ===== Поиск: строка и ответ ===== */
 .find-bar { display: flex; gap: var(--s-2); }
 .find-input { flex: 1; }
+
+/* Ответ ассистента — отдельная заметная карточка, отделённая от строки поиска */
 .answer {
-  background: var(--bg-elev-2);
+  position: relative;
+  background:
+    linear-gradient(180deg, var(--accent-weak), transparent 64px),
+    var(--bg-elev-2);
   border: 1px solid var(--border);
-  border-left: 2px solid var(--accent);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   padding: var(--s-4);
-  margin: var(--s-4) 0;
+  margin-top: var(--s-5);
+  box-shadow: var(--shadow-sm);
+}
+.answer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-bottom: var(--s-3);
+  margin-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+.answer-icon {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--fs-sm);
+}
+.answer-label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.answer-count {
+  margin-left: auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  border-radius: var(--r-pill);
+  padding: 2px var(--s-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+.answer-text {
   font-size: var(--fs-base);
+  line-height: var(--lh-base);
   color: var(--text-2);
   white-space: pre-wrap;
 }
+
+/* Результаты поиска чуть отступают от карточки ответа */
+#search-results { margin-top: var(--s-3); }
 
 /* ===== Статусы / пусто ===== */
 .status-line { color: var(--text-3); font-size: var(--fs-sm); padding: var(--s-2) 0; }
@@ -2145,8 +2190,7 @@ async function onSearch() {
   try {
     const { explanation, results } = await processQuery(question, store.getAll());
     status.hidden = true;
-    answerEl.textContent = explanation || (results.length ? '' : 'Ничего не найдено.');
-    answerEl.hidden = !answerEl.textContent;
+    renderAnswer(answerEl, explanation, results.length);
     // Сохраняем порядок, выбранный AI, но добавляем метку приоритета.
     results.map(annotate).forEach((e) => resultsEl.appendChild(buildCard(e)));
   } catch (e) {
@@ -2155,6 +2199,29 @@ async function onSearch() {
     btn.disabled = false;
     btn.textContent = 'Найти';
   }
+}
+
+/** Карточка ответа AI: заголовок «Ответ ассистента», текст и счётчик находок. */
+function renderAnswer(box, explanation, count) {
+  box.innerHTML = '';
+  const text = explanation || (count ? '' : 'Ничего не найдено по этому запросу.');
+  if (!text && !count) { box.hidden = true; return; }
+
+  const head = el('div', 'answer-head');
+  head.append(el('span', 'answer-icon', '✦'), el('span', 'answer-label', 'Ответ ассистента'));
+  if (count) head.appendChild(el('span', 'answer-count', `${count} ${plural(count, 'находка', 'находки', 'находок')}`));
+  box.appendChild(head);
+
+  if (text) box.appendChild(el('p', 'answer-text', text));
+  box.hidden = false;
+}
+
+/** Русское склонение числительных: 1 находка / 2 находки / 5 находок. */
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
 }
 
 // ===== Настройки =====

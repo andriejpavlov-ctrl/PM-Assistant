@@ -398,17 +398,62 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 /* ===== Поиск: строка и ответ ===== */
 .find-bar { display: flex; gap: var(--s-2); }
 .find-input { flex: 1; }
+
+/* Ответ ассистента — отдельная заметная карточка, отделённая от строки поиска */
 .answer {
-  background: var(--bg-elev-2);
+  position: relative;
+  background:
+    linear-gradient(180deg, var(--accent-weak), transparent 64px),
+    var(--bg-elev-2);
   border: 1px solid var(--border);
-  border-left: 2px solid var(--accent);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   padding: var(--s-4);
-  margin: var(--s-4) 0;
+  margin-top: var(--s-5);
+  box-shadow: var(--shadow-sm);
+}
+.answer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-bottom: var(--s-3);
+  margin-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+.answer-icon {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--fs-sm);
+}
+.answer-label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.answer-count {
+  margin-left: auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  border-radius: var(--r-pill);
+  padding: 2px var(--s-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+.answer-text {
   font-size: var(--fs-base);
+  line-height: var(--lh-base);
   color: var(--text-2);
   white-space: pre-wrap;
 }
+
+/* Результаты поиска чуть отступают от карточки ответа */
+#search-results { margin-top: var(--s-3); }
 
 /* ===== Статусы / пусто ===== */
 .status-line { color: var(--text-3); font-size: var(--fs-sm); padding: var(--s-2) 0; }
