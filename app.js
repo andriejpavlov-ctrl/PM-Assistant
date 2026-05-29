@@ -755,7 +755,7 @@ function buildArchiveCard(c) {
   return li;
 }
 
-// ===== Главная: поиск =====
+// ===== Главная: спросить ассистента =====
 function bindSearch() {
   $('#search-btn').addEventListener('click', onSearch);
   $('#search-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') onSearch(); });
@@ -783,7 +783,6 @@ async function onSearch() {
     showStatus(status, e.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Найти';
   }
 }
 function renderAnswer(box, explanation, count) {
