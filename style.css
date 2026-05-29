@@ -347,7 +347,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--s-3);
-  align-items: start;
+  align-items: stretch;   /* все карточки ряда — одной высоты (по самой высокой) */
 }
 
 /* ===== Карточки записей ===== */
@@ -372,11 +372,17 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .card-title { font-weight: var(--fw-semibold); font-size: var(--fs-base); line-height: var(--lh-tight); margin-bottom: var(--s-2); }
 .card-body { color: var(--text-2); font-size: var(--fs-sm); margin-bottom: var(--s-2); white-space: pre-wrap; }
 
-/* Свёрнутая карточка на доске: высота по содержимому — ровно заголовок
-   (1 строка) + описание (2 строки) + мета + кнопки. Лишнее обрезается. */
+/* Свёрнутая карточка на доске: строго одинаковая высота — резерв под заголовок
+   (1 строка) + описание (2 строки) + мета + кнопки. Лишнее обрезается.
+   min-height задаёт базовый резерв даже без описания, а align-items: stretch
+   у сетки подтягивает карточки ряда к самой высокой. */
 .card.is-clickable:not(.is-expanded) {
+  min-height: 168px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
+.card.is-clickable:not(.is-expanded) .card-footer { margin-top: auto; }
 .card.is-clickable:not(.is-expanded) .card-title {
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
