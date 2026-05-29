@@ -784,6 +784,9 @@ function buildCardEditor(e) {
   });
   const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
   save.addEventListener('click', () => {
+    // Канонизируем имена при ручном редактировании тоже.
+    if (draft.type === 'topic' && draft.person) draft.person = canonicalize(draft.person);
+    if (Array.isArray(draft.relatedPeople)) draft.relatedPeople = draft.relatedPeople.map(canonicalize);
     store.update(e.id, draft);
     editingId = null;
     renderBoard();
