@@ -260,7 +260,7 @@ async function onParse() {
     showStatus(status, e.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Обработать';
+    btn.textContent = 'Создать';
   }
 }
 
