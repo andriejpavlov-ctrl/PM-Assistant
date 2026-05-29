@@ -302,23 +302,22 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .filter-field:hover { border-color: var(--border-strong); color: var(--text); }
 .filter-field:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
 
-/* Активный фильтр — пилюля целиком в акценте; шеврон убираем, освобождая место под «✕». */
+/* Активный фильтр — пилюля целиком в акценте; место справа под «✕» + шеврон. */
 .filter-field.is-filtered {
   border-color: var(--accent);
   background-color: var(--accent-weak);
   color: var(--accent);
-  background-image: none;
-  padding-right: 26px;
+  padding-right: 40px;
 }
 
 /* Ячейка фильтра: контейнер для пилюли и кнопки персонального сброса поверх неё. */
 .filter-cell { position: relative; flex: 0 0 auto; display: inline-flex; }
 
-/* Сброс одного фильтра — «✕» поверх правого края активной пилюли. */
+/* Сброс одного фильтра — «✕» слева от шеврона (не перекрывает стрелку). */
 .filter-clear {
   position: absolute;
   top: 50%;
-  right: 5px;
+  right: 22px;
   transform: translateY(-50%);
   width: 18px; height: 18px;
   display: inline-flex; align-items: center; justify-content: center;
