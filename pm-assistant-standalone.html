@@ -536,7 +536,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 
 /* Шапка архива */
 .archive-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-4); }
+.archive-head-actions { display: flex; align-items: center; gap: var(--s-3); flex: none; }
 .archive-head .count { background: var(--bg-elev-2); border-radius: var(--r-pill); padding: 2px var(--s-3); font-size: var(--fs-xs); color: var(--text-3); }
+#archive-clear:hover { border-color: var(--danger); color: var(--danger); }
 
 /* ===== Поиск: строка и ответ ===== */
 .find-bar { display: flex; gap: var(--s-2); align-items: stretch; }
@@ -774,7 +776,10 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
     <section id="view-archive" class="view" data-view="archive" hidden>
       <div class="archive-head">
         <p class="hint">Карточки, удалённые из раздела «Карточки». Их можно вернуть или удалить навсегда.</p>
-        <span class="count" id="count-archive">0</span>
+        <div class="archive-head-actions">
+          <span class="count" id="count-archive">0</span>
+          <button id="archive-clear" class="btn btn-ghost btn-sm" hidden>Очистить архив</button>
+        </div>
       </div>
       <ul id="archive-list" class="card-list"></ul>
       <p id="archive-empty" class="empty-col" hidden>Архив пуст.</p>
@@ -1058,6 +1063,15 @@ function clearAll() {
   state.cards = [];
   persist();
 }
+/** Безвозвратно удалить все архивные карточки. Возвращает число удалённых. */
+function destroyArchived() {
+  load();
+  const before = state.cards.length;
+  state.cards = state.cards.filter((c) => !c.archived);
+  const removed = before - state.cards.length;
+  if (removed) persist();
+  return removed;
+}
 
 // ===== Импорт / экспорт =====
 
@@ -1095,7 +1109,7 @@ function replaceCards(cards) {
   suppressChange = false;
 }
 
-return { ENUMS, getSettings, updateSettings, createCard, getAll, getArchived, getEverything, getById, update, archive, unarchive, remove, destroy, clearAll, exportAll, importAll, onChange, replaceCards };
+return { ENUMS, getSettings, updateSettings, createCard, getAll, getArchived, getEverything, getById, update, archive, unarchive, remove, destroy, clearAll, destroyArchived, exportAll, importAll, onChange, replaceCards };
 })();
 
 const agent = (function () {
@@ -1579,6 +1593,7 @@ function init() {
   bindSearch();
   bindSettings();
   bindTheme();
+  bindArchive();
 
   const saved = localStorage.getItem('pm_active_tab');
   if (saved && document.querySelector(`.tab[data-tab="${saved}"]`)) switchTab(saved);
@@ -2125,7 +2140,18 @@ function renderArchive() {
   list.innerHTML = '';
   $('#count-archive').textContent = cards.length;
   empty.hidden = cards.length > 0;
+  $('#archive-clear').hidden = cards.length === 0;
   cards.forEach((c) => list.appendChild(buildArchiveCard(c)));
+}
+function bindArchive() {
+  $('#archive-clear').addEventListener('click', () => {
+    const n = store.getArchived().length;
+    if (!n) return;
+    if (confirm(`Удалить все карточки из архива (${n})? Это действие необратимо.`)) {
+      store.destroyArchived();
+      renderArchive();
+    }
+  });
 }
 function buildArchiveCard(c) {
   const li = document.createElement('li');

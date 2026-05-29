@@ -179,6 +179,7 @@ function init() {
   bindSearch();
   bindSettings();
   bindTheme();
+  bindArchive();
 
   const saved = localStorage.getItem('pm_active_tab');
   if (saved && document.querySelector(`.tab[data-tab="${saved}"]`)) switchTab(saved);
@@ -725,7 +726,18 @@ function renderArchive() {
   list.innerHTML = '';
   $('#count-archive').textContent = cards.length;
   empty.hidden = cards.length > 0;
+  $('#archive-clear').hidden = cards.length === 0;
   cards.forEach((c) => list.appendChild(buildArchiveCard(c)));
+}
+function bindArchive() {
+  $('#archive-clear').addEventListener('click', () => {
+    const n = store.getArchived().length;
+    if (!n) return;
+    if (confirm(`Удалить все карточки из архива (${n})? Это действие необратимо.`)) {
+      store.destroyArchived();
+      renderArchive();
+    }
+  });
 }
 function buildArchiveCard(c) {
   const li = document.createElement('li');
