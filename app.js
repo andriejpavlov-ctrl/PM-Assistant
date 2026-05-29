@@ -221,6 +221,10 @@ function bindTheme() {
 }
 
 // ===== Главная: захват =====
+function dupCheckEnabled() {
+  // По умолчанию включено; выключается только явным false в настройках.
+  return store.getSettings().dupCheck !== false;
+}
 function bindCapture() {
   $('#parse-btn').addEventListener('click', onParse);
   $('#capture-input').addEventListener('keydown', (e) => {
@@ -229,6 +233,12 @@ function bindCapture() {
       onParse();
     }
   });
+  // Тумблер проверки дублей — состояние хранится в настройках (localStorage).
+  const tgl = $('#dupcheck-toggle');
+  if (tgl) {
+    tgl.checked = dupCheckEnabled();
+    tgl.addEventListener('change', () => store.updateSettings({ dupCheck: tgl.checked }));
+  }
 }
 
 async function onParse() {
@@ -309,6 +319,8 @@ function startPeopleResolution(draft) {
  */
 async function afterPeopleResolved() {
   if (!captureDraft) return;
+  // Тумблер выключен — пропускаем проверку дублей, сразу показываем карточку.
+  if (!dupCheckEnabled()) { renderCaptureResult(); return; }
   const box = $('#capture-result');
   const status = $('#capture-status');
   showStatus(status, 'Проверяю, нет ли похожей карточки…');
@@ -862,7 +874,7 @@ function buildArchiveCard(c) {
   return li;
 }
 
-// ===== Главная: поиск =====
+// ===== Главная: спросить ассистента =====
 function bindSearch() {
   $('#search-btn').addEventListener('click', onSearch);
   $('#search-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') onSearch(); });
