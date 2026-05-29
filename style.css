@@ -265,43 +265,78 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .hint { color: var(--text-3); font-size: var(--fs-sm); }
 .capture-result { margin-top: var(--s-4); }
 
-/* ===== Фильтры (карточка home-block, как на Главной) ===== */
-/* Контролы — равные ячейки grid: ряд выровнен идеально, без рваных ширин. */
-.filters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--s-3);
-}
-.filters-grid .select {
-  height: var(--control-h);
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* Активный фильтр — акцентная подсветка. */
-.filters-grid .select.is-filtered {
-  border-color: var(--accent);
-  color: var(--accent);
-  background-color: var(--accent-weak);
-}
-/* Сортировка визуально отделена от фильтров тонкой линией слева. */
-.filters-grid .sort-select {
-  grid-column: 1 / -1;
-  border-color: var(--border);
-  color: var(--text-2);
-}
-@media (min-width: 720px) {
-  /* На широком экране сортировка прижата к правому краю своей ячейкой. */
-  .filters-grid .sort-select { grid-column: auto; }
+/* ===== Горизонтальный бар фильтров и сортировки ===== */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-5);   /* отступ, чтобы доска не слипалась с фильтрами */
 }
 
-/* «Сбросить всё» — тихая ссылка в шапке карточки, только при активных фильтрах. */
+/* Пилюля: монохромная иконка + нативный select без рамки. */
+.filter-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--control-h-sm);
+  padding: 0 var(--s-2) 0 var(--s-3);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: border-color var(--tr), color var(--tr), background var(--tr);
+}
+.filter-item:hover { border-color: var(--border-strong); color: var(--text); }
+.filter-item:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
+
+/* Монохромная минималистичная иконка (наследует цвет текста пилюли). */
+.filter-ic {
+  flex: none;
+  width: 16px; height: 16px;
+  color: var(--text-3);
+}
+.filter-item:hover .filter-ic { color: var(--text-2); }
+
+/* Нативный select внутри пилюли — без своих рамок/фона, только текст + стрелка. */
+.filter-field {
+  appearance: none; -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  padding: 0 var(--s-4) 0 0;
+  height: 100%;
+  cursor: pointer;
+  max-width: 160px;
+  text-overflow: ellipsis;
+  /* компактная стрелка-шеврон */
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 7px) center, calc(100% - 3px) center;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+.filter-field:focus { outline: none; }
+
+/* Активный фильтр — пилюля целиком в акценте. */
+.filter-item.is-filtered {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+.filter-item.is-filtered .filter-ic { color: var(--accent); }
+
+/* Сортировка прижата к правому краю как отдельная группа. */
+.filter-item--sort { margin-left: auto; }
+
+/* «Сбросить всё» — тихая ссылка, только при активных фильтрах. */
 .reset-link {
-  margin-left: auto;
   background: none;
   border: none;
-  padding: 0;
+  padding: 0 var(--s-2);
   color: var(--text-3);
   font-family: inherit;
   font-size: var(--fs-sm);
@@ -522,9 +557,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .tabs { order: 3; width: 100%; margin-left: 0; }
   .tab { flex: 1; text-align: center; padding: var(--s-2) var(--s-1); }
   .home-block { padding: var(--s-4); }
-  /* На мобильном фильтры — 2 ровные колонки, сортировка на всю ширину. */
-  .filters-grid { grid-template-columns: 1fr 1fr; }
-  .filters-grid .sort-select { grid-column: 1 / -1; }
+  /* Фильтры на мобильном переносятся, сортировка не прижимается вправо. */
+  .filter-item--sort { margin-left: 0; }
+  .filter-field { max-width: 120px; }
   .capture-input { min-height: 40vh; }
   .find-bar { flex-direction: column; }
   .find-bar .btn { width: 100%; }
