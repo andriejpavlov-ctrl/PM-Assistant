@@ -20,6 +20,30 @@ const VISUAL_RANK = { P0: 0, P1: 1, P2: 2, P3: 3, P4: 4 };
 const TASK_PRIO_URGENCY = { P1: 'urgent', P2: 'high', P3: 'medium', P4: 'low' };
 const TASK_PRIO_IMPORTANCE = { P1: 'critical', P2: 'high', P3: 'medium', P4: 'low' };
 
+// Уменьшительные → полная форма имени (детерминированная подстраховка к модели).
+// Ключи без «ё» (при поиске «ё»→«е»); значения — с правильным написанием.
+const DIMINUTIVES = {
+  оля: 'Ольга', ольга: 'Ольга', лена: 'Елена', елена: 'Елена', катя: 'Екатерина', екатерина: 'Екатерина',
+  наташа: 'Наталья', наталья: 'Наталья', наталия: 'Наталья', таня: 'Татьяна', татьяна: 'Татьяна',
+  маша: 'Мария', мария: 'Мария', аня: 'Анна', анна: 'Анна', даша: 'Дарья', дарья: 'Дарья',
+  настя: 'Анастасия', анастасия: 'Анастасия', юля: 'Юлия', юлия: 'Юлия', света: 'Светлана', светлана: 'Светлана',
+  ксюша: 'Ксения', ксения: 'Ксения', ира: 'Ирина', ирина: 'Ирина', надя: 'Надежда', надежда: 'Надежда',
+  люба: 'Любовь', любовь: 'Любовь', галя: 'Галина', галина: 'Галина', поля: 'Полина', полина: 'Полина',
+  лиза: 'Елизавета', елизавета: 'Елизавета', соня: 'Софья', софья: 'Софья', варя: 'Варвара', варвара: 'Варвара',
+  алена: 'Алёна', вера: 'Вера', марина: 'Марина', оксана: 'Оксана', кристина: 'Кристина', евгения: 'Евгения',
+  дима: 'Дмитрий', дмитрий: 'Дмитрий', миша: 'Михаил', михаил: 'Михаил', ваня: 'Иван', иван: 'Иван',
+  коля: 'Николай', николай: 'Николай', петя: 'Пётр', петр: 'Пётр', паша: 'Павел', павел: 'Павел',
+  саша: 'Александр', саня: 'Александр', шура: 'Александр', александр: 'Александр', александра: 'Александра',
+  сережа: 'Сергей', сергей: 'Сергей', рома: 'Роман', роман: 'Роман', костя: 'Константин', константин: 'Константин',
+  леша: 'Алексей', алексей: 'Алексей', вова: 'Владимир', володя: 'Владимир', владимир: 'Владимир',
+  вася: 'Василий', василий: 'Василий', боря: 'Борис', борис: 'Борис', гена: 'Геннадий', геннадий: 'Геннадий',
+  женя: 'Евгений', евгений: 'Евгений', артем: 'Артём', тема: 'Артём', семен: 'Семён', сема: 'Семён',
+  антон: 'Антон', кирилл: 'Кирилл', макс: 'Максим', максим: 'Максим', никита: 'Никита', даня: 'Даниил',
+  даниил: 'Даниил', федя: 'Фёдор', федор: 'Фёдор', матвей: 'Матвей', денис: 'Денис', егор: 'Егор',
+  стас: 'Станислав', станислав: 'Станислав', влад: 'Владислав', владислав: 'Владислав', гриша: 'Григорий',
+  григорий: 'Григорий', тимур: 'Тимур', руслан: 'Руслан', глеб: 'Глеб', игорь: 'Игорь',
+};
+
 let captureDraft = null; // результат processCapture, ещё не сохранён
 const filters = { person: '', project: '', priority: '', status: 'all', dateRange: 'all' };
 let sortMode = 'default';
@@ -60,6 +84,51 @@ function sevClass(level) {
   if (['urgent', 'critical', 'high', 'P1'].includes(level)) return 'badge-sev-high';
   if (['medium', 'P2'].includes(level)) return 'badge-sev-medium';
   return 'badge-sev-low';
+}
+
+// ===== Нормализация и объединение имён людей =====
+function cap(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+function firstToken(name) {
+  return (name || '').trim().split(/\s+/)[0] || '';
+}
+function isFullName(name) {
+  return (name || '').trim().split(/\s+/).length >= 2;
+}
+/** Привести имя к канонической форме: развернуть уменьшительное, расставить заглавные. */
+export function canonicalize(name) {
+  const n = (name || '').trim().replace(/\s+/g, ' ');
+  if (!n) return '';
+  const parts = n.split(' ');
+  const key = parts[0].toLowerCase().replace(/ё/g, 'е');
+  parts[0] = DIMINUTIVES[key] || cap(parts[0]);
+  for (let i = 1; i < parts.length; i++) parts[i] = cap(parts[i]);
+  return parts.join(' ');
+}
+/** Полные имена (имя+фамилия) из всех записей, включая архив, в канонической форме. */
+function knownFullNames() {
+  const set = new Set();
+  store.getEverything().forEach((e) =>
+    peopleOf(e).forEach((p) => {
+      const c = canonicalize(p);
+      if (c && isFullName(c)) set.add(c);
+    })
+  );
+  return [...set];
+}
+/** Имена людей из черновика (для topic — person, для task/note — relatedPeople). */
+function draftPersonNames(d) {
+  if (d.type === 'topic') return d.person ? [d.person] : [];
+  return Array.isArray(d.relatedPeople) ? d.relatedPeople.slice() : [];
+}
+/** Заменить имя человека в черновике (по точному совпадению старого значения). */
+function setDraftPersonName(d, original, full) {
+  if (d.type === 'topic') {
+    if (d.person === original) d.person = full;
+  } else {
+    d.relatedPeople = (d.relatedPeople || []).map((p) => (p === original ? full : p));
+  }
 }
 
 // ===== Инициализация =====
@@ -127,10 +196,10 @@ async function onParse() {
   showStatus(status, 'Claude обрабатывает…');
 
   try {
-    const result = await processCapture(raw);
+    const result = await processCapture(raw, knownFullNames());
     captureDraft = result && result.type ? result : null;
     status.hidden = true;
-    if (captureDraft) renderCaptureResult();
+    if (captureDraft) startPeopleResolution(captureDraft);
     else showStatus(status, 'Не удалось разобрать — попробуйте переформулировать.');
   } catch (e) {
     showStatus(status, e.message, true);
@@ -138,6 +207,98 @@ async function onParse() {
     btn.disabled = false;
     btn.textContent = 'Обработать';
   }
+}
+
+/**
+ * Нормализовать имена в черновике и, если для кого-то указано только имя без
+ * фамилии и его нельзя однозначно сопоставить с известным коллегой, — спросить
+ * фамилию у пользователя. Иначе сразу показать карточку результата.
+ */
+function startPeopleResolution(draft) {
+  // 1. Канонизируем все имена на месте (разворачиваем уменьшительные).
+  [...new Set(draftPersonNames(draft).filter(Boolean))].forEach((orig) => {
+    const c = canonicalize(orig);
+    if (c !== orig) setDraftPersonName(draft, orig, c);
+  });
+
+  // 2. Имена без фамилии пытаемся сопоставить с известными полными именами.
+  const known = knownFullNames();
+  const pending = [];
+  [...new Set(draftPersonNames(draft).filter(Boolean))].forEach((name) => {
+    if (isFullName(name)) return; // уже есть фамилия
+    const matches = [...new Set(known.filter((f) => firstToken(f).toLowerCase() === name.toLowerCase()))];
+    if (matches.length === 1) {
+      setDraftPersonName(draft, name, matches[0]); // однозначно — объединяем
+    } else {
+      pending.push({ original: name, firstName: name, candidates: matches });
+    }
+  });
+
+  if (!pending.length) renderCaptureResult();
+  else renderSurnamePrompt(draft, pending);
+}
+
+/** Форма «уточните фамилию» для имён без фамилии. */
+function renderSurnamePrompt(draft, pending) {
+  const box = $('#capture-result');
+  box.innerHTML = '';
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.appendChild(el('p', 'card-title', 'Уточните фамилию'));
+  card.appendChild(el('p', 'card-body', 'Добавьте фамилию, чтобы один человек не превратился в разные записи. Можно пропустить.'));
+
+  const form = document.createElement('div');
+  form.className = 'edit-form';
+  const knownSurnames = [...new Set(knownFullNames().map((f) => f.split(' ').slice(1).join(' ')).filter(Boolean))];
+
+  const rows = pending.map((p) => {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.placeholder = 'Фамилия';
+    inp.setAttribute('list', 'known-surnames');
+    const wrap = field(`Имя: ${p.firstName}`, inp);
+    // Быстрый выбор уже известного коллеги с таким же именем.
+    if (p.candidates && p.candidates.length) {
+      const picks = document.createElement('div');
+      picks.className = 'find-suggestions';
+      p.candidates.forEach((full) => {
+        const b = el('button', 'chip', full);
+        b.addEventListener('click', () => (inp.value = full.split(' ').slice(1).join(' ')));
+        picks.appendChild(b);
+      });
+      wrap.appendChild(picks);
+    }
+    form.appendChild(wrap);
+    return { p, inp };
+  });
+
+  const dl = document.createElement('datalist');
+  dl.id = 'known-surnames';
+  knownSurnames.forEach((s) => {
+    const o = document.createElement('option');
+    o.value = s;
+    dl.appendChild(o);
+  });
+  form.appendChild(dl);
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const skip = el('button', 'btn btn-ghost btn-sm', 'Пропустить');
+  skip.addEventListener('click', () => renderCaptureResult());
+  const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
+  save.addEventListener('click', () => {
+    rows.forEach(({ p, inp }) => {
+      const sur = inp.value.trim();
+      const full = sur ? canonicalize(`${p.firstName} ${sur}`) : p.firstName;
+      setDraftPersonName(draft, p.original, full);
+    });
+    renderCaptureResult();
+  });
+  footer.append(skip, save);
+
+  card.append(form, footer);
+  box.appendChild(card);
 }
 
 function renderCaptureResult() {
