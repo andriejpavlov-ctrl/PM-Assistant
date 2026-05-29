@@ -341,36 +341,13 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .chip.is-active { background: var(--accent-weak); color: var(--accent); border-color: var(--accent); }
 .find-suggestions { margin-top: var(--s-3); display: flex; flex-wrap: wrap; gap: var(--s-2); }
 
-/* ===== Доска ===== */
-.board {
+/* ===== Доска: единая сетка карточек ===== */
+.board-grid {
+  list-style: none; padding: 0; margin: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--s-4);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--s-3);
   align-items: start;
-}
-.column {
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: var(--s-3);
-  box-shadow: var(--shadow-sm);
-}
-.column-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  color: var(--text-2);
-  margin: var(--s-1) var(--s-1) var(--s-3);
-}
-.column-head .count {
-  background: var(--bg-elev-2);
-  color: var(--text-3);
-  border-radius: var(--r-pill);
-  padding: 1px var(--s-2);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
 }
 
 /* ===== Карточки записей ===== */
@@ -577,10 +554,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .modal-footer { display: flex; justify-content: space-between; gap: var(--s-3); margin-top: var(--s-6); }
 
 /* ===== Мобильная адаптация (до 375px) ===== */
-@media (max-width: 860px) {
-  .board { grid-template-columns: 1fr; }
-}
 @media (max-width: 600px) {
+  .board-grid { grid-template-columns: 1fr; }
   .content { padding: var(--s-4) var(--s-3) 64px; }
   .topbar { flex-wrap: wrap; padding: var(--s-3); gap: var(--s-3); }
   .tabs { order: 3; width: 100%; margin-left: 0; }
