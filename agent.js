@@ -184,7 +184,79 @@ export async function processQuery(queryText, allData) {
 }
 
 // ============================================================
-// ФУНКЦИЯ 3: generateDailySummary(allData)
+// ФУНКЦИЯ 3: findSimilarCard(draft, cards)
+// ============================================================
+
+const SIMILAR_SYSTEM = `Ты — ассистент директора по продукту. Тебе дают НОВУЮ карточку и массив СУЩЕСТВУЮЩИХ карточек (JSON). Определи, есть ли среди существующих карточка про ТО ЖЕ дело/тему/задачу (дубликат или сильно пересекающаяся по смыслу), которую логично объединить с новой.
+
+Сравнивай по СМЫСЛУ (действие + объект + человек/проект), а не по точному совпадению слов. Разные задачи про одного человека или один проект — НЕ дубликаты. Если уверенного совпадения нет — верни null.
+
+Верни ТОЛЬКО валидный JSON без markdown:
+{"similarId":"id-или-null","reason":"короткое пояснение, почему похоже"}
+
+similarId — id самой похожей существующей карточки только при действительно высоком сходстве; иначе null. Используй только переданные id, ничего не выдумывай.`;
+
+/**
+ * Ищет среди существующих карточек дубликат/сильно похожую на черновик.
+ * @returns {Promise<{similarId: string|null, reason: string}>}
+ */
+export async function findSimilarCard(draft, cards) {
+  if (!cards || !cards.length) return { similarId: null, reason: '' };
+  const compact = cards.map((c) => ({
+    id: c.id,
+    title: c.title || null,
+    description: c.description || null,
+    people: c.people || [],
+    projects: c.projects || [],
+    tags: c.tags || [],
+  }));
+  const newCard = {
+    title: draft.title || null,
+    description: draft.description || null,
+    people: draft.people || [],
+    projects: draft.projects || [],
+    tags: draft.tags || [],
+  };
+  const user = `НОВАЯ карточка (JSON):\n${JSON.stringify(newCard)}\n\nСУЩЕСТВУЮЩИЕ карточки (JSON):\n${JSON.stringify(compact)}`;
+  const text = await callClaude(SIMILAR_SYSTEM, user, { maxTokens: 300 });
+  const parsed = safeParseJSON(text);
+  return { similarId: parsed.similarId || null, reason: parsed.reason || '' };
+}
+
+// ============================================================
+// ФУНКЦИЯ 4: mergeCards(existing, draft)
+// ============================================================
+
+const MERGE_SYSTEM = `Ты — ассистент директора по продукту. Тебе дают ДВЕ карточки про одно дело: СУЩЕСТВУЮЩУЮ и НОВУЮ. Объедини их в ОДНУ цельную карточку, учитывающую контекст обеих, без потери важных деталей и без дублирования.
+
+Верни ТОЛЬКО валидный JSON без markdown:
+{"title":"...","description":"...","people":["..."],"projects":["..."],"tags":["..."]}
+
+• title — одно ёмкое название в форме действия (глагол + объект).
+• description — объедини детали обеих карточек в связный текст, убери повторы.
+• people / projects / tags — объединение без дубликатов.
+Приоритет и срок НЕ возвращай — их подставит приложение.`;
+
+/**
+ * Объединяет существующую карточку и черновик в одну (контент). Приоритет и
+ * срок проставляет приложение отдельно по своему правилу.
+ * @returns {Promise<{title,description,people,projects,tags}>}
+ */
+export async function mergeCards(existing, draft) {
+  const proj = (c) => ({
+    title: c.title || '',
+    description: c.description || '',
+    people: c.people || [],
+    projects: c.projects || [],
+    tags: c.tags || [],
+  });
+  const user = `СУЩЕСТВУЮЩАЯ карточка (JSON):\n${JSON.stringify(proj(existing))}\n\nНОВАЯ карточка (JSON):\n${JSON.stringify(proj(draft))}\n\nОбъедини и верни JSON.`;
+  const text = await callClaude(MERGE_SYSTEM, user, { maxTokens: 800 });
+  return safeParseJSON(text);
+}
+
+// ============================================================
+// ФУНКЦИЯ 5: generateDailySummary(allData)
 // ============================================================
 
 const SUMMARY_SYSTEM = `Ты — личный ассистент директора по продукту. На основе всех карточек сформируй краткую сводку на сегодня.

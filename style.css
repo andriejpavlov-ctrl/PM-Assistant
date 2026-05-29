@@ -518,6 +518,22 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .card-footer .btn { gap: 5px; }
 .card-footer .btn .ic svg { width: 15px; height: 15px; }
 
+/* Экран «похожая карточка уже есть»: две колонки сравнения + кнопки выбора. */
+.dup-compare { display: flex; gap: var(--s-3); margin: var(--s-3) 0; }
+.dup-col {
+  flex: 1 1 0; min-width: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--s-3);
+}
+.dup-label { display: block; font-size: var(--fs-xs); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-3); margin-bottom: var(--s-2); }
+.dup-title { font-weight: var(--fw-semibold); font-size: var(--fs-sm); margin-bottom: var(--s-1); }
+.dup-desc { color: var(--text-2); font-size: var(--fs-sm); margin-bottom: var(--s-1); white-space: pre-wrap; }
+.dup-meta { color: var(--text-3); font-size: var(--fs-xs); }
+.dup-actions { flex-wrap: wrap; justify-content: flex-start; gap: var(--s-2); }
+@media (max-width: 600px) { .dup-compare { flex-direction: column; } }
+
 /* Инлайн-форма редактирования */
 .edit-form { display: flex; flex-direction: column; gap: var(--s-3); }
 .edit-form label { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--fs-xs); font-weight: var(--fw-medium); color: var(--text-3); }
