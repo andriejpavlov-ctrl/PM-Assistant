@@ -636,7 +636,7 @@ export function sortAndFilter(items, sortBy = 'default', f = {}) {
     case 'priority':
     case 'default':
     default:
-      // По приоритету (P1 → P4), при равенстве — ближе дедлайн.
+      // По приоритету (P1 → P3), при равенстве — ближе дедлайн.
       arr.sort((a, b) => (PRIORITY_RANK[b.priority] || 0) - (PRIORITY_RANK[a.priority] || 0) || cmpDeadline(a, b));
   }
   return arr;
@@ -706,7 +706,7 @@ let editingId = null;
 
 /**
  * Построить карточку. opts.preview=true — режим предпросмотра на Главной
- * (всегда раскрыта, кнопки «Редактировать»/«Сохранить»).
+ * (всегда раскрыта, кнопки «Дозаполнить»/«Сохранить»).
  */
 function buildCard(c, opts = {}) {
   const preview = !!opts.preview;
@@ -874,7 +874,7 @@ function buildArchiveCard(c) {
   return li;
 }
 
-// ===== Главная: поиск =====
+// ===== Главная: спросить ассистента =====
 function bindSearch() {
   $('#search-btn').addEventListener('click', onSearch);
   $('#search-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') onSearch(); });
