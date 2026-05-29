@@ -265,20 +265,45 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .hint { color: var(--text-3); font-size: var(--fs-sm); }
 .capture-result { margin-top: var(--s-4); }
 
-/* ===== Панель фильтров ===== */
+/* ===== Панель фильтров (карточка как на Главной) ===== */
 .filters-panel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--s-3);
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  padding: var(--s-4);
+  padding: var(--s-5);
   margin-bottom: var(--s-5);
   box-shadow: var(--shadow-sm);
 }
-.filter-group { display: flex; flex-direction: column; gap: var(--s-1); }
+.filters-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+.filters-icon {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: var(--r-md);
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-size: var(--fs-lg);
+}
+.filters-title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--lh-tight);
+}
+.filters-head #filter-reset { margin-left: auto; }
+
+/* Адаптивная сетка фильтров — все поля одного уровня и ширины */
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s-3);
+}
+.filter-group { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
 .filter-group > label {
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
@@ -286,10 +311,26 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.filter-group .select { min-width: 132px; height: var(--control-h-sm); font-size: var(--fs-sm); }
-.sort-group { flex: 1; min-width: 220px; }
-.sort-toggles { display: flex; flex-wrap: wrap; gap: var(--s-1); }
-.filters-panel #filter-reset { margin-left: auto; height: var(--control-h-sm); }
+.filter-group .select { width: 100%; height: var(--control-h-sm); font-size: var(--fs-sm); }
+
+/* Строка сортировки — отделена тонким разделителем */
+.sort-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+.sort-row-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sort-toggles { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 
 /* ===== Чипы ===== */
 .chip {
@@ -502,10 +543,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .topbar { flex-wrap: wrap; padding: var(--s-3); gap: var(--s-3); }
   .tabs { order: 3; width: 100%; margin-left: 0; }
   .tab { flex: 1; text-align: center; padding: var(--s-2) var(--s-1); }
-  .home-block { padding: var(--s-4); }
-  .filters-panel { flex-direction: column; align-items: stretch; }
-  .filter-group .select { width: 100%; }
-  .filters-panel #filter-reset { margin-left: 0; }
+  .home-block, .filters-panel { padding: var(--s-4); }
+  .filters-grid { grid-template-columns: 1fr 1fr; }
   .capture-input { min-height: 40vh; }
   .find-bar { flex-direction: column; }
   .find-bar .btn { width: 100%; }
