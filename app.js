@@ -321,7 +321,7 @@ function afterFilterChange() {
     const clr = document.querySelector(`.filter-clear[data-clear="${key}"]`);
     if (clr) clr.hidden = !active;
   });
-  $('#filter-reset').hidden = !hasActiveFilters();
+  $('#filter-reset').disabled = !hasActiveFilters();
   renderBoard();
 }
 

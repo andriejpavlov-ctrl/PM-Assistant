@@ -360,18 +360,25 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 /* Сортировка прижата к правому краю как отдельная группа. */
 .filter-field--sort { margin-left: auto; }
 
-/* «Сбросить всё» — тихая ссылка, только при активных фильтрах. */
+/* «Сбросить всё» — кнопка-пилюля; всегда видна, неактивна без фильтров. */
 .reset-link {
-  background: none;
-  border: none;
-  padding: 0 var(--s-2);
-  color: var(--text-3);
+  flex: 0 0 auto;
+  height: var(--control-h-sm);
+  padding: 0 var(--s-3);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  color: var(--text-2);
   font-family: inherit;
   font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
   cursor: pointer;
-  transition: color var(--tr);
+  white-space: nowrap;
+  transition: color var(--tr), border-color var(--tr), background var(--tr), opacity var(--tr);
 }
-.reset-link:hover { color: var(--danger); }
+.reset-link:hover { border-color: var(--danger); color: var(--danger); }
+.reset-link:disabled { opacity: 0.4; cursor: default; }
+.reset-link:disabled:hover { border-color: var(--border); color: var(--text-2); }
 
 /* ===== Чипы ===== */
 .chip {
@@ -753,7 +760,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
           <option value="person">По персонам</option>
           <option value="project">По проекту</option>
         </select>
-        <button id="filter-reset" class="reset-link" hidden>Сбросить всё</button>
+        <button id="filter-reset" class="reset-link" disabled>Сбросить всё</button>
       </div>
 
       <ul id="cards-list" class="board-grid"></ul>
@@ -1606,7 +1613,7 @@ function afterFilterChange() {
     const clr = document.querySelector(`.filter-clear[data-clear="${key}"]`);
     if (clr) clr.hidden = !active;
   });
-  $('#filter-reset').hidden = !hasActiveFilters();
+  $('#filter-reset').disabled = !hasActiveFilters();
   renderBoard();
 }
 
