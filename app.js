@@ -151,7 +151,7 @@ async function onParse() {
     const result = await processCapture(raw, knownFullNames());
     captureDraft = normalizeDraft(result);
     status.hidden = true;
-    if (captureDraft) renderCaptureResult();
+    if (captureDraft) startPeopleResolution(captureDraft);
     else showStatus(status, 'Не удалось разобрать — попробуйте переформулировать.');
   } catch (e) {
     showStatus(status, e.message, true);
@@ -178,6 +178,95 @@ function normalizeDraft(result) {
   return d;
 }
 
+/** Заменить имя во всех вхождениях draft.people (по точному совпадению). */
+function setPersonName(draft, original, full) {
+  draft.people = (draft.people || []).map((p) => (p === original ? full : p));
+}
+
+/**
+ * Перед показом карточки уточняем недостающие фамилии. Имена уже канонизированы
+ * (Настя → Анастасия). Если у персоны нет фамилии и её нельзя однозначно
+ * сопоставить с известным коллегой — спрашиваем фамилию у пользователя.
+ */
+function startPeopleResolution(draft) {
+  const known = knownFullNames();
+  const pending = [];
+  const seen = new Set();
+  (draft.people || []).forEach((name) => {
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    if (isFullName(name)) return; // фамилия уже есть
+    const matches = [...new Set(known.filter((f) => firstToken(f).toLowerCase() === name.toLowerCase()))];
+    if (matches.length === 1) setPersonName(draft, name, matches[0]); // однозначно — объединяем
+    else pending.push({ original: name, firstName: name, candidates: matches });
+  });
+  if (!pending.length) renderCaptureResult();
+  else renderSurnamePrompt(draft, pending);
+}
+
+/** Форма «уточните фамилию» для персон без фамилии. Можно пропустить. */
+function renderSurnamePrompt(draft, pending) {
+  const box = $('#capture-result');
+  box.innerHTML = '';
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.appendChild(el('p', 'card-title', 'Уточните фамилию'));
+  card.appendChild(el('p', 'card-body', 'Добавьте фамилию, чтобы одна персона не превратилась в разные карточки. Можно пропустить.'));
+
+  const form = document.createElement('div');
+  form.className = 'edit-form';
+  const knownSurnames = [...new Set(knownFullNames().map((f) => f.split(' ').slice(1).join(' ')).filter(Boolean))];
+
+  const rows = pending.map((p) => {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.placeholder = 'Фамилия';
+    inp.setAttribute('list', 'known-surnames');
+    const wrap = field(`Имя: ${p.firstName}`, inp);
+    // Быстрый выбор уже известной персоны с таким же именем.
+    if (p.candidates && p.candidates.length) {
+      const picks = document.createElement('div');
+      picks.className = 'find-suggestions';
+      p.candidates.forEach((full) => {
+        const b = el('button', 'chip', full);
+        b.addEventListener('click', () => (inp.value = full.split(' ').slice(1).join(' ')));
+        picks.appendChild(b);
+      });
+      wrap.appendChild(picks);
+    }
+    form.appendChild(wrap);
+    return { p, inp };
+  });
+
+  const dl = document.createElement('datalist');
+  dl.id = 'known-surnames';
+  knownSurnames.forEach((s) => {
+    const o = document.createElement('option');
+    o.value = s;
+    dl.appendChild(o);
+  });
+  form.appendChild(dl);
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const skip = el('button', 'btn btn-ghost btn-sm', 'Пропустить');
+  skip.addEventListener('click', () => renderCaptureResult());
+  const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
+  save.addEventListener('click', () => {
+    rows.forEach(({ p, inp }) => {
+      const sur = inp.value.trim();
+      const full = sur ? canonicalize(`${p.firstName} ${sur}`) : p.firstName;
+      setPersonName(draft, p.original, full);
+    });
+    renderCaptureResult();
+  });
+  footer.append(skip, save);
+
+  card.append(form, footer);
+  box.appendChild(card);
+}
+
 function renderCaptureResult() {
   const box = $('#capture-result');
   box.innerHTML = '';
@@ -202,6 +291,7 @@ function bindBoard() {
   $('#filter-priority').addEventListener('change', (e) => { filters.priority = e.target.value; afterFilterChange(); });
   $('#filter-daterange').addEventListener('change', (e) => { filters.dateRange = e.target.value; afterFilterChange(); });
   $('#sort-select').addEventListener('change', (e) => { sortMode = e.target.value; renderBoard(); });
+  $$('.filter-clear').forEach((b) => b.addEventListener('click', () => clearOneFilter(b.dataset.clear)));
   $('#filter-reset').addEventListener('click', () => {
     filters.person = filters.project = filters.priority = '';
     filters.dateRange = 'all';
@@ -219,20 +309,34 @@ function hasActiveFilters() {
 }
 
 function afterFilterChange() {
-  const mark = (sel, active) => sel.classList.toggle('is-filtered', active);
-  mark($('#filter-person'), !!filters.person);
-  mark($('#filter-project'), !!filters.project);
-  mark($('#filter-priority'), !!filters.priority);
-  mark($('#filter-daterange'), filters.dateRange && filters.dateRange !== 'all');
+  const states = {
+    person: !!filters.person,
+    project: !!filters.project,
+    priority: !!filters.priority,
+    daterange: !!(filters.dateRange && filters.dateRange !== 'all'),
+  };
+  // Подсветить активную пилюлю и показать её персональный «✕».
+  Object.entries(states).forEach(([key, active]) => {
+    $(`#filter-${key}`).classList.toggle('is-filtered', active);
+    const clr = document.querySelector(`.filter-clear[data-clear="${key}"]`);
+    if (clr) clr.hidden = !active;
+  });
   $('#filter-reset').hidden = !hasActiveFilters();
   renderBoard();
+}
+
+/** Сбросить один фильтр по ключу (person|project|priority|daterange). */
+function clearOneFilter(key) {
+  if (key === 'daterange') { filters.dateRange = 'all'; $('#filter-daterange').value = 'all'; }
+  else { filters[key] = ''; $(`#filter-${key}`).value = ''; }
+  afterFilterChange();
 }
 
 function populateFilters() {
   const all = store.getAll();
   const people = [...new Set(all.flatMap((c) => c.people || []).filter(Boolean))].sort();
   const projects = [...new Set(all.flatMap((c) => c.projects || []).filter(Boolean))].sort();
-  fillSelect($('#filter-person'), 'Человек', people, filters.person);
+  fillSelect($('#filter-person'), 'Персоны', people, filters.person);
   fillSelect($('#filter-project'), 'Проект', projects, filters.project);
 }
 function fillSelect(sel, placeholder, values, current) {
@@ -442,7 +546,7 @@ function buildCardEditor(c, isDraft) {
 
   form.appendChild(field('Название', input('title')));
   form.appendChild(field('Описание', textarea('description')));
-  form.appendChild(field('Люди (через запятую)', listInput('people')));
+  form.appendChild(field('Персоны (через запятую)', listInput('people')));
   form.appendChild(field('Проекты (через запятую)', listInput('projects')));
   form.appendChild(field('Приоритет', prioritySelect()));
   form.appendChild(field('Срок', input('deadline', 'date')));
