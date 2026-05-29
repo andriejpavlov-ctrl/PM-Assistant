@@ -8,8 +8,9 @@ import { processCapture, processQuery } from './agent.js';
 const fileConfig = window.PM_CONFIG || {};
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
-const PRIORITY_RANK = { P1: 4, P2: 3, P3: 2, P4: 1, '': 0 };
-const PRIORITY_LABEL = { P1: 'P1 • срочно и важно', P2: 'P2 • важно', P3: 'P3 • срочно', P4: 'P4 • потом', '': 'Без приоритета' };
+const PRIORITY_RANK = { P1: 3, P2: 2, P3: 1, '': 0 };
+const PRIORITY_NAME = { P1: 'Высокий', P2: 'Средний', P3: 'Низкий' };
+const PRIORITY_LABEL = { P1: 'P1 • Высокий', P2: 'P2 • Средний', P3: 'P3 • Низкий', '': 'Без приоритета' };
 
 // Уменьшительные → полная форма имени (детерминированная подстраховка к модели).
 const DIMINUTIVES = {
@@ -169,7 +170,7 @@ function normalizeDraft(result) {
     description: result.description || '',
     people: (Array.isArray(result.people) ? result.people : [result.people]).filter(Boolean).map(canonicalize),
     projects: (Array.isArray(result.projects) ? result.projects : [result.projects]).filter(Boolean),
-    priority: ['P1', 'P2', 'P3', 'P4'].includes(result.priority) ? result.priority : '',
+    priority: ['P1', 'P2', 'P3'].includes(result.priority) ? result.priority : '',
     deadline: result.deadline || null,
     tags: Array.isArray(result.tags) ? result.tags : [],
   };
@@ -324,7 +325,7 @@ function renderBoard() {
 function buildTop(c) {
   const top = document.createElement('div');
   top.className = 'card-top';
-  if (c.priority) top.appendChild(badge(c.priority, `badge-${c.priority}`));
+  if (c.priority) top.appendChild(badge(PRIORITY_NAME[c.priority] || c.priority, `badge-${c.priority}`));
   return top;
 }
 
@@ -422,7 +423,7 @@ function buildCardEditor(c, isDraft) {
   const prioritySelect = () => {
     const sel = document.createElement('select');
     sel.className = 'select';
-    [['', 'Без приоритета'], ['P1', 'P1 • срочно и важно'], ['P2', 'P2 • важно'], ['P3', 'P3 • срочно'], ['P4', 'P4 • потом']].forEach(([v, label]) => {
+    [['', PRIORITY_LABEL['']], ['P1', PRIORITY_LABEL.P1], ['P2', PRIORITY_LABEL.P2], ['P3', PRIORITY_LABEL.P3]].forEach(([v, label]) => {
       const o = document.createElement('option');
       o.value = v; o.textContent = label;
       if ((draft.priority || '') === v) o.selected = true;

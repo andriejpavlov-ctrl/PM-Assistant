@@ -442,10 +442,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .badge-task { background: var(--accent-weak); color: var(--accent); }
 .badge-note { background: var(--bg-elev); color: var(--text-3); }
 .badge-P0 { background: var(--danger); color: #fff; }
-.badge-P1 { background: var(--danger-weak); color: var(--danger); }
-.badge-P2 { background: var(--warn-weak); color: var(--warn); }
-.badge-P3 { background: var(--accent-weak); color: var(--accent); }
-.badge-P4 { background: var(--bg-elev); color: var(--text-3); }
+.badge-P1 { background: var(--danger-weak); color: var(--danger); }   /* высокий */
+.badge-P2 { background: var(--warn-weak); color: var(--warn); }       /* средний */
+.badge-P3 { background: var(--bg-elev); color: var(--text-3); }       /* низкий */
 .badge-sev-high { background: var(--danger-weak); color: var(--danger); }
 .badge-sev-medium { background: var(--warn-weak); color: var(--warn); }
 .badge-sev-low { background: var(--bg-elev); color: var(--text-3); }
@@ -658,10 +657,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
         <select id="filter-project" class="filter-field" aria-label="Фильтр по проекту"><option value="">Проект</option></select>
         <select id="filter-priority" class="filter-field" aria-label="Фильтр по приоритету">
           <option value="">Приоритет</option>
-          <option value="P1">P1</option>
-          <option value="P2">P2</option>
-          <option value="P3">P3</option>
-          <option value="P4">P4</option>
+          <option value="P1">Высокий</option>
+          <option value="P2">Средний</option>
+          <option value="P3">Низкий</option>
         </select>
         <select id="filter-daterange" class="filter-field" aria-label="Фильтр по сроку">
           <option value="all">Срок</option>
@@ -730,7 +728,7 @@ const SCHEMA_VERSION = 3;
 
 // ===== Допустимые значения перечислений =====
 const ENUMS = {
-  priority: ['P1', 'P2', 'P3', 'P4'],
+  priority: ['P1', 'P2', 'P3'], // P1 — высокий, P2 — средний, P3 — низкий
 };
 
 const DEFAULT_STATE = {
@@ -1076,7 +1074,7 @@ const CAPTURE_SYSTEM = `Ты — персональный ассистент д�
 • description — все остальные детали и контекст из текста (что конкретно сделать, нюансы, образ результата). Если деталей нет — "".
 • people — массив имён людей, с кем это связано (с кем обсудить / кого касается). Может быть несколько. Если людей нет — [].
 • projects — массив проектов/продуктов, к которым это относится. Может быть несколько. Если нет — [].
-• priority — "P1" (срочно и важно) | "P2" (важно, не срочно) | "P3" (срочно, не важно) | "P4" (ни то, ни другое). Срочность определяй по словам: «срочно/asap/сегодня/завтра» → высокая; «на неделе» → средняя; «через месяц/потом» → низкая. Важность: «важно/критично/блокер» → высокая. Если непонятно — "".
+• priority — три уровня: "P1" (высокий) | "P2" (средний) | "P3" (низкий). Определяй по срочности и важности: «срочно/asap/сегодня/завтра/важно/критично/блокер» → "P1"; обычные дела на ближайшую неделю → "P2"; «потом/когда-нибудь/не горит/через месяц» → "P3". Если непонятно — "".
 • deadline — ISO YYYY-MM-DD относительно переданной сегодняшней даты; относительные даты («до пятницы», «завтра») переводи в дату; если срока нет — null.
 • tags — короткие теги-ключевые слова, если уместны; иначе [].
 
@@ -1086,7 +1084,7 @@ const CAPTURE_SYSTEM = `Ты — персональный ассистент д�
 - Если ниже передан список известных коллег и имя соответствует одному — верни ИМЕННО его (полное имя с фамилией), чтобы объединить варианты.
 
 ФОРМАТ ОТВЕТА (строго один объект):
-{"title":"...","description":"...","people":["..."],"projects":["..."],"priority":"P1|P2|P3|P4|","deadline":null|"YYYY-MM-DD","tags":["..."]}
+{"title":"...","description":"...","people":["..."],"projects":["..."],"priority":"P1|P2|P3|","deadline":null|"YYYY-MM-DD","tags":["..."]}
 
 Не выдумывай данные, которых нет в тексте: пустые строки — "", пустые списки — [], отсутствующий срок — null.`;
 
@@ -1213,8 +1211,9 @@ const { processCapture, processQuery, generateDailySummary } = agent;
 const fileConfig = window.PM_CONFIG || {};
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
-const PRIORITY_RANK = { P1: 4, P2: 3, P3: 2, P4: 1, '': 0 };
-const PRIORITY_LABEL = { P1: 'P1 • срочно и важно', P2: 'P2 • важно', P3: 'P3 • срочно', P4: 'P4 • потом', '': 'Без приоритета' };
+const PRIORITY_RANK = { P1: 3, P2: 2, P3: 1, '': 0 };
+const PRIORITY_NAME = { P1: 'Высокий', P2: 'Средний', P3: 'Низкий' };
+const PRIORITY_LABEL = { P1: 'P1 • Высокий', P2: 'P2 • Средний', P3: 'P3 • Низкий', '': 'Без приоритета' };
 
 // Уменьшительные → полная форма имени (детерминированная подстраховка к модели).
 const DIMINUTIVES = {
@@ -1374,7 +1373,7 @@ function normalizeDraft(result) {
     description: result.description || '',
     people: (Array.isArray(result.people) ? result.people : [result.people]).filter(Boolean).map(canonicalize),
     projects: (Array.isArray(result.projects) ? result.projects : [result.projects]).filter(Boolean),
-    priority: ['P1', 'P2', 'P3', 'P4'].includes(result.priority) ? result.priority : '',
+    priority: ['P1', 'P2', 'P3'].includes(result.priority) ? result.priority : '',
     deadline: result.deadline || null,
     tags: Array.isArray(result.tags) ? result.tags : [],
   };
@@ -1529,7 +1528,7 @@ function renderBoard() {
 function buildTop(c) {
   const top = document.createElement('div');
   top.className = 'card-top';
-  if (c.priority) top.appendChild(badge(c.priority, `badge-${c.priority}`));
+  if (c.priority) top.appendChild(badge(PRIORITY_NAME[c.priority] || c.priority, `badge-${c.priority}`));
   return top;
 }
 
@@ -1627,7 +1626,7 @@ function buildCardEditor(c, isDraft) {
   const prioritySelect = () => {
     const sel = document.createElement('select');
     sel.className = 'select';
-    [['', 'Без приоритета'], ['P1', 'P1 • срочно и важно'], ['P2', 'P2 • важно'], ['P3', 'P3 • срочно'], ['P4', 'P4 • потом']].forEach(([v, label]) => {
+    [['', PRIORITY_LABEL['']], ['P1', PRIORITY_LABEL.P1], ['P2', PRIORITY_LABEL.P2], ['P3', PRIORITY_LABEL.P3]].forEach(([v, label]) => {
       const o = document.createElement('option');
       o.value = v; o.textContent = label;
       if ((draft.priority || '') === v) o.selected = true;
