@@ -150,7 +150,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .btn.is-active { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
 
 /* ===== Вкладка «Захватить» ===== */
-.view-capture { display: flex; flex-direction: column; }
+/* :not([hidden]) — чтобы при переключении вкладки скрытый вид не оставался видимым. */
+.view-capture:not([hidden]) { display: flex; flex-direction: column; }
 .capture-input {
   min-height: 40vh;
   resize: vertical;
@@ -300,10 +301,12 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .modal {
   position: fixed; inset: 0;
   background: rgba(0, 0, 0, 0.55);
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
   z-index: 100;
   padding: 20px;
 }
+/* Атрибут hidden должен реально скрывать: .modal{display:flex} иначе перебивает его. */
+.modal:not([hidden]) { display: flex; }
 .modal-card {
   background: var(--bg-elev);
   border: 1px solid var(--border);
