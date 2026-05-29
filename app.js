@@ -3,7 +3,7 @@
 // Единая карточка: title, description, people[], projects[], priority, deadline, tags.
 
 import * as store from './storage.js';
-import { processCapture, processQuery } from './agent.js';
+import { processCapture, processQuery, findSimilarCard, mergeCards } from './agent.js';
 import * as sync from './sync.js';
 
 const fileConfig = window.PM_CONFIG || {};
@@ -277,10 +277,9 @@ function setPersonName(draft, original, full) {
 }
 
 /**
- * Перед показом карточки уточняем недостающую часть ФИО. Имена уже канонизированы
- * (Настя → Анастасия). Для одиночного токена определяем, имя это или фамилия,
- * и спрашиваем недостающую часть. Однозначное совпадение с известным коллегой
- * объединяем автоматически.
+ * Перед показом карточки уточняем недостающие фамилии. Имена уже канонизированы
+ * (Настя → Анастасия). Если у персоны нет фамилии и её нельзя однозначно
+ * сопоставить с известным коллегой — спрашиваем фамилию у пользователя.
  */
 function startPeopleResolution(draft) {
   const known = knownFullNames();
@@ -299,8 +298,116 @@ function startPeopleResolution(draft) {
     if (matches.length === 1) { setPersonName(draft, name, matches[0]); return; }
     pending.push({ original: name, token: name, kind, candidates: matches });
   });
-  if (!pending.length) renderCaptureResult();
+  if (!pending.length) afterPeopleResolved();
   else renderSurnamePrompt(draft, pending);
+}
+
+/**
+ * После уточнения ФИО — проверка на дубликат среди существующих карточек.
+ * Если найдена похожая, показываем выбор (оставить обе / объединить / не добавлять);
+ * иначе — обычный предпросмотр.
+ */
+async function afterPeopleResolved() {
+  if (!captureDraft) return;
+  const box = $('#capture-result');
+  const status = $('#capture-status');
+  showStatus(status, 'Проверяю, нет ли похожей карточки…');
+  try {
+    const { similarId, reason } = await findSimilarCard(captureDraft, store.getAll());
+    status.hidden = true;
+    const existing = similarId ? store.getById(similarId) : null;
+    if (existing) renderDuplicatePrompt(existing, reason);
+    else renderCaptureResult();
+  } catch (e) {
+    // Если проверка не удалась — не блокируем сохранение, просто показываем карточку.
+    status.hidden = true;
+    renderCaptureResult();
+  }
+}
+
+/** Подставить приоритет/срок при объединении: из новой карточки, иначе из старой. */
+function mergedPriorityDeadline(existing, draft) {
+  return {
+    priority: draft.priority || existing.priority || '',
+    deadline: draft.deadline || existing.deadline || null,
+  };
+}
+
+/** Экран выбора при найденном дубликате: оставить обе / объединить / не добавлять. */
+function renderDuplicatePrompt(existing, reason) {
+  const box = $('#capture-result');
+  box.innerHTML = '';
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.appendChild(el('p', 'card-title', 'Похоже, такая карточка уже есть'));
+  if (reason) card.appendChild(el('p', 'card-body', reason));
+
+  // Превью существующей карточки (read-only).
+  const cmp = el('div', 'dup-compare');
+  cmp.append(dupColumn('Уже есть', existing), dupColumn('Новая запись', captureDraft));
+  card.appendChild(cmp);
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer dup-actions';
+
+  const keepBoth = el('button', 'btn btn-ghost btn-sm', 'Оставить обе');
+  keepBoth.addEventListener('click', () => renderCaptureResult());
+
+  const merge = el('button', 'btn btn-primary btn-sm', 'Объединить');
+  merge.addEventListener('click', () => onMerge(existing));
+
+  const discard = el('button', 'btn btn-ghost btn-sm', 'Не добавлять');
+  discard.addEventListener('click', () => {
+    captureDraft = null;
+    box.innerHTML = '';
+    $('#capture-input').value = '';
+    showStatus($('#capture-status'), 'Новая запись отменена.');
+  });
+
+  footer.append(keepBoth, merge, discard);
+  card.appendChild(footer);
+  box.appendChild(card);
+}
+
+/** Колонка-превью карточки для экрана сравнения дубликата. */
+function dupColumn(label, c) {
+  const col = el('div', 'dup-col');
+  col.appendChild(el('span', 'dup-label', label));
+  col.appendChild(el('p', 'dup-title', c.title || '(без названия)'));
+  if (c.description) col.appendChild(el('p', 'dup-desc', c.description));
+  const meta = [];
+  if ((c.people || []).length) meta.push((c.people || []).join(', '));
+  if ((c.projects || []).length) meta.push((c.projects || []).join(', '));
+  if (c.priority && PRIORITY_NAME[c.priority]) meta.push(PRIORITY_NAME[c.priority]);
+  if (c.deadline) meta.push(c.deadline);
+  if (meta.length) col.appendChild(el('p', 'dup-meta', meta.join(' · ')));
+  return col;
+}
+
+/** Объединить существующую карточку с черновиком через ИИ и сохранить. */
+async function onMerge(existing) {
+  const status = $('#capture-status');
+  showStatus(status, 'Объединяю карточки…');
+  try {
+    const merged = await mergeCards(existing, captureDraft);
+    const { priority, deadline } = mergedPriorityDeadline(existing, captureDraft);
+    store.update(existing.id, {
+      title: merged.title || existing.title,
+      description: merged.description || '',
+      people: (Array.isArray(merged.people) ? merged.people : []).map(canonicalize),
+      projects: Array.isArray(merged.projects) ? merged.projects : [],
+      tags: Array.isArray(merged.tags) ? merged.tags : [],
+      priority,
+      deadline,
+    });
+    captureDraft = null;
+    $('#capture-result').innerHTML = '';
+    $('#capture-input').value = '';
+    showStatus(status, 'Объединено ✓ — смотрите в разделе «Карточки».');
+  } catch (e) {
+    showStatus(status, 'Не удалось объединить: ' + e.message, true);
+  }
 }
 
 /** Форма уточнения недостающей части имени (фамилия или имя). Можно пропустить. */
@@ -355,7 +462,7 @@ function renderSurnamePrompt(draft, pending) {
   const footer = document.createElement('div');
   footer.className = 'card-footer';
   const skip = el('button', 'btn btn-ghost btn-sm', 'Пропустить');
-  skip.addEventListener('click', () => renderCaptureResult());
+  skip.addEventListener('click', () => afterPeopleResolved());
   const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
   save.addEventListener('click', () => {
     rows.forEach(({ p, inp, needSurname }) => {
@@ -366,7 +473,7 @@ function renderSurnamePrompt(draft, pending) {
         : (needSurname ? canonicalize(`${p.token} ${extra}`) : canonicalize(`${extra} ${p.token}`));
       setPersonName(draft, p.original, full);
     });
-    renderCaptureResult();
+    afterPeopleResolved();
   });
   footer.append(skip, save);
 
@@ -755,7 +862,7 @@ function buildArchiveCard(c) {
   return li;
 }
 
-// ===== Главная: спросить ассистента =====
+// ===== Главная: поиск =====
 function bindSearch() {
   $('#search-btn').addEventListener('click', onSearch);
   $('#search-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') onSearch(); });
