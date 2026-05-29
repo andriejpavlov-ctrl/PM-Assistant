@@ -142,6 +142,7 @@ function buildBase(prefix, type, draft) {
     type,
     createdAt: ts,
     updatedAt: ts,
+    archived: false,
     rawText: draft.rawText || '',
     tags: strArray(draft.tags),
     aiSummary: draft.aiSummary || '',
@@ -235,8 +236,18 @@ export function createEntity(draft = {}) {
 
 // ===== READ =====
 
-/** Все сущности (копия массива). */
+/** Активные сущности (не в архиве). Это то, что показывает канбан. */
 export function getAll() {
+  return load().entities.filter((e) => !e.archived);
+}
+
+/** Архивные сущности (удалённые из канбана, но сохранённые). */
+export function getArchived() {
+  return load().entities.filter((e) => e.archived);
+}
+
+/** Вообще все сущности, включая архив. */
+export function getEverything() {
   return [...load().entities];
 }
 
@@ -245,18 +256,18 @@ export function getById(id) {
 }
 
 export function getTopics() {
-  return load().entities.filter((e) => e.type === 'topic');
+  return getAll().filter((e) => e.type === 'topic');
 }
 
 export function getTasks() {
-  return load().entities.filter((e) => e.type === 'task');
+  return getAll().filter((e) => e.type === 'task');
 }
 
 export function getNotes() {
-  return load().entities.filter((e) => e.type === 'note');
+  return getAll().filter((e) => e.type === 'note');
 }
 
-/** Произвольный фильтр: query(e => e.status === 'open'). */
+/** Произвольный фильтр по всем сущностям: query(e => e.status === 'open'). */
 export function query(predicate) {
   return load().entities.filter(predicate);
 }
@@ -294,9 +305,25 @@ export function update(id, patch = {}) {
   return entity;
 }
 
-// ===== DELETE =====
+// ===== ARCHIVE / DELETE =====
 
+/** Мягкое удаление: убрать из канбана, но сохранить в архиве. */
+export function archive(id) {
+  return update(id, { archived: true });
+}
+
+/** Вернуть запись из архива обратно в канбан. */
+export function unarchive(id) {
+  return update(id, { archived: false });
+}
+
+/** Удалить из канбана = отправить в архив (данные не теряются). */
 export function remove(id) {
+  return !!archive(id);
+}
+
+/** Безвозвратное удаление (используется из архива). */
+export function destroy(id) {
   load();
   const before = state.entities.length;
   state.entities = state.entities.filter((e) => e.id !== id);

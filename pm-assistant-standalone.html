@@ -283,8 +283,27 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 
 /* Инлайн-форма редактирования */
 .edit-form { display: flex; flex-direction: column; gap: 8px; }
-.edit-form label { font-size: 12px; color: var(--text-dim); }
+.edit-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
 .edit-form .text-input, .edit-form .select { padding: 7px 10px; font-size: 13.5px; }
+.card.is-editing { border-color: var(--accent); }
+.card.is-archived { opacity: 0.75; }
+
+/* Список возможностей под полем «Захватить» */
+.capture-features {
+  margin-top: 24px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.capture-features h3 { margin: 0 0 10px; font-size: 14px; color: var(--text); }
+.capture-features ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.capture-features li { font-size: 13.5px; color: var(--text-dim); line-height: 1.45; }
+.capture-features b { color: var(--text); font-weight: 600; }
+
+/* Шапка архива */
+.archive-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.archive-head .count { background: var(--bg-elev-2); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--text-dim); }
 
 /* ===== Поиск / ответ ===== */
 .find-bar { display: flex; gap: 10px; }
@@ -355,6 +374,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
       <button class="tab" role="tab" data-tab="capture" aria-selected="true">📝 Захватить</button>
       <button class="tab" role="tab" data-tab="board" aria-selected="false">📋 Задачи и темы</button>
       <button class="tab" role="tab" data-tab="search" aria-selected="false">🔍 Найти</button>
+      <button class="tab" role="tab" data-tab="archive" aria-selected="false">🗂 Архив</button>
     </nav>
     <div class="topbar-actions">
       <button id="theme-toggle" class="icon-btn" title="Переключить тему" aria-label="Переключить тему">☾</button>
@@ -368,8 +388,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
       <textarea
         id="capture-input"
         class="capture-input"
-        placeholder="Напишите что угодно: задачу, тему для обсуждения с коллегой, заметку...
-Например: «Обсудить с Наташей приоритизацию бэклога на следующий квартал, это важно сделать до пятницы» или «Написать регламент ревью спецификаций, срок — конец месяца»"
+        placeholder="Просто напишите, что у вас в голове 🧠
+
+Например: «Созвон с Наташей по бэклогу до пятницы» или «Подготовить отчёт по продажам»"
       ></textarea>
       <div class="capture-actions">
         <span class="hint">⌘/Ctrl + Enter — обработать</span>
@@ -377,6 +398,18 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
       </div>
       <div id="capture-status" class="status-line" hidden></div>
       <div id="capture-result" class="capture-result"></div>
+
+      <div class="capture-features">
+        <h3>Что умеет PM Assistant</h3>
+        <ul>
+          <li>🧠 <b>Превращает мысли в структуру.</b> Пишите свободным текстом — AI сам определит, это задача, тема для обсуждения или заметка.</li>
+          <li>👤 <b>Узнаёт людей и сроки.</b> Вытягивает коллегу, дедлайн, приоритет и теги из текста.</li>
+          <li>📋 <b>Раскладывает по канбану.</b> «Темы для обсуждения», «Мои задачи» и «Заметки» — с приоритетами P0–P4.</li>
+          <li>🎯 <b>Расставляет приоритеты.</b> Сортировка по матрице Эйзенхауэра (важность + срочность).</li>
+          <li>🔍 <b>Отвечает на вопросы.</b> «Что обсудить с Наташей?», «Что срочного на неделе?» — спросите на вкладке «Найти».</li>
+          <li>🗂 <b>Хранит архив.</b> Удалённые из канбана записи не теряются — их можно вернуть.</li>
+        </ul>
+      </div>
     </section>
 
     <!-- ВКЛАДКА 2: ЗАДАЧИ И ТЕМЫ -->
@@ -465,6 +498,16 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
       <div id="search-status" class="status-line" hidden></div>
       <div id="search-answer" class="answer" hidden></div>
       <ul id="search-results" class="card-list"></ul>
+    </section>
+
+    <!-- ВКЛАДКА 4: АРХИВ -->
+    <section id="view-archive" class="view" data-view="archive" hidden>
+      <div class="archive-head">
+        <p class="hint">Записи, удалённые из канбана. Их можно вернуть или удалить навсегда.</p>
+        <span class="count" id="count-archive">0</span>
+      </div>
+      <ul id="archive-list" class="card-list"></ul>
+      <p id="archive-empty" class="empty-col" hidden>Архив пуст.</p>
     </section>
   </main>
 
@@ -635,6 +678,7 @@ function buildBase(prefix, type, draft) {
     type,
     createdAt: ts,
     updatedAt: ts,
+    archived: false,
     rawText: draft.rawText || '',
     tags: strArray(draft.tags),
     aiSummary: draft.aiSummary || '',
@@ -728,8 +772,18 @@ function createEntity(draft = {}) {
 
 // ===== READ =====
 
-/** Все сущности (копия массива). */
+/** Активные сущности (не в архиве). Это то, что показывает канбан. */
 function getAll() {
+  return load().entities.filter((e) => !e.archived);
+}
+
+/** Архивные сущности (удалённые из канбана, но сохранённые). */
+function getArchived() {
+  return load().entities.filter((e) => e.archived);
+}
+
+/** Вообще все сущности, включая архив. */
+function getEverything() {
   return [...load().entities];
 }
 
@@ -738,18 +792,18 @@ function getById(id) {
 }
 
 function getTopics() {
-  return load().entities.filter((e) => e.type === 'topic');
+  return getAll().filter((e) => e.type === 'topic');
 }
 
 function getTasks() {
-  return load().entities.filter((e) => e.type === 'task');
+  return getAll().filter((e) => e.type === 'task');
 }
 
 function getNotes() {
-  return load().entities.filter((e) => e.type === 'note');
+  return getAll().filter((e) => e.type === 'note');
 }
 
-/** Произвольный фильтр: query(e => e.status === 'open'). */
+/** Произвольный фильтр по всем сущностям: query(e => e.status === 'open'). */
 function query(predicate) {
   return load().entities.filter(predicate);
 }
@@ -787,9 +841,25 @@ function update(id, patch = {}) {
   return entity;
 }
 
-// ===== DELETE =====
+// ===== ARCHIVE / DELETE =====
 
+/** Мягкое удаление: убрать из канбана, но сохранить в архиве. */
+function archive(id) {
+  return update(id, { archived: true });
+}
+
+/** Вернуть запись из архива обратно в канбан. */
+function unarchive(id) {
+  return update(id, { archived: false });
+}
+
+/** Удалить из канбана = отправить в архив (данные не теряются). */
 function remove(id) {
+  return !!archive(id);
+}
+
+/** Безвозвратное удаление (используется из архива). */
+function destroy(id) {
   load();
   const before = state.entities.length;
   state.entities = state.entities.filter((e) => e.id !== id);
@@ -829,7 +899,7 @@ function importAll(json) {
   }
 }
 
-return { ENUMS, getSettings, updateSettings, createTopic, createTask, createNote, createEntity, getAll, getById, getTopics, getTasks, getNotes, query, update, remove, clearAll, exportAll, importAll };
+return { ENUMS, getSettings, updateSettings, createTopic, createTask, createNote, createEntity, getAll, getArchived, getEverything, getById, getTopics, getTasks, getNotes, query, update, archive, unarchive, remove, destroy, clearAll, exportAll, importAll };
 })();
 
 const agent = (function () {
@@ -943,10 +1013,21 @@ const CAPTURE_SYSTEM = `Ты — персональный ассистент д�
 
 Всегда отвечай строго в формате JSON без дополнительного текста.
 
+УПРОЩЕНИЕ ФОРМУЛИРОВОК (важно): формулируй максимально кратко и чётко, без воды.
+- Заголовок задачи (title) и суть темы (topic) — короткие, по делу, в форме действия (глагол + объект). Ориентир: до 7 слов.
+- Убирай вводные слова, повторы, «воду» ("надо бы", "не забыть", "вроде как", "в принципе").
+- Сохраняй весь смысл и важные детали, но без лишних слов. Деталями наполняй description, не заголовок.
+Примеры: «надо бы наконец-то написать тот самый регламент по ревью спеков» → title: "Написать регламент ревью спеков". «хочу обсудить с командой как мы будем приоритизировать бэклог» → topic: "Приоритизация бэклога".
+
 Сначала определи ТИП записи:
-• "topic" — тема, которую нужно обсудить с конкретным человеком (упомянут коллега, встреча, "обсудить с…", "спросить у…").
+• "topic" — тема, которую нужно обсудить с конкретным ЧЕЛОВЕКОМ (упомянуто имя коллеги, встреча, "обсудить с…", "спросить у…").
 • "task"  — задача для самого пользователя (нужно что-то сделать).
 • "note"  — заметка, мысль, идея, факт без явного действия и без собеседника.
+
+ПРОВЕРКА ЧЕЛОВЕКА (важно, чтобы не путать с обычными словами):
+- Тип "topic" и поле person заполняй ТОЛЬКО если в тексте есть настоящее русское ИМЯ или ИМЯ+ФАМИЛИЯ человека (например: Наташа, Иван, Пётр Смирнов, с Леной, у Андрея).
+- НЕ считай человеком: продукты, проекты, отделы, термины, аббревиатуры и сокращения (например: «Еком», «екоммерс», «бэклог», «API», «отдел», «дизайн», «маркетинг», «прод», «релиз»). Это НЕ имена — такой текст это task или note, person оставь "".
+- Если сомневаешься, имя это или термин — это НЕ человек. Тогда выбирай task или note.
 
 ВАЖНОСТЬ (importance): "critical" — "критично", "блокер", "обязательно"; "high" — "важно", "приоритет"; "medium" — по умолчанию; "low" — "мелочь", "необязательно".
 ДЕДЛАЙН (deadline): переводи относительные даты в ISO YYYY-MM-DD относительно переданной сегодняшней даты; если срока нет — null.
@@ -1085,6 +1166,7 @@ const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 const TYPE_LABEL = { topic: 'Тема', task: 'Задача', note: 'Заметка' };
 const URGENCY_LABEL = { urgent: 'срочно', high: 'высокая', medium: 'средняя', low: 'низкая' };
 const IMPORTANCE_LABEL = { critical: 'критично', high: 'высокая', medium: 'средняя', low: 'низкая' };
+const STATUS_LABEL = { todo: 'к выполнению', in_progress: 'в работе', done: 'выполнено', blocked: 'заблокировано', open: 'открыта', discussed: 'обсуждено' };
 
 const URGENCY_RANK = { urgent: 3, high: 2, medium: 1, low: 0 };
 const IMPORTANCE_RANK = { critical: 3, high: 2, medium: 1, low: 0 };
@@ -1162,6 +1244,8 @@ function switchTab(name) {
   if (name === 'board') {
     populateFilters();
     renderBoard();
+  } else if (name === 'archive') {
+    renderArchive();
   }
 }
 
@@ -1565,7 +1649,12 @@ function buildMeta(e) {
   return meta;
 }
 
+// id карточки, открытой в режиме инлайн-редактирования (на доске).
+let editingId = null;
+
 function buildCard(e) {
+  if (editingId === e.id) return buildCardEditor(e);
+
   const li = document.createElement('li');
   li.className = 'card' + (isClosed(e) ? ' is-done' : '') + (e.type === 'task' && e.status === 'in_progress' ? ' is-progress' : '');
   li.appendChild(buildTop(e));
@@ -1601,13 +1690,140 @@ function buildCard(e) {
     });
     footer.appendChild(doneBtn);
   }
+  const editBtn = el('button', 'btn btn-ghost btn-sm', '✏️');
+  editBtn.title = 'Редактировать';
+  editBtn.addEventListener('click', () => {
+    editingId = e.id;
+    renderBoard();
+  });
+  footer.appendChild(editBtn);
   const del = el('button', 'btn btn-ghost btn-sm', '🗑');
-  del.title = 'Удалить';
+  del.title = 'В архив';
   del.addEventListener('click', () => {
     store.remove(e.id);
     renderBoard();
   });
   footer.appendChild(del);
+  li.appendChild(footer);
+  return li;
+}
+
+/** Инлайн-редактор карточки на доске. Правит все поля выбранной записи. */
+function buildCardEditor(e) {
+  const draft = { ...e, tags: [...(e.tags || [])], relatedPeople: [...(e.relatedPeople || [])], relatedProjects: [...(e.relatedProjects || [])] };
+  const li = document.createElement('li');
+  li.className = 'card is-editing';
+  const form = document.createElement('div');
+  form.className = 'edit-form';
+
+  const input = (key, type = 'text') => {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.type = type;
+    inp.value = draft[key] || '';
+    inp.addEventListener('input', () => (draft[key] = inp.value));
+    return inp;
+  };
+  const select = (key, options, labels) => {
+    const sel = document.createElement('select');
+    sel.className = 'select';
+    options.forEach((opt) => {
+      const o = document.createElement('option');
+      o.value = opt;
+      o.textContent = labels ? labels[opt] || opt : opt;
+      if (draft[key] === opt) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => (draft[key] = sel.value));
+    return sel;
+  };
+  const listInput = (key) => {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.value = (draft[key] || []).join(', ');
+    inp.addEventListener('input', () => (draft[key] = inp.value.split(',').map((s) => s.trim()).filter(Boolean)));
+    return inp;
+  };
+
+  if (e.type === 'topic') {
+    form.appendChild(field('Тема', input('topic')));
+    form.appendChild(field('Человек', input('person')));
+    form.appendChild(field('Срочность', select('urgency', store.ENUMS.topicUrgency, URGENCY_LABEL)));
+    form.appendChild(field('Важность', select('importance', store.ENUMS.topicImportance, IMPORTANCE_LABEL)));
+    form.appendChild(field('Статус', select('status', store.ENUMS.topicStatus, STATUS_LABEL)));
+    form.appendChild(field('Дедлайн', input('deadline', 'date')));
+    form.appendChild(field('Резюме', input('aiSummary')));
+  } else if (e.type === 'task') {
+    form.appendChild(field('Название', input('title')));
+    form.appendChild(field('Что сделать', input('description')));
+    form.appendChild(field('Образ результата', input('expectedResult')));
+    form.appendChild(field('Приоритет', select('priority', store.ENUMS.taskPriority)));
+    form.appendChild(field('Статус', select('status', store.ENUMS.taskStatus, STATUS_LABEL)));
+    form.appendChild(field('Дедлайн', input('deadline', 'date')));
+    form.appendChild(field('Люди (через запятую)', listInput('relatedPeople')));
+    form.appendChild(field('Проекты (через запятую)', listInput('relatedProjects')));
+  } else {
+    form.appendChild(field('Заголовок', input('title')));
+    form.appendChild(field('Содержание', input('content')));
+    form.appendChild(field('Люди (через запятую)', listInput('relatedPeople')));
+    form.appendChild(field('Проекты (через запятую)', listInput('relatedProjects')));
+  }
+  form.appendChild(field('Теги (через запятую)', listInput('tags')));
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const cancel = el('button', 'btn btn-ghost btn-sm', 'Отмена');
+  cancel.addEventListener('click', () => {
+    editingId = null;
+    renderBoard();
+  });
+  const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
+  save.addEventListener('click', () => {
+    store.update(e.id, draft);
+    editingId = null;
+    renderBoard();
+  });
+  footer.append(cancel, save);
+
+  li.append(form, footer);
+  return li;
+}
+
+// ===== Вкладка «Архив» =====
+function renderArchive() {
+  const list = $('#archive-list');
+  const empty = $('#archive-empty');
+  const items = store.getArchived().map(annotate);
+  list.innerHTML = '';
+  $('#count-archive').textContent = items.length;
+  empty.hidden = items.length > 0;
+  items.forEach((e) => list.appendChild(buildArchiveCard(e)));
+}
+
+function buildArchiveCard(e) {
+  const li = document.createElement('li');
+  li.className = 'card is-archived';
+  li.appendChild(buildTop(e));
+  li.appendChild(el('p', 'card-title', displayTitle(e)));
+  const body = displayBody(e);
+  if (body) li.appendChild(el('p', 'card-body', body));
+  li.appendChild(buildMeta(e));
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const restore = el('button', 'btn btn-ghost btn-sm', '↩️ Вернуть');
+  restore.addEventListener('click', () => {
+    store.unarchive(e.id);
+    renderArchive();
+  });
+  const del = el('button', 'btn btn-ghost btn-sm', '🗑 Удалить навсегда');
+  del.addEventListener('click', () => {
+    if (confirm('Удалить запись навсегда? Это действие необратимо.')) {
+      store.destroy(e.id);
+      renderArchive();
+    }
+  });
+  footer.append(restore, del);
   li.appendChild(footer);
   return li;
 }

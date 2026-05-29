@@ -10,6 +10,7 @@ const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 const TYPE_LABEL = { topic: 'Тема', task: 'Задача', note: 'Заметка' };
 const URGENCY_LABEL = { urgent: 'срочно', high: 'высокая', medium: 'средняя', low: 'низкая' };
 const IMPORTANCE_LABEL = { critical: 'критично', high: 'высокая', medium: 'средняя', low: 'низкая' };
+const STATUS_LABEL = { todo: 'к выполнению', in_progress: 'в работе', done: 'выполнено', blocked: 'заблокировано', open: 'открыта', discussed: 'обсуждено' };
 
 const URGENCY_RANK = { urgent: 3, high: 2, medium: 1, low: 0 };
 const IMPORTANCE_RANK = { critical: 3, high: 2, medium: 1, low: 0 };
@@ -87,6 +88,8 @@ function switchTab(name) {
   if (name === 'board') {
     populateFilters();
     renderBoard();
+  } else if (name === 'archive') {
+    renderArchive();
   }
 }
 
@@ -490,7 +493,12 @@ function buildMeta(e) {
   return meta;
 }
 
+// id карточки, открытой в режиме инлайн-редактирования (на доске).
+let editingId = null;
+
 function buildCard(e) {
+  if (editingId === e.id) return buildCardEditor(e);
+
   const li = document.createElement('li');
   li.className = 'card' + (isClosed(e) ? ' is-done' : '') + (e.type === 'task' && e.status === 'in_progress' ? ' is-progress' : '');
   li.appendChild(buildTop(e));
@@ -526,13 +534,140 @@ function buildCard(e) {
     });
     footer.appendChild(doneBtn);
   }
+  const editBtn = el('button', 'btn btn-ghost btn-sm', '✏️');
+  editBtn.title = 'Редактировать';
+  editBtn.addEventListener('click', () => {
+    editingId = e.id;
+    renderBoard();
+  });
+  footer.appendChild(editBtn);
   const del = el('button', 'btn btn-ghost btn-sm', '🗑');
-  del.title = 'Удалить';
+  del.title = 'В архив';
   del.addEventListener('click', () => {
     store.remove(e.id);
     renderBoard();
   });
   footer.appendChild(del);
+  li.appendChild(footer);
+  return li;
+}
+
+/** Инлайн-редактор карточки на доске. Правит все поля выбранной записи. */
+function buildCardEditor(e) {
+  const draft = { ...e, tags: [...(e.tags || [])], relatedPeople: [...(e.relatedPeople || [])], relatedProjects: [...(e.relatedProjects || [])] };
+  const li = document.createElement('li');
+  li.className = 'card is-editing';
+  const form = document.createElement('div');
+  form.className = 'edit-form';
+
+  const input = (key, type = 'text') => {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.type = type;
+    inp.value = draft[key] || '';
+    inp.addEventListener('input', () => (draft[key] = inp.value));
+    return inp;
+  };
+  const select = (key, options, labels) => {
+    const sel = document.createElement('select');
+    sel.className = 'select';
+    options.forEach((opt) => {
+      const o = document.createElement('option');
+      o.value = opt;
+      o.textContent = labels ? labels[opt] || opt : opt;
+      if (draft[key] === opt) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => (draft[key] = sel.value));
+    return sel;
+  };
+  const listInput = (key) => {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.value = (draft[key] || []).join(', ');
+    inp.addEventListener('input', () => (draft[key] = inp.value.split(',').map((s) => s.trim()).filter(Boolean)));
+    return inp;
+  };
+
+  if (e.type === 'topic') {
+    form.appendChild(field('Тема', input('topic')));
+    form.appendChild(field('Человек', input('person')));
+    form.appendChild(field('Срочность', select('urgency', store.ENUMS.topicUrgency, URGENCY_LABEL)));
+    form.appendChild(field('Важность', select('importance', store.ENUMS.topicImportance, IMPORTANCE_LABEL)));
+    form.appendChild(field('Статус', select('status', store.ENUMS.topicStatus, STATUS_LABEL)));
+    form.appendChild(field('Дедлайн', input('deadline', 'date')));
+    form.appendChild(field('Резюме', input('aiSummary')));
+  } else if (e.type === 'task') {
+    form.appendChild(field('Название', input('title')));
+    form.appendChild(field('Что сделать', input('description')));
+    form.appendChild(field('Образ результата', input('expectedResult')));
+    form.appendChild(field('Приоритет', select('priority', store.ENUMS.taskPriority)));
+    form.appendChild(field('Статус', select('status', store.ENUMS.taskStatus, STATUS_LABEL)));
+    form.appendChild(field('Дедлайн', input('deadline', 'date')));
+    form.appendChild(field('Люди (через запятую)', listInput('relatedPeople')));
+    form.appendChild(field('Проекты (через запятую)', listInput('relatedProjects')));
+  } else {
+    form.appendChild(field('Заголовок', input('title')));
+    form.appendChild(field('Содержание', input('content')));
+    form.appendChild(field('Люди (через запятую)', listInput('relatedPeople')));
+    form.appendChild(field('Проекты (через запятую)', listInput('relatedProjects')));
+  }
+  form.appendChild(field('Теги (через запятую)', listInput('tags')));
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const cancel = el('button', 'btn btn-ghost btn-sm', 'Отмена');
+  cancel.addEventListener('click', () => {
+    editingId = null;
+    renderBoard();
+  });
+  const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
+  save.addEventListener('click', () => {
+    store.update(e.id, draft);
+    editingId = null;
+    renderBoard();
+  });
+  footer.append(cancel, save);
+
+  li.append(form, footer);
+  return li;
+}
+
+// ===== Вкладка «Архив» =====
+function renderArchive() {
+  const list = $('#archive-list');
+  const empty = $('#archive-empty');
+  const items = store.getArchived().map(annotate);
+  list.innerHTML = '';
+  $('#count-archive').textContent = items.length;
+  empty.hidden = items.length > 0;
+  items.forEach((e) => list.appendChild(buildArchiveCard(e)));
+}
+
+function buildArchiveCard(e) {
+  const li = document.createElement('li');
+  li.className = 'card is-archived';
+  li.appendChild(buildTop(e));
+  li.appendChild(el('p', 'card-title', displayTitle(e)));
+  const body = displayBody(e);
+  if (body) li.appendChild(el('p', 'card-body', body));
+  li.appendChild(buildMeta(e));
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const restore = el('button', 'btn btn-ghost btn-sm', '↩️ Вернуть');
+  restore.addEventListener('click', () => {
+    store.unarchive(e.id);
+    renderArchive();
+  });
+  const del = el('button', 'btn btn-ghost btn-sm', '🗑 Удалить навсегда');
+  del.addEventListener('click', () => {
+    if (confirm('Удалить запись навсегда? Это действие необратимо.')) {
+      store.destroy(e.id);
+      renderArchive();
+    }
+  });
+  footer.append(restore, del);
   li.appendChild(footer);
   return li;
 }

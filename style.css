@@ -276,8 +276,27 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 
 /* Инлайн-форма редактирования */
 .edit-form { display: flex; flex-direction: column; gap: 8px; }
-.edit-form label { font-size: 12px; color: var(--text-dim); }
+.edit-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
 .edit-form .text-input, .edit-form .select { padding: 7px 10px; font-size: 13.5px; }
+.card.is-editing { border-color: var(--accent); }
+.card.is-archived { opacity: 0.75; }
+
+/* Список возможностей под полем «Захватить» */
+.capture-features {
+  margin-top: 24px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.capture-features h3 { margin: 0 0 10px; font-size: 14px; color: var(--text); }
+.capture-features ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.capture-features li { font-size: 13.5px; color: var(--text-dim); line-height: 1.45; }
+.capture-features b { color: var(--text); font-weight: 600; }
+
+/* Шапка архива */
+.archive-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.archive-head .count { background: var(--bg-elev-2); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--text-dim); }
 
 /* ===== Поиск / ответ ===== */
 .find-bar { display: flex; gap: 10px; }

@@ -16,6 +16,7 @@
       <button class="tab" role="tab" data-tab="capture" aria-selected="true">📝 Захватить</button>
       <button class="tab" role="tab" data-tab="board" aria-selected="false">📋 Задачи и темы</button>
       <button class="tab" role="tab" data-tab="search" aria-selected="false">🔍 Найти</button>
+      <button class="tab" role="tab" data-tab="archive" aria-selected="false">🗂 Архив</button>
     </nav>
     <div class="topbar-actions">
       <button id="theme-toggle" class="icon-btn" title="Переключить тему" aria-label="Переключить тему">☾</button>
@@ -29,8 +30,9 @@
       <textarea
         id="capture-input"
         class="capture-input"
-        placeholder="Напишите что угодно: задачу, тему для обсуждения с коллегой, заметку...
-Например: «Обсудить с Наташей приоритизацию бэклога на следующий квартал, это важно сделать до пятницы» или «Написать регламент ревью спецификаций, срок — конец месяца»"
+        placeholder="Просто напишите, что у вас в голове 🧠
+
+Например: «Созвон с Наташей по бэклогу до пятницы» или «Подготовить отчёт по продажам»"
       ></textarea>
       <div class="capture-actions">
         <span class="hint">⌘/Ctrl + Enter — обработать</span>
@@ -38,6 +40,18 @@
       </div>
       <div id="capture-status" class="status-line" hidden></div>
       <div id="capture-result" class="capture-result"></div>
+
+      <div class="capture-features">
+        <h3>Что умеет PM Assistant</h3>
+        <ul>
+          <li>🧠 <b>Превращает мысли в структуру.</b> Пишите свободным текстом — AI сам определит, это задача, тема для обсуждения или заметка.</li>
+          <li>👤 <b>Узнаёт людей и сроки.</b> Вытягивает коллегу, дедлайн, приоритет и теги из текста.</li>
+          <li>📋 <b>Раскладывает по канбану.</b> «Темы для обсуждения», «Мои задачи» и «Заметки» — с приоритетами P0–P4.</li>
+          <li>🎯 <b>Расставляет приоритеты.</b> Сортировка по матрице Эйзенхауэра (важность + срочность).</li>
+          <li>🔍 <b>Отвечает на вопросы.</b> «Что обсудить с Наташей?», «Что срочного на неделе?» — спросите на вкладке «Найти».</li>
+          <li>🗂 <b>Хранит архив.</b> Удалённые из канбана записи не теряются — их можно вернуть.</li>
+        </ul>
+      </div>
     </section>
 
     <!-- ВКЛАДКА 2: ЗАДАЧИ И ТЕМЫ -->
@@ -126,6 +140,16 @@
       <div id="search-status" class="status-line" hidden></div>
       <div id="search-answer" class="answer" hidden></div>
       <ul id="search-results" class="card-list"></ul>
+    </section>
+
+    <!-- ВКЛАДКА 4: АРХИВ -->
+    <section id="view-archive" class="view" data-view="archive" hidden>
+      <div class="archive-head">
+        <p class="hint">Записи, удалённые из канбана. Их можно вернуть или удалить навсегда.</p>
+        <span class="count" id="count-archive">0</span>
+      </div>
+      <ul id="archive-list" class="card-list"></ul>
+      <p id="archive-empty" class="empty-col" hidden>Архив пуст.</p>
     </section>
   </main>
 
