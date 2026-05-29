@@ -13,9 +13,8 @@
       <h1>PM Assistant</h1>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="capture" aria-selected="true">📝 Захватить</button>
+      <button class="tab" role="tab" data-tab="capture" aria-selected="true">📝 Захватить и найти</button>
       <button class="tab" role="tab" data-tab="board" aria-selected="false">📋 Задачи и темы</button>
-      <button class="tab" role="tab" data-tab="search" aria-selected="false">🔍 Найти</button>
       <button class="tab" role="tab" data-tab="archive" aria-selected="false">🗂 Архив</button>
     </nav>
     <div class="topbar-actions">
@@ -25,7 +24,7 @@
   </header>
 
   <main class="content">
-    <!-- ВКЛАДКА 1: ЗАХВАТИТЬ -->
+    <!-- ВКЛАДКА: ЗАХВАТИТЬ И НАЙТИ -->
     <section id="view-capture" class="view view-capture" data-view="capture">
       <textarea
         id="capture-input"
@@ -41,6 +40,23 @@
       <div id="capture-status" class="status-line" hidden></div>
       <div id="capture-result" class="capture-result"></div>
 
+      <!-- Поиск прямо здесь же -->
+      <div class="search-block">
+        <div class="find-bar">
+          <input id="search-input" class="find-input" type="text" placeholder="🔍 Найти: «темы для Наташи», «что срочного на неделе?»…" />
+          <button id="search-btn" class="btn btn-primary">Найти</button>
+        </div>
+        <div class="find-suggestions">
+          <button class="chip suggestion">Найди темы для Наташи Ивановой</button>
+          <button class="chip suggestion">Покажи задачи по проекту X</button>
+          <button class="chip suggestion">Что срочного на этой неделе?</button>
+          <button class="chip suggestion">Все задачи связанные с редизайном</button>
+        </div>
+        <div id="search-status" class="status-line" hidden></div>
+        <div id="search-answer" class="answer" hidden></div>
+        <ul id="search-results" class="card-list"></ul>
+      </div>
+
       <div class="capture-features">
         <h3>Что умеет PM Assistant</h3>
         <ul>
@@ -48,7 +64,7 @@
           <li>👤 <b>Узнаёт людей и сроки.</b> Вытягивает коллегу, дедлайн, приоритет и теги из текста.</li>
           <li>📋 <b>Раскладывает по канбану.</b> «Темы для обсуждения», «Мои задачи» и «Заметки» — с приоритетами P0–P4.</li>
           <li>🎯 <b>Расставляет приоритеты.</b> Сортировка по матрице Эйзенхауэра (важность + срочность).</li>
-          <li>🔍 <b>Отвечает на вопросы.</b> «Что обсудить с Наташей?», «Что срочного на неделе?» — спросите на вкладке «Найти».</li>
+          <li>🔍 <b>Отвечает на вопросы.</b> «Что обсудить с Наташей?», «Что срочного на неделе?» — спросите в строке поиска выше.</li>
           <li>🗂 <b>Хранит архив.</b> Удалённые из канбана записи не теряются — их можно вернуть.</li>
         </ul>
       </div>
@@ -123,26 +139,7 @@
       </div>
     </section>
 
-    <!-- ВКЛАДКА 3: НАЙТИ -->
-    <section id="view-search" class="view" data-view="search" hidden>
-      <div class="panel">
-        <div class="find-bar">
-          <input id="search-input" class="find-input" type="text" placeholder="Спросите свободным текстом…" />
-          <button id="search-btn" class="btn btn-primary">Найти</button>
-        </div>
-        <div class="find-suggestions">
-          <button class="chip suggestion">Найди темы для Наташи Ивановой</button>
-          <button class="chip suggestion">Покажи задачи по проекту X</button>
-          <button class="chip suggestion">Что срочного на этой неделе?</button>
-          <button class="chip suggestion">Все задачи связанные с редизайном</button>
-        </div>
-      </div>
-      <div id="search-status" class="status-line" hidden></div>
-      <div id="search-answer" class="answer" hidden></div>
-      <ul id="search-results" class="card-list"></ul>
-    </section>
-
-    <!-- ВКЛАДКА 4: АРХИВ -->
+    <!-- ВКЛАДКА: АРХИВ -->
     <section id="view-archive" class="view" data-view="archive" hidden>
       <div class="archive-head">
         <p class="hint">Записи, удалённые из канбана. Их можно вернуть или удалить навсегда.</p>
