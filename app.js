@@ -678,12 +678,24 @@ function buildMeta(e) {
 
 // id карточки, открытой в режиме инлайн-редактирования (на доске).
 let editingId = null;
+// id карточек, раскрытых по клику (показывают заголовок/описание целиком).
+const expandedIds = new Set();
 
 function buildCard(e) {
   if (editingId === e.id) return buildCardEditor(e);
 
+  const expanded = expandedIds.has(e.id);
   const li = document.createElement('li');
-  li.className = 'card' + (isClosed(e) ? ' is-done' : '') + (e.type === 'task' && e.status === 'in_progress' ? ' is-progress' : '');
+  li.className = 'card is-clickable' + (expanded ? ' is-expanded' : '') +
+    (isClosed(e) ? ' is-done' : '') + (e.type === 'task' && e.status === 'in_progress' ? ' is-progress' : '');
+  // Клик по карточке (вне кнопок/контролов) раскрывает/сворачивает её.
+  li.addEventListener('click', (ev) => {
+    if (ev.target.closest('.card-footer, button, a, select, input')) return;
+    if (expandedIds.has(e.id)) expandedIds.delete(e.id);
+    else expandedIds.add(e.id);
+    renderBoard();
+  });
+
   li.appendChild(buildTop(e));
   li.appendChild(el('p', 'card-title', displayTitle(e)));
   const body = displayBody(e);
