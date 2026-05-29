@@ -67,6 +67,16 @@ function load() {
       state = { ...structuredClone(DEFAULT_STATE), ...parsed };
       state.settings = { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) };
       state.cards = Array.isArray(parsed.cards) ? parsed.cards : [];
+      // Миграция приоритетов на 3 уровня: устаревший P4 → P3 (низкий),
+      // прочие невалидные значения — без приоритета. Сохраняем результат разово.
+      let changed = false;
+      state.cards.forEach((c) => {
+        const before = c.priority;
+        if (c.priority === 'P4') c.priority = 'P3';
+        else if (c.priority && !ENUMS.priority.includes(c.priority)) c.priority = '';
+        if (c.priority !== before) changed = true;
+      });
+      if (changed) persist();
     } else {
       state = migrateFromV2() || structuredClone(DEFAULT_STATE);
     }
@@ -96,7 +106,7 @@ function migrateFromV2() {
         description: e.type === 'note' ? e.content : [e.description, e.expectedResult].filter(Boolean).join('\n'),
         people,
         projects: e.relatedProjects || [],
-        priority: e.priority || '',
+        priority: e.priority === 'P4' ? 'P3' : (e.priority || ''),
         deadline: e.deadline,
         tags: e.tags,
         rawText: e.rawText,
