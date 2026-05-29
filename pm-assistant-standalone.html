@@ -660,7 +660,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   border-color: transparent;
 }
 
-/* Бейджи приоритета: P1 высокий (красный), P2 средний (жёлтый), P3 низкий (серый) */
+/* Бейджи типа / приоритета */
 .badge {
   font-size: 10.5px;
   padding: 2px var(--s-2);
@@ -669,6 +669,10 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.badge-topic { background: var(--warn-weak); color: var(--warn); }
+.badge-task { background: var(--accent-weak); color: var(--accent); }
+.badge-note { background: var(--bg-elev); color: var(--text-3); }
+.badge-P0 { background: var(--danger); color: #fff; }
 .badge-P1 { background: var(--danger-weak); color: var(--danger); }   /* высокий */
 .badge-P2 { background: var(--warn-weak); color: var(--warn); }       /* средний */
 .badge-P3 { background: var(--bg-elev); color: var(--text-3); }       /* низкий */
@@ -717,7 +721,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .archive-head .count { background: var(--bg-elev-2); border-radius: var(--r-pill); padding: 2px var(--s-3); font-size: var(--fs-xs); color: var(--text-3); }
 #archive-clear:hover { border-color: var(--danger); color: var(--danger); }
 
-/* ===== Спросить ассистента: строка и ответ ===== */
+/* ===== Поиск: строка и ответ ===== */
 .find-bar { display: flex; gap: var(--s-2); align-items: stretch; }
 .find-input { flex: 1 1 auto; min-width: 0; }
 /* Кнопка-иконка «Спросить»: квадратная, со стрелкой вместо текста. */
