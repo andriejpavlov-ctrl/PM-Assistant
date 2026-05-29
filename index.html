@@ -53,7 +53,7 @@
         <div class="home-block-head">
           <span class="home-block-icon">📝</span>
           <h2 class="home-block-title">Новая запись</h2>
-          <span class="home-block-hint">AI разложит на задачи, темы и заметки</span>
+          <span class="home-block-hint">AI разберёт текст в карточку</span>
         </div>
         <textarea
           id="capture-input"
@@ -83,12 +83,6 @@
           <option value="P3">P3</option>
           <option value="P4">P4</option>
         </select>
-        <select id="filter-status" class="filter-field" aria-label="Фильтр по статусу">
-          <option value="all">Статус</option>
-          <option value="open">Открытые</option>
-          <option value="in_progress">В работе</option>
-          <option value="done">Закрытые</option>
-        </select>
         <select id="filter-daterange" class="filter-field" aria-label="Фильтр по сроку">
           <option value="all">Срок</option>
           <option value="overdue">Просроченные</option>
@@ -106,26 +100,14 @@
         <button id="filter-reset" class="reset-link" hidden>Сбросить всё</button>
       </div>
 
-      <div class="board">
-        <div class="column">
-          <div class="column-head"><span>💬 Темы для обсуждения</span><span class="count" id="count-topics">0</span></div>
-          <ul id="col-topics" class="card-list"></ul>
-        </div>
-        <div class="column">
-          <div class="column-head"><span>✅ Мои задачи</span><span class="count" id="count-tasks">0</span></div>
-          <ul id="col-tasks" class="card-list"></ul>
-        </div>
-        <div class="column">
-          <div class="column-head"><span>🗒 Заметки</span><span class="count" id="count-notes">0</span></div>
-          <ul id="col-notes" class="card-list"></ul>
-        </div>
-      </div>
+      <ul id="cards-list" class="board-grid"></ul>
+      <p id="cards-empty" class="empty-col" hidden>Пока пусто. Добавьте запись на Главной.</p>
     </section>
 
     <!-- ВКЛАДКА: АРХИВ -->
     <section id="view-archive" class="view" data-view="archive" hidden>
       <div class="archive-head">
-        <p class="hint">Записи, удалённые из канбана. Их можно вернуть или удалить навсегда.</p>
+        <p class="hint">Карточки, удалённые из раздела «Карточки». Их можно вернуть или удалить навсегда.</p>
         <span class="count" id="count-archive">0</span>
       </div>
       <ul id="archive-list" class="card-list"></ul>
