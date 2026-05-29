@@ -397,13 +397,13 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 
 /* Свёрнутая карточка на доске: фиксированная высота, лишнее обрезается. */
 .card.is-clickable:not(.is-expanded) {
-  height: 132px;
+  height: 180px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 .card.is-clickable:not(.is-expanded) .card-title {
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
 .card.is-clickable:not(.is-expanded) .card-body {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
