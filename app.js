@@ -782,7 +782,6 @@ async function onSearch() {
     showStatus(status, e.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Найти';
   }
 }
 function renderAnswer(box, explanation, count) {

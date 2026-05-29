@@ -543,6 +543,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 /* ===== Поиск: строка и ответ ===== */
 .find-bar { display: flex; gap: var(--s-2); align-items: stretch; }
 .find-input { flex: 1 1 auto; min-width: 0; }
+/* Кнопка-иконка «Спросить»: квадратная, со стрелкой вместо текста. */
+.btn-icon { flex: none; width: var(--control-h); padding: 0; }
+.btn-icon .ic svg { width: 18px; height: 18px; display: block; }
 
 /* Ответ ассистента — отдельная заметная карточка, отделённая от строки поиска */
 .answer {
@@ -687,12 +690,14 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
       <section class="home-block home-block--search">
         <div class="home-block-head">
           <span class="home-block-icon">🔍</span>
-          <h2 class="home-block-title">Поиск</h2>
+          <h2 class="home-block-title">Спросить ассистента</h2>
           <span class="home-block-hint">Спросите по своим записям</span>
         </div>
         <div class="find-bar">
           <input id="search-input" class="find-input" type="text" placeholder="" />
-          <button id="search-btn" class="btn btn-primary">Найти</button>
+          <button id="search-btn" class="btn btn-primary btn-icon" aria-label="Спросить">
+            <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </button>
         </div>
         <div class="find-suggestions">
           <button class="chip suggestion">Найди темы для Наташи Ивановой</button>
@@ -2196,7 +2201,6 @@ async function onSearch() {
     showStatus(status, e.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Найти';
   }
 }
 function renderAnswer(box, explanation, count) {
