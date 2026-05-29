@@ -10,7 +10,7 @@ const SCHEMA_VERSION = 3;
 
 // ===== Допустимые значения перечислений =====
 export const ENUMS = {
-  priority: ['P1', 'P2', 'P3', 'P4'],
+  priority: ['P1', 'P2', 'P3'], // P1 — высокий, P2 — средний, P3 — низкий
 };
 
 const DEFAULT_STATE = {
