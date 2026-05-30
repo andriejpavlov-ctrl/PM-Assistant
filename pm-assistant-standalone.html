@@ -492,6 +492,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   align-items: center;
   justify-content: center;
   --orbit: 84px;
+  --meme-speed: 1;   /* множитель скорости: 1 — обычная, >1 — разгон */
 }
 /* Аватар закреплён в центре орбиты и крутится по кругу. Одиночный приём
    rotate→translate→rotate в одном keyframe — надёжно работает в iOS Safari
@@ -507,7 +508,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   overflow: hidden;
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--bg-elev);
-  animation: meme-orbit 12s linear infinite;
+  /* Длительность делится на множитель скорости — больше множитель, быстрее оборот. */
+  animation: meme-orbit calc(12s / var(--meme-speed)) linear infinite;
 }
 .meme-avatar svg { width: 100%; height: 100%; display: block; }
 /* Второй аватар — на противоположной стороне орбиты (сдвиг фазы на половину). */
@@ -533,7 +535,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   background: conic-gradient(from 0deg, #2dd4bf, #8b5cf6, #ec4899, #f59e0b, #2dd4bf);
   box-shadow: 0 8px 24px rgba(139, 92, 246, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.15);
   transition: transform var(--tr), box-shadow var(--tr), filter var(--tr);
-  animation: meme-spin 6s linear infinite;
+  animation: meme-spin calc(6s / var(--meme-speed)) linear infinite;
 }
 .meme-btn:hover { transform: scale(1.06); box-shadow: 0 10px 30px rgba(236, 72, 153, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.2); }
 .meme-btn:active { transform: scale(0.97); }
@@ -560,7 +562,6 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   /* Диско-шар слегка покачивается на «нити». */
   animation: meme-sway 3.2s ease-in-out infinite;
 }
-.meme-btn.is-loading { animation-duration: 1.1s; }
 .meme-btn.is-loading .meme-btn-ic { animation: meme-sway 0.7s ease-in-out infinite; }
 
 @keyframes meme-spin { to { transform: rotate(360deg); } }
@@ -3001,6 +3002,28 @@ function plural(n, one, few, many) {
 }
 
 // ===== Главная: The daily AI Meme =====
+let memeSpinTimer = null;
+
+/** Пока ждём совет — раскручиваем орбиту по геометрической прогрессии. */
+function startMemeSpinup() {
+  const orbit = document.querySelector('.meme-orbit');
+  if (!orbit) return;
+  let speed = 1;
+  orbit.style.setProperty('--meme-speed', speed);
+  clearInterval(memeSpinTimer);
+  memeSpinTimer = setInterval(() => {
+    speed = Math.min(speed * 1.35, 14); // ×1.35 каждый шаг, потолок чтобы не «дрожало»
+    orbit.style.setProperty('--meme-speed', speed.toFixed(3));
+  }, 220);
+}
+/** Совет показан — плавно возвращаем обычную скорость. */
+function stopMemeSpinup() {
+  clearInterval(memeSpinTimer);
+  memeSpinTimer = null;
+  const orbit = document.querySelector('.meme-orbit');
+  if (orbit) orbit.style.setProperty('--meme-speed', 1);
+}
+
 function bindMeme() {
   const btn = $('#meme-btn');
   if (btn) btn.addEventListener('click', onMeme);
@@ -3011,6 +3034,7 @@ async function onMeme() {
   const out = $('#meme-output');
   btn.disabled = true;
   btn.classList.add('is-loading');
+  startMemeSpinup();
   out.hidden = true;
   showStatus(status, 'Призываю брутальную мудрость…');
   try {
@@ -3022,6 +3046,7 @@ async function onMeme() {
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
+    stopMemeSpinup();
     btn.disabled = false;
     btn.classList.remove('is-loading');
   }

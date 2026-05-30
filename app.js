@@ -939,6 +939,28 @@ function plural(n, one, few, many) {
 }
 
 // ===== Главная: The daily AI Meme =====
+let memeSpinTimer = null;
+
+/** Пока ждём совет — раскручиваем орбиту по геометрической прогрессии. */
+function startMemeSpinup() {
+  const orbit = document.querySelector('.meme-orbit');
+  if (!orbit) return;
+  let speed = 1;
+  orbit.style.setProperty('--meme-speed', speed);
+  clearInterval(memeSpinTimer);
+  memeSpinTimer = setInterval(() => {
+    speed = Math.min(speed * 1.35, 14); // ×1.35 каждый шаг, потолок чтобы не «дрожало»
+    orbit.style.setProperty('--meme-speed', speed.toFixed(3));
+  }, 220);
+}
+/** Совет показан — плавно возвращаем обычную скорость. */
+function stopMemeSpinup() {
+  clearInterval(memeSpinTimer);
+  memeSpinTimer = null;
+  const orbit = document.querySelector('.meme-orbit');
+  if (orbit) orbit.style.setProperty('--meme-speed', 1);
+}
+
 function bindMeme() {
   const btn = $('#meme-btn');
   if (btn) btn.addEventListener('click', onMeme);
@@ -949,6 +971,7 @@ async function onMeme() {
   const out = $('#meme-output');
   btn.disabled = true;
   btn.classList.add('is-loading');
+  startMemeSpinup();
   out.hidden = true;
   showStatus(status, 'Призываю брутальную мудрость…');
   try {
@@ -960,6 +983,7 @@ async function onMeme() {
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
+    stopMemeSpinup();
     btn.disabled = false;
     btn.classList.remove('is-loading');
   }
