@@ -316,6 +316,24 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 /* ===== Вкладка «Главная» ===== */
 .view-capture:not([hidden]) { display: flex; flex-direction: column; gap: var(--s-5); }
 
+/* Десктоп: используем ширину экрана. Двухколоночная сетка — слева «Спросить»
+   и «Хочешь совет?», справа во всю высоту «Новая запись» (главный ввод).
+   Так нет пустого вертикального пространства, как было при колонке в столбик. */
+@media (min-width: 880px) {
+  .view-capture:not([hidden]) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "search capture"
+      "meme   capture";
+    align-items: stretch;
+  }
+  .home-block--search { grid-area: search; }
+  .home-block--capture { grid-area: capture; }
+  .home-block--meme { grid-area: meme; }
+  .home-block { min-height: 0; }
+}
+
 /* Карточка-секция: единый контейнер для «Спросить ассистента», «Новая запись»
    и «Хочешь совет? Жми!». Одинаковые отступы до краёв (--s-5) и единая
    минимальная высота — для визуальной консистентности блоков на Главной. */
@@ -1211,17 +1229,6 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
                 юмористический совет дня для продакт-менеджера. Каждый раз новый.</p>
             </div>
           </li>
-
-          <li class="help-item">
-            <span class="help-icon">🔒</span>
-            <div class="help-body">
-              <h3 class="help-title">Приватность и удобный вид</h3>
-              <p class="help-jtbd"><b>Когда</b> я работаю долго, <b>я хочу</b> комфортный интерфейс
-                и уверенность, что данные под контролем, <b>чтобы</b> спокойно доверять ассистенту.</p>
-              <p class="help-desc">Тёмная и светлая темы переключаются одной кнопкой. Ключи и (без облака)
-                карточки хранятся только в вашем браузере, а запросы идут напрямую в API Claude.</p>
-            </div>
-          </li>
         </ul>
       </section>
     </section>
@@ -1586,7 +1593,7 @@ async function callClaude(system, user, { maxTokens = 1500 } = {}) {
     throw new Error('Не задан API-ключ. Введите ключ Claude в настройках приложения.');
   }
 
-  const res = await fetch(API_URL, {
+  const payload = {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -1601,7 +1608,25 @@ async function callClaude(system, user, { maxTokens = 1500 } = {}) {
       system,
       messages: [{ role: 'user', content: user }],
     }),
-  });
+  };
+
+  // fetch() падает с TypeError «Failed to fetch» при сетевых проблемах: нет сети,
+  // CORS, или запрос к api.anthropic.com режет расширение/блокировщик/файрвол
+  // (частая причина именно на десктопе). Делаем одну повторную попытку и
+  // показываем понятное сообщение вместо загадочного «Failed to fetch».
+  let res;
+  try {
+    res = await fetch(API_URL, payload);
+  } catch (e1) {
+    try {
+      res = await fetch(API_URL, payload);
+    } catch (e2) {
+      throw new Error(
+        'Не удалось связаться с api.anthropic.com. Проверьте интернет и отключите ' +
+        'блокировщик рекламы/VPN/расширения для этой страницы — они часто режут запросы к API.'
+      );
+    }
+  }
 
   if (!res.ok) {
     let detail = '';
