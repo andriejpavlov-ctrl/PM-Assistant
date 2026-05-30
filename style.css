@@ -217,7 +217,8 @@ h1, h2, h3, p { margin: 0; }
   z-index: 10;
 }
 .brand { display: flex; align-items: center; gap: var(--s-2); }
-.brand .logo { color: var(--accent); font-size: var(--fs-lg); }
+.brand .logo { color: var(--accent); display: inline-flex; }
+.brand .logo svg { width: 22px; height: 22px; display: block; }
 .brand h1 { font-size: var(--fs-md); font-weight: var(--fw-semibold); letter-spacing: -0.01em; }
 
 .tabs { display: flex; gap: var(--s-1); margin-left: var(--s-3); }
