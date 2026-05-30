@@ -942,6 +942,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   color: var(--text-2);
   white-space: pre-wrap;
 }
+/* Действия под сводкой (например, «Сохранить как карточку»). */
+.answer-actions { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
 
 /* Результаты поиска чуть отступают от карточки ответа */
 #search-results { margin-top: var(--s-3); }
