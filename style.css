@@ -309,6 +309,24 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 /* ===== Вкладка «Главная» ===== */
 .view-capture:not([hidden]) { display: flex; flex-direction: column; gap: var(--s-5); }
 
+/* Десктоп: используем ширину экрана. Двухколоночная сетка — слева «Спросить»
+   и «Хочешь совет?», справа во всю высоту «Новая запись» (главный ввод).
+   Так нет пустого вертикального пространства, как было при колонке в столбик. */
+@media (min-width: 880px) {
+  .view-capture:not([hidden]) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "search capture"
+      "meme   capture";
+    align-items: stretch;
+  }
+  .home-block--search { grid-area: search; }
+  .home-block--capture { grid-area: capture; }
+  .home-block--meme { grid-area: meme; }
+  .home-block { min-height: 0; }
+}
+
 /* Карточка-секция: единый контейнер для «Спросить ассистента», «Новая запись»
    и «Хочешь совет? Жми!». Одинаковые отступы до краёв (--s-5) и единая
    минимальная высота — для визуальной консистентности блоков на Главной. */
