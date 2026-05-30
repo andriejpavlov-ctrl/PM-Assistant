@@ -1,24 +1,27 @@
 <svg width="512" height="512" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PM Assistant">
   <defs>
-    <linearGradient id="pmBg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5ee3d3"/>
-      <stop offset="0.55" stop-color="#2dd4bf"/>
-      <stop offset="1" stop-color="#0d9488"/>
+    <linearGradient id="bg" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5ee3d3"/><stop offset="0.5" stop-color="#14b8a6"/><stop offset="1" stop-color="#059669"/>
     </linearGradient>
-    <linearGradient id="pmSpark" x1="6" y1="5" x2="27" y2="27" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#eafffb"/>
-    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0.8" stdDeviation="0.8" flood-color="#04372b" flood-opacity="0.32"/>
+    </filter>
+    <!-- Передняя карточка с вырезанной искрой (негативное пространство) -->
+    <mask id="cardCut">
+      <rect x="7.5" y="8" width="15" height="20" rx="3.4" fill="#fff"/>
+      <path d="M15 12 C15 15.2 12.2 18 9 18 C12.2 18 15 20.8 15 24 C15 20.8 17.8 18 21 18 C17.8 18 15 15.2 15 12 Z" fill="#000"/>
+    </mask>
   </defs>
-  <!-- Скруглённый квадрат-«карточка» с фирменным teal-градиентом -->
-  <rect x="0" y="0" width="32" height="32" rx="7.5" fill="url(#pmBg)"/>
-  <!-- Верхний световой блик (стеклянность) -->
-  <rect x="0" y="0" width="32" height="32" rx="7.5" fill="#ffffff" opacity="0.10"
-        style="mix-blend-mode:overlay"/>
-  <!-- Главная искра (AI) -->
-  <path d="M16 5 C16 10.5 10.5 16 5 16 C10.5 16 16 21.5 16 27 C16 21.5 21.5 16 27 16 C21.5 16 16 10.5 16 5 Z"
-        fill="url(#pmSpark)"/>
-  <!-- Маленькая искра-акцент -->
-  <path d="M24 4 C24 6 22 8 20 8 C22 8 24 10 24 12 C24 10 26 8 28 8 C26 8 24 6 24 4 Z"
-        fill="#ffffff" opacity="0.9"/>
+
+  <!-- Фон-«карточка» -->
+  <rect width="32" height="32" rx="8" fill="url(#bg)"/>
+  <rect width="32" height="32" rx="8" fill="#fff" opacity="0.12"/>
+
+  <!-- Задняя карточка стопки (намёк на «много карточек») -->
+  <rect x="11" y="4.4" width="13.5" height="20" rx="3.2" fill="#fff" opacity="0.4"/>
+
+  <!-- Передняя карточка с вырезом-искрой + мягкая тень -->
+  <g filter="url(#soft)">
+    <rect x="7.5" y="8" width="15" height="20" rx="3.4" fill="#fff" mask="url(#cardCut)"/>
+  </g>
 </svg>
