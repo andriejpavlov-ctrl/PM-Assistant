@@ -51,9 +51,9 @@ const bundle = `${storeIIFE}\n\n${agentIIFE}\n\n${syncIIFE}\n\n${appCode}`;
 // Замены передаём функциями: иначе String.replace трактует спецсимволы
 // ($$, $&, …) в строке-замене (из-за этого, например, $$ → $).
 html = html
-  .replace(/<link rel="stylesheet" href="style\.css"\s*\/?>/, () => `<style>\n${css}\n</style>`)
-  .replace(/<script src="config\.js"><\/script>\s*/, '')
-  .replace(/<script type="module" src="app\.js"><\/script>/, () => `<script>\n${bundle}\n</script>`);
+  .replace(/<link rel="stylesheet" href="style\.css(?:\?[^"]*)?"\s*\/?>/, () => `<style>\n${css}\n</style>`)
+  .replace(/<script src="config\.js(?:\?[^"]*)?"><\/script>\s*/, '')
+  .replace(/<script type="module" src="app\.js(?:\?[^"]*)?"><\/script>/, () => `<script>\n${bundle}\n</script>`);
 
 fs.writeFileSync('pm-assistant-standalone.html', html);
 console.log('Готово: pm-assistant-standalone.html', `(${(html.length / 1024).toFixed(1)} КБ)`);
