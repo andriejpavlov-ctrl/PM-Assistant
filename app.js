@@ -37,8 +37,18 @@ const DIMINUTIVES = {
 };
 
 let captureDraft = null; // карточка-черновик после processCapture, ещё не сохранена
-const filters = { person: '', project: '', priority: '', dateRange: 'all' };
+const filters = { person: '', project: '', priority: '', dateRange: 'all', created: 'all' };
 let sortMode = 'default';
+
+// Короткие названия месяцев для отметки даты создания (DD/MMM/YYYY HH:MM).
+const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+/** Дата и время создания карточки в формате DD/MMM/YYYY HH:MM (локальное время). */
+function formatCreated(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${MONTHS_SHORT[d.getMonth()]}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -597,14 +607,17 @@ function bindBoard() {
   $('#filter-project').addEventListener('change', (e) => { filters.project = e.target.value; afterFilterChange(); });
   $('#filter-priority').addEventListener('change', (e) => { filters.priority = e.target.value; afterFilterChange(); });
   $('#filter-daterange').addEventListener('change', (e) => { filters.dateRange = e.target.value; afterFilterChange(); });
+  $('#filter-created').addEventListener('change', (e) => { filters.created = e.target.value; afterFilterChange(); });
   $('#sort-select').addEventListener('change', (e) => { sortMode = e.target.value; renderBoard(); });
   $$('.filter-clear').forEach((b) => b.addEventListener('click', () => clearOneFilter(b.dataset.clear)));
   $('#filter-reset').addEventListener('click', () => {
     filters.person = filters.project = filters.priority = '';
     filters.dateRange = 'all';
+    filters.created = 'all';
     sortMode = 'default';
     $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
     $('#filter-daterange').value = 'all';
+    $('#filter-created').value = 'all';
     $('#sort-select').value = 'default';
     populateFilters();
     afterFilterChange();
@@ -612,7 +625,9 @@ function bindBoard() {
 }
 
 function hasActiveFilters() {
-  return !!(filters.person || filters.project || filters.priority || (filters.dateRange && filters.dateRange !== 'all'));
+  return !!(filters.person || filters.project || filters.priority
+    || (filters.dateRange && filters.dateRange !== 'all')
+    || (filters.created && filters.created !== 'all'));
 }
 
 function afterFilterChange() {
@@ -621,6 +636,7 @@ function afterFilterChange() {
     project: !!filters.project,
     priority: !!filters.priority,
     daterange: !!(filters.dateRange && filters.dateRange !== 'all'),
+    created: !!(filters.created && filters.created !== 'all'),
   };
   // Подсветить активную пилюлю и показать её персональный «✕».
   Object.entries(states).forEach(([key, active]) => {
@@ -632,9 +648,10 @@ function afterFilterChange() {
   renderBoard();
 }
 
-/** Сбросить один фильтр по ключу (person|project|priority|daterange). */
+/** Сбросить один фильтр по ключу (person|project|priority|daterange|created). */
 function clearOneFilter(key) {
   if (key === 'daterange') { filters.dateRange = 'all'; $('#filter-daterange').value = 'all'; }
+  else if (key === 'created') { filters.created = 'all'; $('#filter-created').value = 'all'; }
   else { filters[key] = ''; $(`#filter-${key}`).value = ''; }
   afterFilterChange();
 }
@@ -680,6 +697,30 @@ function dateMatches(c, range) {
   if (range === 'this_month') return c.deadline >= today && c.deadline <= endOfMonthISO();
   return true;
 }
+/** Фильтр по дате СОЗДАНИЯ карточки (createdAt): сегодня / неделя / месяц / раньше. */
+function createdMatches(c, range) {
+  if (!range || range === 'all') return true;
+  if (!c.createdAt) return false;
+  const created = new Date(c.createdAt);
+  if (isNaN(created.getTime())) return false;
+  const createdDay = created.toISOString().slice(0, 10);
+  const today = todayISO();
+  if (range === 'today') return createdDay === today;
+  if (range === 'this_week') return createdDay >= startOfWeekISO() && createdDay <= today;
+  if (range === 'this_month') return createdDay >= startOfMonthISO() && createdDay <= today;
+  if (range === 'older') return createdDay < startOfMonthISO();
+  return true;
+}
+function startOfWeekISO() {
+  const d = new Date();
+  const dow = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+function startOfMonthISO() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+}
 function endOfWeekISO() {
   const d = new Date();
   const dow = (d.getDay() + 6) % 7;
@@ -706,7 +747,8 @@ export function sortAndFilter(items, sortBy = 'default', f = {}) {
       personMatches(c, f.person) &&
       projectMatches(c, f.project) &&
       priorityMatches(c, f.priority) &&
-      dateMatches(c, f.dateRange)
+      dateMatches(c, f.dateRange) &&
+      createdMatches(c, f.created)
   );
   const arr = [...filtered];
   const byStr = (fn) => (a, b) => (fn(a) || '').localeCompare(fn(b) || '', 'ru');
@@ -747,8 +789,8 @@ function buildFieldLine(type, iconName, values) {
 
 /**
  * Наполнить тело карточки сверху вниз:
- * заголовок → описание → персоны → проекты → теги.
- * Приоритет и дата — в подвале (см. buildFooter), на уровне кнопок.
+ * заголовок → описание → персоны → проекты → теги → дата создания.
+ * Приоритет и срок — в подвале (см. buildFooter), на уровне кнопок.
  */
 function appendCardBody(li, c) {
   li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
@@ -759,6 +801,13 @@ function appendCardBody(li, c) {
   if (projects) li.appendChild(projects);
   const tags = buildFieldLine('tag', 'tag', c.tags);
   if (tags) li.appendChild(tags);
+  // Дата и время создания — отдельной строкой под тегами.
+  const created = formatCreated(c.createdAt);
+  if (created) {
+    const line = el('div', 'card-line card-line--created');
+    line.appendChild(metaItem('clock', created));
+    li.appendChild(line);
+  }
 }
 
 /** Левая часть подвала: приоритет + дата. */

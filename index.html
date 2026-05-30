@@ -163,6 +163,16 @@
           </select>
           <button type="button" class="filter-clear" data-clear="daterange" aria-label="Сбросить фильтр по сроку" hidden>✕</button>
         </span>
+        <span class="filter-cell">
+          <select id="filter-created" class="filter-field" aria-label="Фильтр по дате создания">
+            <option value="all">Дата создания</option>
+            <option value="today">Создано сегодня</option>
+            <option value="this_week">Создано на этой неделе</option>
+            <option value="this_month">Создано в этом месяце</option>
+            <option value="older">Создано раньше</option>
+          </select>
+          <button type="button" class="filter-clear" data-clear="created" aria-label="Сбросить фильтр по дате создания" hidden>✕</button>
+        </span>
         <select id="sort-select" class="filter-field filter-field--sort" aria-label="Сортировка">
           <option value="default">По умолчанию</option>
           <option value="deadline">По сроку</option>
