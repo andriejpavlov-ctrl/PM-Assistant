@@ -214,13 +214,18 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 /* ===== Вкладка «Главная» ===== */
 .view-capture:not([hidden]) { display: flex; flex-direction: column; gap: var(--s-5); }
 
-/* Карточка-секция: единый контейнер для «Поиск» и «Новая запись» */
+/* Карточка-секция: единый контейнер для «Спросить ассистента», «Новая запись»
+   и «Хочешь совет? Жми!». Одинаковые отступы до краёв (--s-5) и единая
+   минимальная высота — для визуальной консистентности блоков на Главной. */
 .home-block {
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: var(--s-5);
   box-shadow: var(--shadow-sm);
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Заголовок секции: иконка-плашка + заголовок + подсказка справа */
@@ -255,7 +260,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .home-block-hint { display: none; }
 }
 
-.capture-input { min-height: 30vh; font-size: var(--fs-md); }
+/* Поле ввода растягивается, заполняя блок до единой высоты с остальными. */
+.capture-input { flex: 1 1 auto; min-height: 180px; font-size: var(--fs-md); }
 .capture-actions {
   display: flex;
   align-items: center;
@@ -338,13 +344,16 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 }
 
 /* ===== The daily AI Meme ===== */
+/* Растягиваем сцену на всю высоту блока и центрируем диско-шар, чтобы блок
+   совпадал по высоте с соседними и не «жил» симметричными отступами. */
 .meme-stage {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
-  gap: var(--s-3);
-  padding: var(--s-3) 0 var(--s-2);
+  gap: var(--s-4);
 }
 
 /* Круглая «магическая» кнопка с переливающимся градиентом и пульсацией. */
