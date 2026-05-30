@@ -885,6 +885,14 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .edit-form .text-input, .edit-form .select { font-size: var(--fs-sm); }
 /* Однострочные поля (персоны, срок) и селект — компактная высота. */
 .edit-form input.text-input, .edit-form .select { height: var(--control-h-sm); }
+/* Поле даты (срок): на iOS Safari у input[type=date] есть «своя» ширина и
+   нативный контрол справа — без сброса appearance и min-width оно вылезает
+   за правую границу карточки. */
+.edit-form input[type="date"].text-input {
+  appearance: none; -webkit-appearance: none;
+  min-width: 0; max-width: 100%;
+}
+.edit-form input[type="date"].text-input::-webkit-date-and-time-value { text-align: left; }
 /* Многострочные поля (название, описание, проекты, теги) — высота по rows. */
 .edit-form textarea.text-input { height: auto; padding: var(--s-2) var(--s-3); line-height: var(--lh-base); resize: vertical; }
 
