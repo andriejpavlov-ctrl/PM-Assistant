@@ -93,6 +93,37 @@
   --shadow-lg: 0 12px 40px rgba(20, 30, 40, 0.14);
 }
 
+/* ===== Тема «Стекло» (Liquid Glass) =====
+   Сдержанный вариант: тёмная стеклянная база, полупрозрачные поверхности
+   с размытием фона, тонкий световой кант по краям. Цветной фон-подложка
+   мягкая, без перегруза. Палитра наследует тёмную тему. */
+[data-theme="glass"] {
+  --bg: #0a0c12;
+  --bg-elev: rgba(30, 34, 44, 0.55);
+  --bg-elev-2: rgba(42, 48, 60, 0.5);
+  --bg-input: rgba(16, 20, 28, 0.55);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #f1f3f8;
+  --text-2: #c4cad6;
+  --text-3: #8b93a4;
+  --accent: #4fd6c4;
+  --accent-hover: #74e6d7;
+  --accent-weak: rgba(79, 214, 196, 0.16);
+  --on-accent: #042823;
+  --danger: #fb8585;
+  --danger-weak: rgba(251, 133, 133, 0.18);
+  --warn: #fbc34a;
+  --warn-weak: rgba(251, 195, 74, 0.18);
+  --ok: #4fd6a0;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 50px rgba(0, 0, 0, 0.5);
+  /* Толщина стекла — общий кант для стеклянных поверхностей. */
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --glass-blur: saturate(150%) blur(18px);
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -104,6 +135,58 @@ html, body {
   line-height: var(--lh-base);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Цветная подложка под стеклом: мягкие тёплохолодные пятна, которые
+   «преломляются» размытием поверхностей. Фиксирована за контентом. */
+[data-theme="glass"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 50% at 18% 22%, rgba(79, 214, 196, 0.22), transparent 70%),
+    radial-gradient(38% 46% at 82% 18%, rgba(139, 122, 246, 0.2), transparent 70%),
+    radial-gradient(44% 50% at 70% 88%, rgba(236, 122, 170, 0.16), transparent 72%);
+}
+
+/* Стеклянные поверхности: размытие фона + световой кант. */
+[data-theme="glass"] .home-block,
+[data-theme="glass"] .card,
+[data-theme="glass"] .answer,
+[data-theme="glass"] .meme-output,
+[data-theme="glass"] .modal-card,
+[data-theme="glass"] .dup-col {
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-sm), var(--glass-edge);
+}
+[data-theme="glass"] .topbar {
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-edge);
+}
+/* Контролы тоже из матового стекла. */
+[data-theme="glass"] .btn,
+[data-theme="glass"] .text-input,
+[data-theme="glass"] .find-input,
+[data-theme="glass"] .capture-input,
+[data-theme="glass"] .select,
+[data-theme="glass"] textarea,
+[data-theme="glass"] .filter-field,
+[data-theme="glass"] .reset-link,
+[data-theme="glass"] .chip {
+  -webkit-backdrop-filter: saturate(140%) blur(8px);
+  backdrop-filter: saturate(140%) blur(8px);
+}
+[data-theme="glass"] .btn-primary {
+  box-shadow: var(--glass-edge);
+}
+/* Чуть выразительнее «всплытие» карточек/блоков на наведении. */
+[data-theme="glass"] .home-block:hover,
+[data-theme="glass"] .card:hover {
+  box-shadow: var(--shadow-md), var(--glass-edge);
 }
 
 h1, h2, h3, p { margin: 0; }
