@@ -2177,14 +2177,18 @@ let captureDraft = null; // карточка-черновик после process
 const filters = { person: '', project: '', priority: '', dateRange: 'all', created: 'all' };
 let sortMode = 'default';
 
-// Короткие названия месяцев для отметки даты создания (DD/MMM/YYYY HH:MM).
-const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-/** Дата и время создания карточки в формате DD/MMM/YYYY HH:MM (локальное время). */
+// Дата/время создания в формате DD-MM-YYYY HH:MM (локальное время).
 function formatCreated(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
   const p = (n) => String(n).padStart(2, '0');
-  return `${p(d.getDate())}/${MONTHS_SHORT[d.getMonth()]}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+/** Срок (ISO YYYY-MM-DD) → DD-MM-YYYY. */
+function formatDeadline(iso) {
+  if (!iso) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso));
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : String(iso);
 }
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -2620,7 +2624,7 @@ function dupColumn(label, c) {
   if ((c.people || []).length) meta.push((c.people || []).join(', '));
   if ((c.projects || []).length) meta.push((c.projects || []).join(', '));
   if (c.priority && PRIORITY_NAME[c.priority]) meta.push(PRIORITY_NAME[c.priority]);
-  if (c.deadline) meta.push(c.deadline);
+  if (c.deadline) meta.push(`срок ${formatDeadline(c.deadline)}`);
   if (meta.length) col.appendChild(el('p', 'dup-meta', meta.join(' · ')));
   return col;
 }
@@ -2947,12 +2951,12 @@ function appendCardBody(li, c) {
   }
 }
 
-/** Левая часть подвала: приоритет + дата. */
+/** Левая часть подвала: приоритет + срок (иконка флажка, формат DD-MM-YYYY). */
 function buildFooterMeta(c) {
   const wrap = el('div', 'card-foot-meta');
   if (c.priority && PRIORITY_NAME[c.priority]) wrap.appendChild(badge(PRIORITY_NAME[c.priority], `badge-${c.priority}`));
   if (c.deadline) {
-    const due = metaItem('clock', c.deadline);
+    const due = metaItem('flag', formatDeadline(c.deadline));
     due.classList.add('card-due');
     if (c.deadline < todayISO()) due.classList.add('is-overdue');
     wrap.appendChild(due);
@@ -3341,6 +3345,7 @@ const ICONS = {
   person: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>',
   project: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
   tag: '<path d="M3 11.5V5a2 2 0 0 1 2-2h6.5L21 12.5 12.5 21z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 5l4 4"/>',
   trash: '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/>',
