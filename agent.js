@@ -30,7 +30,7 @@ async function callClaude(system, user, { maxTokens = 1500 } = {}) {
     throw new Error('Не задан API-ключ. Введите ключ Claude в настройках приложения.');
   }
 
-  const res = await fetch(API_URL, {
+  const payload = {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -45,7 +45,25 @@ async function callClaude(system, user, { maxTokens = 1500 } = {}) {
       system,
       messages: [{ role: 'user', content: user }],
     }),
-  });
+  };
+
+  // fetch() падает с TypeError «Failed to fetch» при сетевых проблемах: нет сети,
+  // CORS, или запрос к api.anthropic.com режет расширение/блокировщик/файрвол
+  // (частая причина именно на десктопе). Делаем одну повторную попытку и
+  // показываем понятное сообщение вместо загадочного «Failed to fetch».
+  let res;
+  try {
+    res = await fetch(API_URL, payload);
+  } catch (e1) {
+    try {
+      res = await fetch(API_URL, payload);
+    } catch (e2) {
+      throw new Error(
+        'Не удалось связаться с api.anthropic.com. Проверьте интернет и отключите ' +
+        'блокировщик рекламы/VPN/расширения для этой страницы — они часто режут запросы к API.'
+      );
+    }
+  }
 
   if (!res.ok) {
     let detail = '';
