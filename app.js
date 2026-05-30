@@ -657,7 +657,10 @@ function renderBoard() {
   const cards = sortAndFilter(store.getAll(), sortMode, filters);
   list.innerHTML = '';
   empty.hidden = cards.length > 0;
-  cards.forEach((c) => list.appendChild(buildCard(c)));
+  // Сборка во фрагмент и одна вставка в DOM — без лишних reflow на каждой карточке.
+  const frag = document.createDocumentFragment();
+  cards.forEach((c) => frag.appendChild(buildCard(c)));
+  list.appendChild(frag);
 }
 
 // ===== Построение карточки =====
@@ -856,7 +859,9 @@ function renderArchive() {
   $('#count-archive').textContent = cards.length;
   empty.hidden = cards.length > 0;
   $('#archive-clear').hidden = cards.length === 0;
-  cards.forEach((c) => list.appendChild(buildArchiveCard(c)));
+  const frag = document.createDocumentFragment();
+  cards.forEach((c) => frag.appendChild(buildArchiveCard(c)));
+  list.appendChild(frag);
 }
 function bindArchive() {
   $('#archive-clear').addEventListener('click', () => {
@@ -906,7 +911,9 @@ async function onSearch() {
     const { explanation, results } = await processQuery(question, store.getAll());
     status.hidden = true;
     renderAnswer(answerEl, explanation, results.length);
-    results.forEach((c) => resultsEl.appendChild(buildCard(c)));
+    const frag = document.createDocumentFragment();
+    results.forEach((c) => frag.appendChild(buildCard(c)));
+    resultsEl.appendChild(frag);
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
