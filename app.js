@@ -209,13 +209,21 @@ function switchTab(name) {
 }
 
 // ===== Тема =====
+// Три темы по кругу: тёмная → светлая → стекло (Liquid Glass) → тёмная.
+const THEMES = ['dark', 'light', 'glass'];
+const THEME_ICON = { dark: '☾', light: '☀', glass: '◗' };
+const THEME_TITLE = { dark: 'Тёмная тема', light: 'Светлая тема', glass: 'Стекло (Liquid Glass)' };
 function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  $('#theme-toggle').textContent = theme === 'dark' ? '☾' : '☀';
+  const t = THEMES.includes(theme) ? theme : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = $('#theme-toggle');
+  btn.textContent = THEME_ICON[t];
+  btn.title = `${THEME_TITLE[t]} — нажмите, чтобы сменить`;
 }
 function bindTheme() {
   $('#theme-toggle').addEventListener('click', () => {
-    const next = store.getSettings().theme === 'dark' ? 'light' : 'dark';
+    const cur = store.getSettings().theme;
+    const next = THEMES[(THEMES.indexOf(cur) + 1) % THEMES.length] || 'light';
     store.updateSettings({ theme: next });
     applyTheme(next);
   });
