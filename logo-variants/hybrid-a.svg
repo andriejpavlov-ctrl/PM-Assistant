@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Гибрид A — карточки со искрой, teal-изумруд">
+  <defs>
+    <linearGradient id="ga" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5ee3d3"/><stop offset="0.5" stop-color="#1bc7a8"/><stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7.5" fill="url(#ga)"/>
+  <rect width="32" height="32" rx="7.5" fill="#fff" opacity="0.10"/>
+  <!-- Две задних карточки (стопка) -->
+  <rect x="8.5" y="10" width="15" height="5" rx="2" fill="#fff" opacity="0.5"/>
+  <rect x="8.5" y="16.6" width="15" height="5" rx="2" fill="#fff" opacity="0.7"/>
+  <!-- Передняя карточка с «выколотой» искрой -->
+  <path d="M10.5 23.2 h11 a2 2 0 0 1 2 2 v1.6 a2 2 0 0 1 -2 2 h-11 a2 2 0 0 1 -2 -2 v-1.6 a2 2 0 0 1 2 -2 Z" fill="#fff"/>
+  <!-- Искра-акцент сверху справа -->
+  <path d="M24 4 C24 6.6 21.6 9 19 9 C21.6 9 24 11.4 24 14 C24 11.4 26.4 9 29 9 C26.4 9 24 6.6 24 4 Z" fill="#fff"/>
+</svg>
