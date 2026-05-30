@@ -954,6 +954,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   color: var(--text-2);
   white-space: pre-wrap;
 }
+/* Действия под сводкой (например, «Сохранить как карточку»). */
+.answer-actions { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
 
 /* Результаты поиска чуть отступают от карточки ответа */
 #search-results { margin-top: var(--s-3); }
@@ -1875,17 +1877,26 @@ const QUERY_SYSTEM = `Ты — поисковый ассистент дирек�
 Найди карточки, релевантные запросу, и отсортируй их по полезности для пользователя
 (учитывай совпадение по человеку/проекту/тексту, приоритет, дедлайн).
 
+Дополнительно подготовь КРАТКУЮ САММАРИЗОВАННУЮ СВОДКУ по найденным карточкам: свяжи их
+в 2–4 предложения, выдели главное — ключевые задачи, людей, проекты, сроки и на чём
+сфокусироваться. Пиши по делу, без воды, обобщай (а не перечисляй каждую карточку дословно).
+Если найдена одна карточка — кратко перескажи её. Если ничего не найдено — summary: "".
+
+Также придумай короткий заголовок этой сводки (summaryTitle) в форме действия/существительного,
+до ~7 слов — по нему пользователь сможет создать новую карточку-сводку.
+
 Верни ТОЛЬКО валидный JSON без markdown в формате:
-{"explanation":"короткое объяснение, как ты отфильтровал и отсортировал","resultIds":["id1","id2", ...]}
+{"explanation":"короткое объяснение, как ты отфильтровал и отсортировал","summary":"краткая связная сводка по найденным карточкам","summaryTitle":"короткий заголовок сводки","resultIds":["id1","id2", ...]}
 
 resultIds — id релевантных записей строго в порядке от самой релевантной к наименее.
-Если ничего не подходит — resultIds: [] и поясни это в explanation. Используй только переданные id, ничего не выдумывай.`;
+Если ничего не подходит — resultIds: [], summary: "" и поясни это в explanation. Используй только переданные id, ничего не выдумывай.`;
 
 /**
- * Находит, фильтрует и сортирует релевантные записи под запрос пользователя.
+ * Находит, фильтрует и сортирует релевантные записи под запрос пользователя,
+ * а также готовит краткую сводку по найденным карточкам.
  * @param {string} queryText
  * @param {Array<object>} allData  все записи из БД
- * @returns {Promise<{explanation: string, results: object[]}>}
+ * @returns {Promise<{explanation: string, summary: string, summaryTitle: string, results: object[]}>}
  */
 async function processQuery(queryText, allData) {
   // Компактная проекция карточек, чтобы не раздувать контекст лишними полями.
@@ -1901,7 +1912,7 @@ async function processQuery(queryText, allData) {
   }));
 
   const user = `Запрос: "${queryText}"\n\nКарточки (JSON):\n${JSON.stringify(compact)}`;
-  const text = await callClaude(QUERY_SYSTEM, user, { maxTokens: 1024 });
+  const text = await callClaude(QUERY_SYSTEM, user, { maxTokens: 1500 });
   const parsed = safeParseJSON(text);
 
   // Восстанавливаем полные записи в порядке, заданном моделью.
@@ -1910,7 +1921,12 @@ async function processQuery(queryText, allData) {
     .map((id) => byId.get(id))
     .filter(Boolean);
 
-  return { explanation: parsed.explanation || '', results };
+  return {
+    explanation: parsed.explanation || '',
+    summary: parsed.summary || '',
+    summaryTitle: parsed.summaryTitle || '',
+    results,
+  };
 }
 
 // ============================================================
@@ -3170,9 +3186,9 @@ async function onSearch() {
   btn.disabled = true;
   showStatus(status, 'Claude ищет…');
   try {
-    const { explanation, results } = await processQuery(question, store.getAll());
+    const { explanation, summary, summaryTitle, results } = await processQuery(question, store.getAll());
     status.hidden = true;
-    renderAnswer(answerEl, explanation, results.length);
+    renderAnswer(answerEl, { explanation, summary, summaryTitle, count: results.length });
     const frag = document.createDocumentFragment();
     results.forEach((c) => frag.appendChild(buildCard(c)));
     resultsEl.appendChild(frag);
@@ -3182,16 +3198,31 @@ async function onSearch() {
     btn.disabled = false;
   }
 }
-function renderAnswer(box, explanation, count) {
+function renderAnswer(box, info) {
+  const { explanation = '', summary = '', summaryTitle = '', count = 0 } = info;
   box.innerHTML = '';
-  const text = explanation || (count ? '' : 'Ничего не найдено по этому запросу.');
-  if (!text && !count) { box.hidden = true; return; }
+  if (!summary && !explanation && !count) { box.hidden = true; return; }
   const head = el('div', 'answer-head');
-  head.append(el('span', 'answer-icon', '✦'), el('span', 'answer-label', 'Ответ ассистента'));
+  head.append(el('span', 'answer-icon', '✦'), el('span', 'answer-label', summary ? 'Сводка' : 'Ответ ассистента'));
   if (count) head.appendChild(el('span', 'answer-count', `${count} ${plural(count, 'находка', 'находки', 'находок')}`));
   box.appendChild(head);
-  if (text) box.appendChild(el('p', 'answer-text', text));
+  const text = summary || explanation || 'Ничего не найдено по этому запросу.';
+  box.appendChild(el('p', 'answer-text', text));
+  // Кнопка «Сохранить как карточку» — только когда есть содержательная сводка.
+  if (summary && count) {
+    const actions = el('div', 'answer-actions');
+    const saveBtn = el('button', 'btn btn-primary btn-sm', 'Сохранить как карточку');
+    saveBtn.addEventListener('click', () => saveSummaryCard(summaryTitle, summary, saveBtn));
+    actions.appendChild(saveBtn);
+    box.appendChild(actions);
+  }
   box.hidden = false;
+}
+/** Создать новую карточку из саммаризованной сводки поиска. */
+function saveSummaryCard(title, summary, btn) {
+  const t = (title || '').trim() || 'Сводка по запросу';
+  store.createCard({ title: t, description: summary, tags: ['сводка'] });
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохранено ✓ — в разделе «Карточки»'; }
 }
 function plural(n, one, few, many) {
   const m10 = n % 10, m100 = n % 100;

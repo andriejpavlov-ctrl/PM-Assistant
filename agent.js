@@ -185,17 +185,26 @@ const QUERY_SYSTEM = `Ты — поисковый ассистент дирек�
 Найди карточки, релевантные запросу, и отсортируй их по полезности для пользователя
 (учитывай совпадение по человеку/проекту/тексту, приоритет, дедлайн).
 
+Дополнительно подготовь КРАТКУЮ САММАРИЗОВАННУЮ СВОДКУ по найденным карточкам: свяжи их
+в 2–4 предложения, выдели главное — ключевые задачи, людей, проекты, сроки и на чём
+сфокусироваться. Пиши по делу, без воды, обобщай (а не перечисляй каждую карточку дословно).
+Если найдена одна карточка — кратко перескажи её. Если ничего не найдено — summary: "".
+
+Также придумай короткий заголовок этой сводки (summaryTitle) в форме действия/существительного,
+до ~7 слов — по нему пользователь сможет создать новую карточку-сводку.
+
 Верни ТОЛЬКО валидный JSON без markdown в формате:
-{"explanation":"короткое объяснение, как ты отфильтровал и отсортировал","resultIds":["id1","id2", ...]}
+{"explanation":"короткое объяснение, как ты отфильтровал и отсортировал","summary":"краткая связная сводка по найденным карточкам","summaryTitle":"короткий заголовок сводки","resultIds":["id1","id2", ...]}
 
 resultIds — id релевантных записей строго в порядке от самой релевантной к наименее.
-Если ничего не подходит — resultIds: [] и поясни это в explanation. Используй только переданные id, ничего не выдумывай.`;
+Если ничего не подходит — resultIds: [], summary: "" и поясни это в explanation. Используй только переданные id, ничего не выдумывай.`;
 
 /**
- * Находит, фильтрует и сортирует релевантные записи под запрос пользователя.
+ * Находит, фильтрует и сортирует релевантные записи под запрос пользователя,
+ * а также готовит краткую сводку по найденным карточкам.
  * @param {string} queryText
  * @param {Array<object>} allData  все записи из БД
- * @returns {Promise<{explanation: string, results: object[]}>}
+ * @returns {Promise<{explanation: string, summary: string, summaryTitle: string, results: object[]}>}
  */
 export async function processQuery(queryText, allData) {
   // Компактная проекция карточек, чтобы не раздувать контекст лишними полями.
@@ -211,7 +220,7 @@ export async function processQuery(queryText, allData) {
   }));
 
   const user = `Запрос: "${queryText}"\n\nКарточки (JSON):\n${JSON.stringify(compact)}`;
-  const text = await callClaude(QUERY_SYSTEM, user, { maxTokens: 1024 });
+  const text = await callClaude(QUERY_SYSTEM, user, { maxTokens: 1500 });
   const parsed = safeParseJSON(text);
 
   // Восстанавливаем полные записи в порядке, заданном моделью.
@@ -220,7 +229,12 @@ export async function processQuery(queryText, allData) {
     .map((id) => byId.get(id))
     .filter(Boolean);
 
-  return { explanation: parsed.explanation || '', results };
+  return {
+    explanation: parsed.explanation || '',
+    summary: parsed.summary || '',
+    summaryTitle: parsed.summaryTitle || '',
+    results,
+  };
 }
 
 // ============================================================

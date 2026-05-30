@@ -1033,9 +1033,9 @@ async function onSearch() {
   btn.disabled = true;
   showStatus(status, 'Claude ищет…');
   try {
-    const { explanation, results } = await processQuery(question, store.getAll());
+    const { explanation, summary, summaryTitle, results } = await processQuery(question, store.getAll());
     status.hidden = true;
-    renderAnswer(answerEl, explanation, results.length);
+    renderAnswer(answerEl, { explanation, summary, summaryTitle, count: results.length });
     const frag = document.createDocumentFragment();
     results.forEach((c) => frag.appendChild(buildCard(c)));
     resultsEl.appendChild(frag);
@@ -1045,16 +1045,31 @@ async function onSearch() {
     btn.disabled = false;
   }
 }
-function renderAnswer(box, explanation, count) {
+function renderAnswer(box, info) {
+  const { explanation = '', summary = '', summaryTitle = '', count = 0 } = info;
   box.innerHTML = '';
-  const text = explanation || (count ? '' : 'Ничего не найдено по этому запросу.');
-  if (!text && !count) { box.hidden = true; return; }
+  if (!summary && !explanation && !count) { box.hidden = true; return; }
   const head = el('div', 'answer-head');
-  head.append(el('span', 'answer-icon', '✦'), el('span', 'answer-label', 'Ответ ассистента'));
+  head.append(el('span', 'answer-icon', '✦'), el('span', 'answer-label', summary ? 'Сводка' : 'Ответ ассистента'));
   if (count) head.appendChild(el('span', 'answer-count', `${count} ${plural(count, 'находка', 'находки', 'находок')}`));
   box.appendChild(head);
-  if (text) box.appendChild(el('p', 'answer-text', text));
+  const text = summary || explanation || 'Ничего не найдено по этому запросу.';
+  box.appendChild(el('p', 'answer-text', text));
+  // Кнопка «Сохранить как карточку» — только когда есть содержательная сводка.
+  if (summary && count) {
+    const actions = el('div', 'answer-actions');
+    const saveBtn = el('button', 'btn btn-primary btn-sm', 'Сохранить как карточку');
+    saveBtn.addEventListener('click', () => saveSummaryCard(summaryTitle, summary, saveBtn));
+    actions.appendChild(saveBtn);
+    box.appendChild(actions);
+  }
   box.hidden = false;
+}
+/** Создать новую карточку из саммаризованной сводки поиска. */
+function saveSummaryCard(title, summary, btn) {
+  const t = (title || '').trim() || 'Сводка по запросу';
+  store.createCard({ title: t, description: summary, tags: ['сводка'] });
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохранено ✓ — в разделе «Карточки»'; }
 }
 function plural(n, one, few, many) {
   const m10 = n % 10, m100 = n % 100;
