@@ -1848,7 +1848,7 @@ const CAPTURE_SINGLE_RULE = `\n\nВАЖНО: верни РОВНО ОДНУ ка
  * @param {string} rawText
  * @param {string[]} [knownPeople]  список известных коллег (полные имена) для объединения вариантов
  * @param {object} [opts]  { forceSingle } — заставить вернуть ровно одну карточку
- * @returns {Promise<object[]>} массив карточек-черновиков (1+) с полями title, description, people, projects, priority, deadline, tags, rawText
+ * @returns {Promise<object[]>} массив карточек-черновиков (1+)
  */
 async function processCapture(rawText, knownPeople = [], opts = {}) {
   const peopleHint = (knownPeople && knownPeople.length)
