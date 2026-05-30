@@ -742,6 +742,17 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .card.is-editing { border-color: var(--accent); box-shadow: var(--ring); }
 .card.is-archived { opacity: 0.8; }
 
+/* Карточка-сводка (создана из ответа ассистента): акцентная рамка + иконка. */
+.card.is-summary {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent), var(--shadow-sm);
+}
+.card.is-summary:hover { border-color: var(--accent-hover); }
+.card-title-row { display: flex; align-items: flex-start; gap: var(--s-2); }
+.card-title-row .card-title { flex: 1 1 auto; min-width: 0; margin-bottom: var(--s-2); }
+.summary-mark { flex: none; color: var(--accent); margin-top: 1px; }
+.summary-mark svg { width: 16px; height: 16px; }
+
 .card.is-clickable {
   cursor: pointer;
   display: flex;

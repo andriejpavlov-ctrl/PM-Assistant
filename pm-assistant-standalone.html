@@ -754,6 +754,17 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 .card.is-editing { border-color: var(--accent); box-shadow: var(--ring); }
 .card.is-archived { opacity: 0.8; }
 
+/* Карточка-сводка (создана из ответа ассистента): акцентная рамка + иконка. */
+.card.is-summary {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent), var(--shadow-sm);
+}
+.card.is-summary:hover { border-color: var(--accent-hover); }
+.card-title-row { display: flex; align-items: flex-start; gap: var(--s-2); }
+.card-title-row .card-title { flex: 1 1 auto; min-width: 0; margin-bottom: var(--s-2); }
+.summary-mark { flex: none; color: var(--accent); margin-top: 1px; }
+.summary-mark svg { width: 16px; height: 16px; }
+
 .card.is-clickable {
   cursor: pointer;
   display: flex;
@@ -2945,13 +2956,32 @@ function buildFieldLine(type, iconName, values) {
   return line;
 }
 
+// Карточка-сводка создаётся из ответа ассистента и помечается тегом «сводка».
+const SUMMARY_TAG = 'сводка';
+function isSummaryCard(c) {
+  return (c.tags || []).some((t) => normKey(t) === SUMMARY_TAG);
+}
+
 /**
  * Наполнить тело карточки сверху вниз:
  * заголовок → описание → персоны → проекты → теги → дата создания.
  * Приоритет и срок — в подвале (см. buildFooter), на уровне кнопок.
  */
 function appendCardBody(li, c) {
-  li.appendChild(el('p', 'card-title', c.title || '(без названия)'));
+  const summary = isSummaryCard(c);
+  if (summary) li.classList.add('is-summary');   // акцентная рамка вокруг карточки
+  const title = el('p', 'card-title', c.title || '(без названия)');
+  if (summary) {
+    // Иконка-сводка слева от названия (в отдельной flex-строке, чтобы не
+    // ломать многоточие-обрезку заголовка через -webkit-line-clamp).
+    const row = el('div', 'card-title-row');
+    const ic = icon('summary');
+    ic.classList.add('summary-mark');
+    row.append(ic, title);
+    li.appendChild(row);
+  } else {
+    li.appendChild(title);
+  }
   if (c.description) li.appendChild(el('p', 'card-body', c.description));
   const persons = buildFieldLine('person', 'person', c.people);
   if (persons) li.appendChild(persons);
@@ -3378,6 +3408,8 @@ const ICONS = {
   project: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+  // «Сводка»: лист с убывающими строками — узнаваемый знак краткого изложения.
+  summary: '<path d="M6 3h9l3 3v15a0 0 0 0 1 0 0H6a0 0 0 0 1 0 0V3z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   tag: '<path d="M3 11.5V5a2 2 0 0 1 2-2h6.5L21 12.5 12.5 21z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 5l4 4"/>',
   trash: '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/>',
