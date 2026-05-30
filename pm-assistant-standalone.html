@@ -3002,24 +3002,41 @@ function plural(n, one, few, many) {
 }
 
 // ===== Главная: The daily AI Meme =====
-let memeSpinTimer = null;
+const MEME_SPIN_MS = 3000;   // принудительная длительность анимации перед показом совета
+const MEME_PEAK = 12;        // пиковый множитель скорости орбиты
+let memeRaf = null;
 
-/** Пока ждём совет — раскручиваем орбиту по геометрической прогрессии. */
+/** Кривая скорости за время t∈[0,1]: разгон до пика к ~65% времени, затем
+ *  плавное торможение обратно к 1 — чтобы орбита «усиливалась и плавно
+ *  останавливалась» к моменту показа совета. */
+function memeSpeedAt(t) {
+  const PEAK_AT = 0.65;
+  if (t < PEAK_AT) {
+    const k = t / PEAK_AT;                  // 0→1: ускоряющийся разгон
+    return 1 + (MEME_PEAK - 1) * (k * k);
+  }
+  const k = (t - PEAK_AT) / (1 - PEAK_AT);  // 0→1
+  const eased = 1 - Math.pow(1 - k, 3);     // ease-out: мягкое торможение
+  return MEME_PEAK - (MEME_PEAK - 1) * eased;
+}
+
+/** Запускаем 3-секундный разгон-торможение орбиты через requestAnimationFrame. */
 function startMemeSpinup() {
   const orbit = document.querySelector('.meme-orbit');
   if (!orbit) return;
-  let speed = 1;
-  orbit.style.setProperty('--meme-speed', speed);
-  clearInterval(memeSpinTimer);
-  memeSpinTimer = setInterval(() => {
-    speed = Math.min(speed * 1.35, 14); // ×1.35 каждый шаг, потолок чтобы не «дрожало»
-    orbit.style.setProperty('--meme-speed', speed.toFixed(3));
-  }, 220);
+  cancelAnimationFrame(memeRaf);
+  const t0 = performance.now();
+  const tick = (now) => {
+    const t = Math.min((now - t0) / MEME_SPIN_MS, 1);
+    orbit.style.setProperty('--meme-speed', memeSpeedAt(t).toFixed(3));
+    memeRaf = t < 1 ? requestAnimationFrame(tick) : null;
+  };
+  memeRaf = requestAnimationFrame(tick);
 }
-/** Совет показан — плавно возвращаем обычную скорость. */
+/** Останавливаем разгон и возвращаем обычную скорость. */
 function stopMemeSpinup() {
-  clearInterval(memeSpinTimer);
-  memeSpinTimer = null;
+  cancelAnimationFrame(memeRaf);
+  memeRaf = null;
   const orbit = document.querySelector('.meme-orbit');
   if (orbit) orbit.style.setProperty('--meme-speed', 1);
 }
@@ -3037,8 +3054,11 @@ async function onMeme() {
   startMemeSpinup();
   out.hidden = true;
   showStatus(status, 'Призываю брутальную мудрость…');
+  // Совет показываем не раньше, чем отыграет вся 3-секундная анимация —
+  // даже если ИИ ответил мгновенно. Ошибку, наоборот, показываем сразу.
+  const spin = new Promise((resolve) => setTimeout(resolve, MEME_SPIN_MS));
   try {
-    const { hero, meme } = await generateMeme();
+    const [{ hero, meme }] = await Promise.all([generateMeme(), spin]);
     status.hidden = true;
     out.querySelector('.meme-text').textContent = meme || 'Сегодня муза молчит. Жми ещё.';
     out.querySelector('.meme-hero').textContent = hero ? `в стиле ${hero}` : '';
