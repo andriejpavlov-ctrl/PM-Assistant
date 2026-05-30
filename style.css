@@ -782,9 +782,14 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   max-height: 40px;   /* ровно две строки мета-элементов */
 }
 
+/* Дата и время создания — приглушённая строка под тегами. */
+.card-line--created { margin-top: var(--s-1); }
+.card-line--created .meta-tag { color: var(--text-3); }
+
 /* Свёрнутая карточка: фиксированная высота — все карточки строго одинаковы.
-   Состав: заголовок (1) + описание (2) + персоны/проекты/теги (по 1) + подвал. */
-.card.is-clickable:not(.is-expanded) { height: 216px; overflow: hidden; }
+   Состав: заголовок (1) + описание (2) + персоны/проекты/теги (по 1) +
+   дата создания (1) + подвал. */
+.card.is-clickable:not(.is-expanded) { height: 240px; overflow: hidden; }
 
 /* Раскрытая карточка подсвечена рамкой. */
 .card.is-expanded { border-color: var(--border-strong); }
