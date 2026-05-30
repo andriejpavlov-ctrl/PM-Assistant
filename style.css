@@ -470,7 +470,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   gap: var(--s-4);
 }
 
-/* Орбита: контейнер для диско-шара и крутящихся вокруг него аватаров. */
+/* Орбита: контейнер для диско-шара и крутящихся вокруг него аватаров.
+   Радиус орбиты задаётся переменной --orbit (используется в @keyframes). */
 .meme-orbit {
   position: relative;
   width: 200px;
@@ -478,41 +479,34 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   display: flex;
   align-items: center;
   justify-content: center;
+  --orbit: 84px;
 }
-/* Кольцо вращается; на нём по двум сторонам закреплены аватары. */
-.meme-orbit-ring {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  animation: meme-orbit 12s linear infinite;
-}
-/* Точка крепления на кольце: смещаем к краю орбиты от центра. */
-.meme-orbit-pos {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-}
-.meme-orbit-pos--1 { transform: translate(-50%, -50%) translateX(86px); }
-.meme-orbit-pos--2 { transform: translate(-50%, -50%) translateX(-86px); }
-/* Аватар — контр-вращается, чтобы лицо оставалось «вертикальным». */
+/* Аватар закреплён в центре орбиты и крутится по кругу. Одиночный приём
+   rotate→translate→rotate в одном keyframe — надёжно работает в iOS Safari
+   (без вложенных контейнеров нулевого размера, которые там «ломались»). */
 .meme-avatar {
   position: absolute;
   top: 50%;
   left: 50%;
   width: 42px;
   height: 42px;
-  margin: -21px 0 0 -21px;
+  margin: -21px 0 0 -21px;   /* центрируем точку вращения */
   border-radius: 50%;
   overflow: hidden;
+  pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--bg-elev);
-  animation: meme-orbit-counter 12s linear infinite;
+  animation: meme-orbit 12s linear infinite;
 }
 .meme-avatar svg { width: 100%; height: 100%; display: block; }
+/* Второй аватар — на противоположной стороне орбиты (сдвиг фазы на половину). */
+.meme-avatar--2 { animation-delay: -6s; }
 
-@keyframes meme-orbit { to { transform: rotate(360deg); } }
-@keyframes meme-orbit-counter { to { transform: rotate(-360deg); } }
+/* Полный оборот: на каждом шаге сначала поворот вокруг центра, затем вынос
+   на радиус, затем контр-поворот — чтобы лицо оставалось «вертикальным». */
+@keyframes meme-orbit {
+  from { transform: rotate(0deg) translateX(var(--orbit)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--orbit)) rotate(-360deg); }
+}
 
 /* Круглая «магическая» кнопка с переливающимся градиентом и пульсацией. */
 .meme-btn {
@@ -561,8 +555,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 @keyframes meme-sway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
 @keyframes meme-pulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.08); } }
 @media (prefers-reduced-motion: reduce) {
-  .meme-btn, .meme-btn-ic, .meme-btn-glow,
-  .meme-orbit-ring, .meme-avatar { animation: none; }
+  .meme-btn, .meme-btn-ic, .meme-btn-glow, .meme-avatar { animation: none; }
 }
 
 .meme-hint { color: var(--text-3); font-size: var(--fs-sm); max-width: 460px; margin: 0; }
