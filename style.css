@@ -948,12 +948,14 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   .topbar { flex-wrap: wrap; padding: var(--s-3); gap: var(--s-3); }
   .tabs { order: 3; width: 100%; margin-left: 0; }
   .tab { flex: 1; text-align: center; padding: var(--s-2) var(--s-1); }
-  .home-block { padding: var(--s-4); }
+  /* Блоки на Главной — одинаковая высота (выровнены друг под другом). */
+  .home-block { padding: var(--s-4); min-height: 360px; }
   /* Фильтры на мобильном — 2 ровные колонки, сортировка не прижимается вправо. */
   .filter-cell { flex: 1 1 calc(50% - var(--s-1)); }
   .filter-cell .filter-field { width: 100%; }
   .filter-field--sort { flex: 1 1 calc(50% - var(--s-1)); width: auto; margin-left: 0; }
-  .capture-input { min-height: 40vh; }
+  /* Поле ввода заполняет блок до общей высоты, без отдельного 40vh. */
+  .capture-input { min-height: 0; }
   /* Поиск на мобильном — поле на всю ширину, кнопка-стрелка компактная справа. */
   .find-bar { gap: var(--s-2); }
   .btn-icon { width: 48px; }
