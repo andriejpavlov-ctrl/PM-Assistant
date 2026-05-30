@@ -482,7 +482,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   gap: var(--s-4);
 }
 
-/* Орбита: контейнер для диско-шара и крутящихся вокруг него аватаров. */
+/* Орбита: контейнер для диско-шара и крутящихся вокруг него аватаров.
+   Радиус орбиты задаётся переменной --orbit (используется в @keyframes). */
 .meme-orbit {
   position: relative;
   width: 200px;
@@ -490,41 +491,34 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   display: flex;
   align-items: center;
   justify-content: center;
+  --orbit: 84px;
 }
-/* Кольцо вращается; на нём по двум сторонам закреплены аватары. */
-.meme-orbit-ring {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  animation: meme-orbit 12s linear infinite;
-}
-/* Точка крепления на кольце: смещаем к краю орбиты от центра. */
-.meme-orbit-pos {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-}
-.meme-orbit-pos--1 { transform: translate(-50%, -50%) translateX(86px); }
-.meme-orbit-pos--2 { transform: translate(-50%, -50%) translateX(-86px); }
-/* Аватар — контр-вращается, чтобы лицо оставалось «вертикальным». */
+/* Аватар закреплён в центре орбиты и крутится по кругу. Одиночный приём
+   rotate→translate→rotate в одном keyframe — надёжно работает в iOS Safari
+   (без вложенных контейнеров нулевого размера, которые там «ломались»). */
 .meme-avatar {
   position: absolute;
   top: 50%;
   left: 50%;
   width: 42px;
   height: 42px;
-  margin: -21px 0 0 -21px;
+  margin: -21px 0 0 -21px;   /* центрируем точку вращения */
   border-radius: 50%;
   overflow: hidden;
+  pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--bg-elev);
-  animation: meme-orbit-counter 12s linear infinite;
+  animation: meme-orbit 12s linear infinite;
 }
 .meme-avatar svg { width: 100%; height: 100%; display: block; }
+/* Второй аватар — на противоположной стороне орбиты (сдвиг фазы на половину). */
+.meme-avatar--2 { animation-delay: -6s; }
 
-@keyframes meme-orbit { to { transform: rotate(360deg); } }
-@keyframes meme-orbit-counter { to { transform: rotate(-360deg); } }
+/* Полный оборот: на каждом шаге сначала поворот вокруг центра, затем вынос
+   на радиус, затем контр-поворот — чтобы лицо оставалось «вертикальным». */
+@keyframes meme-orbit {
+  from { transform: rotate(0deg) translateX(var(--orbit)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--orbit)) rotate(-360deg); }
+}
 
 /* Круглая «магическая» кнопка с переливающимся градиентом и пульсацией. */
 .meme-btn {
@@ -573,8 +567,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 @keyframes meme-sway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
 @keyframes meme-pulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.08); } }
 @media (prefers-reduced-motion: reduce) {
-  .meme-btn, .meme-btn-ic, .meme-btn-glow,
-  .meme-orbit-ring, .meme-avatar { animation: none; }
+  .meme-btn, .meme-btn-ic, .meme-btn-glow, .meme-avatar { animation: none; }
 }
 
 .meme-hint { color: var(--text-3); font-size: var(--fs-sm); max-width: 460px; margin: 0; }
@@ -1104,33 +1097,31 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
               <span class="meme-btn-glow" aria-hidden="true"></span>
               <span class="meme-btn-ic" aria-hidden="true">🪩</span>
             </button>
-            <span class="meme-orbit-ring" aria-hidden="true">
-              <span class="meme-orbit-pos meme-orbit-pos--1"><span class="meme-avatar">
-                <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="18" cy="18" r="17" fill="#2a3340"/>
-                  <path d="M8 16 C8 27 12 32 18 32 C24 32 28 27 28 16 C25 21 21 23 18 23 C15 23 11 21 8 16 Z" fill="#4a3b30"/>
-                  <circle cx="18" cy="16" r="8.4" fill="#e8b48c"/>
-                  <path d="M9.6 14 C9.6 8 13 5 18 5 C23 5 26.4 8 26.4 14 C24 11 21 10.4 18 10.4 C15 10.4 12 11 9.6 14 Z" fill="#3a2f2a"/>
-                  <path d="M11 18 C12 26 15 29 18 29 C21 29 24 26 25 18 C23 21 20 22 18 22 C16 22 13 21 11 18 Z" fill="#3a2f2a"/>
-                  <rect x="12.8" y="14" width="4" height="1.4" rx="0.7" fill="#3a2f2a"/>
-                  <rect x="19.2" y="14" width="4" height="1.4" rx="0.7" fill="#3a2f2a"/>
-                  <circle cx="15" cy="16.6" r="1" fill="#1a1a1a"/>
-                  <circle cx="21" cy="16.6" r="1" fill="#1a1a1a"/>
-                </svg>
-              </span></span>
-              <span class="meme-orbit-pos meme-orbit-pos--2"><span class="meme-avatar">
-                <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="18" cy="18" r="17" fill="#2a3340"/>
-                  <circle cx="18" cy="17" r="9" fill="#e8b48c"/>
-                  <path d="M10 14 C11 8 14.5 6 18 6 C21.5 6 25 8 26 14 C23 12 21 11.5 18 11.5 C15 11.5 13 12 10 14 Z" fill="#edbf9a"/>
-                  <path d="M11 19 C12 25 15 28 18 28 C21 28 24 25 25 19 C23 21 20.5 22 18 22 C15.5 22 13 21 11 19 Z" fill="#9a7a63" opacity="0.5"/>
-                  <rect x="13.2" y="14.6" width="3.6" height="1.3" rx="0.6" fill="#5a4636"/>
-                  <rect x="19.2" y="14.6" width="3.6" height="1.3" rx="0.6" fill="#5a4636"/>
-                  <circle cx="15" cy="17" r="1" fill="#1a1a1a"/>
-                  <circle cx="21" cy="17" r="1" fill="#1a1a1a"/>
-                  <rect x="16.5" y="20.6" width="3" height="2.4" rx="1" fill="#5a4636" opacity="0.6"/>
-                </svg>
-              </span></span>
+            <span class="meme-avatar meme-avatar--1" aria-hidden="true">
+              <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="18" cy="18" r="17" fill="#2a3340"/>
+                <path d="M8 16 C8 27 12 32 18 32 C24 32 28 27 28 16 C25 21 21 23 18 23 C15 23 11 21 8 16 Z" fill="#4a3b30"/>
+                <circle cx="18" cy="16" r="8.4" fill="#e8b48c"/>
+                <path d="M9.6 14 C9.6 8 13 5 18 5 C23 5 26.4 8 26.4 14 C24 11 21 10.4 18 10.4 C15 10.4 12 11 9.6 14 Z" fill="#3a2f2a"/>
+                <path d="M11 18 C12 26 15 29 18 29 C21 29 24 26 25 18 C23 21 20 22 18 22 C16 22 13 21 11 18 Z" fill="#3a2f2a"/>
+                <rect x="12.8" y="14" width="4" height="1.4" rx="0.7" fill="#3a2f2a"/>
+                <rect x="19.2" y="14" width="4" height="1.4" rx="0.7" fill="#3a2f2a"/>
+                <circle cx="15" cy="16.6" r="1" fill="#1a1a1a"/>
+                <circle cx="21" cy="16.6" r="1" fill="#1a1a1a"/>
+              </svg>
+            </span>
+            <span class="meme-avatar meme-avatar--2" aria-hidden="true">
+              <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="18" cy="18" r="17" fill="#2a3340"/>
+                <circle cx="18" cy="17" r="9" fill="#e8b48c"/>
+                <path d="M10 14 C11 8 14.5 6 18 6 C21.5 6 25 8 26 14 C23 12 21 11.5 18 11.5 C15 11.5 13 12 10 14 Z" fill="#edbf9a"/>
+                <path d="M11 19 C12 25 15 28 18 28 C21 28 24 25 25 19 C23 21 20.5 22 18 22 C15.5 22 13 21 11 19 Z" fill="#9a7a63" opacity="0.5"/>
+                <rect x="13.2" y="14.6" width="3.6" height="1.3" rx="0.6" fill="#5a4636"/>
+                <rect x="19.2" y="14.6" width="3.6" height="1.3" rx="0.6" fill="#5a4636"/>
+                <circle cx="15" cy="17" r="1" fill="#1a1a1a"/>
+                <circle cx="21" cy="17" r="1" fill="#1a1a1a"/>
+                <rect x="16.5" y="20.6" width="3" height="2.4" rx="1" fill="#5a4636" opacity="0.6"/>
+              </svg>
             </span>
           </div>
           <div id="meme-status" class="status-line" hidden></div>
