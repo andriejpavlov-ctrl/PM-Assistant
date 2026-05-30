@@ -2481,7 +2481,7 @@ function renderSplitPrompt(raw, drafts) {
   footer.className = 'card-footer dup-actions';
 
   const splitBtn = el('button', 'btn btn-primary btn-sm', `Создать ${drafts.length} ${plural(drafts.length, 'карточку', 'карточки', 'карточек')}`);
-  splitBtn.addEventListener('click', () => saveSplitDrafts(drafts));
+  splitBtn.addEventListener('click', () => startSplitPeopleResolution(drafts));
 
   const oneBtn = el('button', 'btn btn-ghost btn-sm', 'Оставить одной заметкой');
   oneBtn.addEventListener('click', () => keepAsSingle(raw));
@@ -2498,7 +2498,7 @@ function renderSplitPrompt(raw, drafts) {
   box.appendChild(card);
 }
 
-/** Создать сразу все карточки из разбиения (имена уже канонизированы в normalizeDraft). */
+/** Создать сразу все карточки из разбиения (имена уже уточнены и канонизированы). */
 function saveSplitDrafts(drafts) {
   drafts.forEach((d) => store.createCard(d));
   captureDraft = null;
@@ -2506,6 +2506,37 @@ function saveSplitDrafts(drafts) {
   $('#capture-input').value = '';
   const n = drafts.length;
   showStatus($('#capture-status'), `Создано ${n} ${plural(n, 'карточка', 'карточки', 'карточек')} ✓ — смотрите в разделе «Карточки».`);
+}
+
+/**
+ * Уточнение ФИО для НЕСКОЛЬКИХ карточек разом: собираем недостающие имена/фамилии
+ * по всем черновикам (по разу на уникальное имя), затем сохраняем все карточки.
+ */
+function startSplitPeopleResolution(drafts) {
+  const known = knownFullNames();
+  const pending = [];
+  const seen = new Set();
+  drafts.forEach((draft) => {
+    (draft.people || []).forEach((name) => {
+      const key = normKey(name);
+      if (!name || seen.has(key)) return;
+      seen.add(key);
+      if (isFullName(name)) return; // обе части уже есть
+
+      const kind = classifyToken(name); // 'name' → не хватает фамилии; 'surname' → имени
+      // Однозначное совпадение с известным коллегой — подставляем во все черновики.
+      const matches = kind === 'surname'
+        ? [...new Set(known.filter((f) => normKey(lastToken(f)) === key))]
+        : [...new Set(known.filter((f) => normKey(firstToken(f)) === key))];
+      if (matches.length === 1) {
+        drafts.forEach((d) => setPersonName(d, name, matches[0]));
+        return;
+      }
+      pending.push({ original: name, token: name, kind, candidates: matches });
+    });
+  });
+  if (!pending.length) saveSplitDrafts(drafts);
+  else renderSurnamePrompt(drafts, pending, () => saveSplitDrafts(drafts));
 }
 
 /** Оставить весь текст одной карточкой: повторный разбор с принудительным склеиванием. */
@@ -2569,7 +2600,7 @@ function startPeopleResolution(draft) {
     pending.push({ original: name, token: name, kind, candidates: matches });
   });
   if (!pending.length) afterPeopleResolved();
-  else renderSurnamePrompt(draft, pending);
+  else renderSurnamePrompt(draft, pending, afterPeopleResolved);
 }
 
 /**
@@ -2682,8 +2713,14 @@ async function onMerge(existing) {
   }
 }
 
-/** Форма уточнения недостающей части имени (фамилия или имя). Можно пропустить. */
-function renderSurnamePrompt(draft, pending) {
+/**
+ * Форма уточнения недостающей части имени (фамилия или имя). Можно пропустить.
+ * @param {object[]} drafts  карточки-черновики, к которым применяем уточнения
+ * @param {object[]} pending список неуточнённых токенов
+ * @param {Function} onDone  что вызвать после «Сохранить»/«Пропустить»
+ */
+function renderSurnamePrompt(drafts, pending, onDone) {
+  const targets = Array.isArray(drafts) ? drafts : [drafts];
   const box = $('#capture-result');
   box.innerHTML = '';
 
@@ -2734,7 +2771,7 @@ function renderSurnamePrompt(draft, pending) {
   const footer = document.createElement('div');
   footer.className = 'card-footer';
   const skip = el('button', 'btn btn-ghost btn-sm', 'Пропустить');
-  skip.addEventListener('click', () => afterPeopleResolved());
+  skip.addEventListener('click', () => onDone());
   const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
   save.addEventListener('click', () => {
     rows.forEach(({ p, inp, needSurname }) => {
@@ -2743,9 +2780,10 @@ function renderSurnamePrompt(draft, pending) {
       const full = !extra
         ? p.token
         : (needSurname ? canonicalize(`${p.token} ${extra}`) : canonicalize(`${extra} ${p.token}`));
-      setPersonName(draft, p.original, full);
+      // Подставляем уточнённое имя во ВСЕ переданные черновики.
+      targets.forEach((d) => setPersonName(d, p.original, full));
     });
-    afterPeopleResolved();
+    onDone();
   });
   footer.append(skip, save);
 
