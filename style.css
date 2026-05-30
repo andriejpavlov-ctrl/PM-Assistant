@@ -847,6 +847,8 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 
 /* Экран «похожая карточка уже есть»: две колонки сравнения + кнопки выбора. */
 .dup-compare { display: flex; gap: var(--s-3); margin: var(--s-3) 0; }
+/* Превью карточек при предложении разбить текст на несколько — столбиком. */
+.split-cards { display: flex; flex-direction: column; gap: var(--s-3); margin: var(--s-3) 0; }
 .dup-col {
   flex: 1 1 0; min-width: 0;
   background: var(--bg-elev);
