@@ -510,7 +510,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
   to   { transform: rotate(360deg) translateX(var(--orbit)) rotate(-360deg); }
 }
 
-/* Круглая «магическая» кнопка с переливающimся градиентом и пульсацией. */
+/* Круглая «магическая» кнопка с переливающимся градиентом и пульсацией. */
 .meme-btn {
   position: relative;
   flex: none;
