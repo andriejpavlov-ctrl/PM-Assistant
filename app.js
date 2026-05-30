@@ -256,20 +256,92 @@ async function onParse() {
 
   const btn = $('#parse-btn');
   const status = $('#capture-status');
+  $('#capture-result').innerHTML = '';
   btn.disabled = true;
   showStatus(status, 'Claude обрабатывает…');
 
   try {
-    const result = await processCapture(raw, knownFullNames());
-    captureDraft = normalizeDraft(result);
+    const cards = await processCapture(raw, knownFullNames());
+    const drafts = cards.map(normalizeDraft).filter(Boolean);
     status.hidden = true;
-    if (captureDraft) startPeopleResolution(captureDraft);
-    else showStatus(status, 'Не удалось разобрать — попробуйте переформулировать.');
+    if (!drafts.length) {
+      showStatus(status, 'Не удалось разобрать — попробуйте переформулировать.');
+    } else if (drafts.length === 1) {
+      captureDraft = drafts[0];
+      startPeopleResolution(captureDraft);
+    } else {
+      // ИИ увидел несколько не связанных между собой заметок — предлагаем разделить.
+      renderSplitPrompt(raw, drafts);
+    }
   } catch (e) {
     showStatus(status, e.message, true);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Создать';
+  }
+}
+
+/**
+ * Экран-предложение: вставленный текст содержит несколько не связанных заметок.
+ * Пользователь может создать все карточки сразу или оставить всё одной заметкой.
+ */
+function renderSplitPrompt(raw, drafts) {
+  const box = $('#capture-result');
+  box.innerHTML = '';
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.appendChild(el('p', 'card-title', `Похоже, здесь несколько разных заметок (${drafts.length})`));
+  card.appendChild(el('p', 'card-body', 'Я разделил текст по смыслу. Можно создать карточки по отдельности или оставить всё одной заметкой.'));
+
+  const list = el('div', 'split-cards');
+  drafts.forEach((d, i) => list.appendChild(dupColumn(`Карточка ${i + 1}`, d)));
+  card.appendChild(list);
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer dup-actions';
+
+  const splitBtn = el('button', 'btn btn-primary btn-sm', `Создать ${drafts.length} ${plural(drafts.length, 'карточку', 'карточки', 'карточек')}`);
+  splitBtn.addEventListener('click', () => saveSplitDrafts(drafts));
+
+  const oneBtn = el('button', 'btn btn-ghost btn-sm', 'Оставить одной заметкой');
+  oneBtn.addEventListener('click', () => keepAsSingle(raw));
+
+  const discard = el('button', 'btn btn-ghost btn-sm', 'Отмена');
+  discard.addEventListener('click', () => {
+    captureDraft = null;
+    box.innerHTML = '';
+    showStatus($('#capture-status'), 'Создание отменено.');
+  });
+
+  footer.append(splitBtn, oneBtn, discard);
+  card.appendChild(footer);
+  box.appendChild(card);
+}
+
+/** Создать сразу все карточки из разбиения (имена уже канонизированы в normalizeDraft). */
+function saveSplitDrafts(drafts) {
+  drafts.forEach((d) => store.createCard(d));
+  captureDraft = null;
+  $('#capture-result').innerHTML = '';
+  $('#capture-input').value = '';
+  const n = drafts.length;
+  showStatus($('#capture-status'), `Создано ${n} ${plural(n, 'карточка', 'карточки', 'карточек')} ✓ — смотрите в разделе «Карточки».`);
+}
+
+/** Оставить весь текст одной карточкой: повторный разбор с принудительным склеиванием. */
+async function keepAsSingle(raw) {
+  const status = $('#capture-status');
+  $('#capture-result').innerHTML = '';
+  showStatus(status, 'Собираю в одну карточку…');
+  try {
+    const cards = await processCapture(raw, knownFullNames(), { forceSingle: true });
+    captureDraft = normalizeDraft(cards[0]);
+    status.hidden = true;
+    if (captureDraft) startPeopleResolution(captureDraft);
+    else showStatus(status, 'Не удалось разобрать — попробуйте переформулировать.');
+  } catch (e) {
+    showStatus(status, e.message, true);
   }
 }
 
