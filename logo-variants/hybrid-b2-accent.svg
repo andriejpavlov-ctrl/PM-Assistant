@@ -1,0 +1,28 @@
+<svg width="512" height="512" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PM Assistant — карточка с искрой и акцентом">
+  <defs>
+    <linearGradient id="bg2" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5ee3d3"/><stop offset="0.5" stop-color="#14b8a6"/><stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+    <filter id="soft2" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0.8" stdDeviation="0.8" flood-color="#04372b" flood-opacity="0.32"/>
+    </filter>
+    <mask id="cardCut2">
+      <rect x="6.5" y="9.5" width="15" height="20" rx="3.4" fill="#fff"/>
+      <path d="M14 13.5 C14 16.5 11.3 19.2 8.3 19.2 C11.3 19.2 14 21.9 14 24.9 C14 21.9 16.7 19.2 19.7 19.2 C16.7 19.2 14 16.5 14 13.5 Z" fill="#000"/>
+    </mask>
+  </defs>
+
+  <rect width="32" height="32" rx="8" fill="url(#bg2)"/>
+  <rect width="32" height="32" rx="8" fill="#fff" opacity="0.12"/>
+
+  <!-- Задняя карточка -->
+  <rect x="10.5" y="6" width="13.5" height="20" rx="3.2" fill="#fff" opacity="0.4"/>
+
+  <!-- Передняя карточка с вырезом-искрой -->
+  <g filter="url(#soft2)">
+    <rect x="6.5" y="9.5" width="15" height="20" rx="3.4" fill="#fff" mask="url(#cardCut2)"/>
+  </g>
+
+  <!-- Маленькая искра-акцент (AI-энергия) в свободном верхнем углу -->
+  <path d="M24 5 C24 7.2 22.2 9 20 9 C22.2 9 24 10.8 24 13 C24 10.8 25.8 9 28 9 C25.8 9 24 7.2 24 5 Z" fill="#fff"/>
+</svg>
