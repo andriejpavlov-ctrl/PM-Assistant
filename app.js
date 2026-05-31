@@ -641,16 +641,23 @@ function renderProjectPrompt(drafts, pending, onDone) {
   const skip = el('button', 'btn btn-ghost btn-sm', 'Оставить как есть');
   skip.addEventListener('click', () => onDone());
   const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
-  save.addEventListener('click', () => {
+  const commit = () => {
     rows.forEach(({ p, inp }) => {
       targets.forEach((d) => setProjectName(d, p.original, inp.value.trim()));
     });
     onDone();
-  });
+  };
+  save.addEventListener('click', commit);
+  // Enter в любом поле = «Сохранить» (datalist-подсказки выбираются стрелками без Enter).
+  rows.forEach(({ inp }) => inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+  }));
   footer.append(skip, save);
 
   card.append(form, footer);
   box.appendChild(card);
+  // Фокус в первое поле, чтобы можно было сразу печатать/нажать Enter.
+  if (rows[0]) rows[0].inp.focus();
 }
 
 /**
@@ -851,7 +858,7 @@ function renderSurnamePrompt(drafts, pending, onDone) {
   const skip = el('button', 'btn btn-ghost btn-sm', 'Пропустить');
   skip.addEventListener('click', () => onDone());
   const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
-  save.addEventListener('click', () => {
+  const commit = () => {
     rows.forEach(({ p, inp, needSurname }) => {
       const extra = inp.value.trim();
       // needSurname: «Имя Фамилия»; иначе: «Имя Фамилия» = extra + токен-фамилия.
@@ -862,11 +869,18 @@ function renderSurnamePrompt(drafts, pending, onDone) {
       targets.forEach((d) => setPersonName(d, p.original, full));
     });
     onDone();
-  });
+  };
+  save.addEventListener('click', commit);
+  // Enter в любом поле = «Сохранить».
+  rows.forEach(({ inp }) => inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+  }));
   footer.append(skip, save);
 
   card.append(form, footer);
   box.appendChild(card);
+  // Фокус в первое поле — можно сразу печатать недостающую часть.
+  if (rows[0]) rows[0].inp.focus();
 }
 
 function renderCaptureResult() {
@@ -895,18 +909,23 @@ function bindBoard() {
   $('#filter-created').addEventListener('change', (e) => { filters.created = e.target.value; afterFilterChange(); });
   $('#sort-select').addEventListener('change', (e) => { sortMode = e.target.value; renderBoard(); });
   $$('.filter-clear').forEach((b) => b.addEventListener('click', () => clearOneFilter(b.dataset.clear)));
-  $('#filter-reset').addEventListener('click', () => {
-    filters.person = filters.project = filters.priority = '';
-    filters.dateRange = 'all';
-    filters.created = 'all';
-    sortMode = 'default';
-    $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
-    $('#filter-daterange').value = 'all';
-    $('#filter-created').value = 'all';
-    $('#sort-select').value = 'default';
-    populateFilters();
-    afterFilterChange();
-  });
+  $('#filter-reset').addEventListener('click', resetAllFilters);
+  const emptyReset = $('#cards-empty-reset');
+  if (emptyReset) emptyReset.addEventListener('click', resetAllFilters);
+}
+
+/** Сбросить все фильтры и сортировку к значениям по умолчанию. */
+function resetAllFilters() {
+  filters.person = filters.project = filters.priority = '';
+  filters.dateRange = 'all';
+  filters.created = 'all';
+  sortMode = 'default';
+  $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
+  $('#filter-daterange').value = 'all';
+  $('#filter-created').value = 'all';
+  $('#sort-select').value = 'default';
+  populateFilters();
+  afterFilterChange();
 }
 
 function hasActiveFilters() {
@@ -1053,9 +1072,24 @@ export function sortAndFilter(items, sortBy = 'default', f = {}) {
 function renderBoard() {
   const list = $('#cards-list');
   const empty = $('#cards-empty');
+  const emptyFiltered = $('#cards-empty-filtered');
+  const countEl = $('#cards-count');
+  const total = store.getAll().length;
   const cards = sortAndFilter(store.getAll(), sortMode, filters);
   list.innerHTML = '';
-  empty.hidden = cards.length > 0;
+  // Три состояния пустоты: совсем нет карточек / есть, но фильтры ничего не дали / есть результаты.
+  const filtered = hasActiveFilters();
+  if (empty) empty.hidden = !(cards.length === 0 && !filtered);
+  if (emptyFiltered) emptyFiltered.hidden = !(cards.length === 0 && filtered);
+  // Счётчик «Показано N из M» — только когда есть карточки и активны фильтры.
+  if (countEl) {
+    if (total > 0 && filtered) {
+      countEl.textContent = `Показано ${cards.length} из ${total}`;
+      countEl.hidden = false;
+    } else {
+      countEl.hidden = true;
+    }
+  }
   // Сборка во фрагмент и одна вставка в DOM — без лишних reflow на каждой карточке.
   const frag = document.createDocumentFragment();
   cards.forEach((c) => frag.appendChild(buildCard(c)));
@@ -1176,7 +1210,11 @@ function buildCard(c, opts = {}) {
     editBtn.addEventListener('click', () => { editingId = c.id; renderBoard(); });
     const del = iconBtn('trash', '');
     del.title = 'В архив';
-    del.addEventListener('click', () => { store.remove(c.id); renderBoard(); });
+    del.addEventListener('click', () => {
+      store.remove(c.id);
+      renderBoard();
+      showToast('Карточка в архиве', 'Отменить', () => { store.unarchive(c.id); renderBoard(); });
+    });
     buttons = [editBtn, del];
   }
   li.appendChild(buildFooter(c, buttons));
@@ -1549,10 +1587,46 @@ function iconBtn(name, label) {
   if (label) b.appendChild(document.createTextNode(label));
   return b;
 }
+// Тост с действием «Отменить»: появляется внизу, сам исчезает через ~6 секунд.
+let toastTimer = null;
+function showToast(msg, actionLabel, onAction) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = '';
+  toast.appendChild(el('span', 'toast-msg', msg));
+  if (actionLabel && onAction) {
+    const btn = el('button', 'toast-action', actionLabel);
+    btn.addEventListener('click', () => {
+      clearTimeout(toastTimer);
+      toast.classList.remove('is-visible');
+      onAction();
+    });
+    toast.appendChild(btn);
+  }
+  // Запускаем анимацию появления на следующий кадр (чтобы сработал transition).
+  requestAnimationFrame(() => toast.classList.add('is-visible'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 6000);
+}
+
+let statusHideTimer = null;
 function showStatus(elm, msg, isError = false) {
   elm.textContent = msg;
   elm.classList.toggle('is-error', isError);
   elm.hidden = false;
+  // Успешные сообщения сами гаснут через 5 секунд; ошибки остаются на экране.
+  clearTimeout(statusHideTimer);
+  if (!isError) {
+    statusHideTimer = setTimeout(() => {
+      // Прячем только если текст не сменился на новый (на случай быстрых действий).
+      if (elm.textContent === msg) elm.hidden = true;
+    }, 5000);
+  }
 }
 
 // Запускаем приложение только в браузере (в Node модуль импортируется для тестов).

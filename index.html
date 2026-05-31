@@ -9,7 +9,7 @@
   <title>PM Assistant</title>
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
-  <link rel="stylesheet" href="style.css?v=8" />
+  <link rel="stylesheet" href="style.css?v=9" />
 </head>
 <body>
   <header class="topbar">
@@ -183,8 +183,10 @@
         <button id="filter-reset" class="reset-link" disabled>Сбросить всё</button>
       </div>
 
+      <p id="cards-count" class="board-count" hidden></p>
       <ul id="cards-list" class="board-grid"></ul>
       <p id="cards-empty" class="empty-col" hidden>Пока пусто. Добавьте запись на Главной.</p>
+      <p id="cards-empty-filtered" class="empty-col" hidden>Ничего не найдено по выбранным фильтрам. <button type="button" id="cards-empty-reset" class="reset-link">Сбросить фильтры</button></p>
     </section>
 
     <!-- ВКЛАДКА: АРХИВ -->
@@ -388,6 +390,6 @@
   </div>
 
   <script src="config.js"></script>
-  <script type="module" src="app.js?v=8"></script>
+  <script type="module" src="app.js?v=9"></script>
 </body>
 </html>
