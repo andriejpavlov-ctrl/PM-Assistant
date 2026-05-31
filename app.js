@@ -11,7 +11,7 @@ const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
 const PRIORITY_RANK = { P1: 3, P2: 2, P3: 1, '': 0 };
 const PRIORITY_NAME = { P1: 'Высокий', P2: 'Средний', P3: 'Низкий' };
-const PRIORITY_LABEL = { P1: 'P1 • Высокий', P2: 'P2 • Средний', P3: 'P3 • Низкий', '': 'Без приоритета' };
+const PRIORITY_LABEL = { P1: 'P1 • Высокий', P2: 'P2 • Средний', P3: 'P3 • Низкий', '': 'Без приоритета' };
 
 // Уменьшительные → полная форма имени (детерминированная подстраховка к модели).
 const DIMINUTIVES = {
@@ -88,7 +88,7 @@ function setSyncStatus(msg, isError = false) {
 function schedulePush() {
   if (!sync.isConfigured(syncCfg())) return;
   pendingPush = true;
-  setSyncStatus('Сохранение в облако…');
+  setSyncStatus('Сохранение в облако…');
   clearTimeout(pushTimer);
   pushTimer = setTimeout(doPush, 700);
 }
@@ -118,7 +118,7 @@ async function doPull(opts = {}) {
   if (!sync.isConfigured(syncCfg())) return;
   if (opts.auto && pendingPush) return;
   try {
-    if (!opts.auto) setSyncStatus('Загрузка из облака…');
+    if (!opts.auto) setSyncStatus('Загрузка из облака…');
     const remote = await sync.pull(syncCfg());
     if (remote) {
       store.replaceCards(remote.cards);
@@ -319,7 +319,7 @@ function renderSplitPrompt(raw, drafts) {
   const card = document.createElement('div');
   card.className = 'card';
   card.appendChild(el('p', 'card-title', `Похоже, здесь несколько разных заметок (${drafts.length})`));
-  card.appendChild(el('p', 'card-body', 'Я разделил текст по смыслу. Можно создать карточки по отдельности или оставить всё одной заметкой.'));
+  card.appendChild(el('p', 'card-body', 'Я разделил текст по смыслу. Можно создать карточки по отдельности или оставить всё одной заметкой.'));
 
   const list = el('div', 'split-cards');
   drafts.forEach((d, i) => list.appendChild(dupColumn(`Карточка ${i + 1}`, d)));
@@ -353,7 +353,7 @@ function saveSplitDrafts(drafts) {
   $('#capture-result').innerHTML = '';
   $('#capture-input').value = '';
   const n = drafts.length;
-  showStatus($('#capture-status'), `Создано ${n} ${plural(n, 'карточка', 'карточки', 'карточек')} ✓ — смотрите в разделе «Карточки».`);
+  showStatus($('#capture-status'), `Создано ${n} ${plural(n, 'карточка', 'карточки', 'карточек')} ✓ — смотрите в разделе «Карточки».`);
 }
 
 /**
@@ -392,7 +392,7 @@ function startSplitPeopleResolution(drafts) {
 async function keepAsSingle(raw) {
   const status = $('#capture-status');
   $('#capture-result').innerHTML = '';
-  showStatus(status, 'Собираю в одну карточку…');
+  showStatus(status, 'Собираю в одну карточку…');
   try {
     const cards = await processCapture(raw, knownFullNames(), { forceSingle: true, knownProjects: knownProjects() });
     captureDraft = normalizeDraft(cards[0]);
@@ -606,7 +606,7 @@ function renderProjectPrompt(drafts, pending, onDone) {
     inp.placeholder = 'Название проекта';
     inp.setAttribute('list', 'known-projects');
     const labelText = p.kind === 'similar'
-      ? `«${p.original}» похоже на проект «${p.suggested}». Подставить его или оставить «${p.original}»?`
+      ? `«${p.original}» похоже на проект «${p.suggested}». Подставить его или оставить «${p.original}»?`
       : `«${p.original}» — это проект? Уточните название или очистите поле, если нет.`;
     const wrap = field(labelText, inp);
 
@@ -762,7 +762,7 @@ function renderDuplicatePrompt(existing, reason) {
 function dupColumn(label, c) {
   const col = el('div', 'dup-col');
   col.appendChild(el('span', 'dup-label', label));
-  col.appendChild(el('p', 'dup-title', c.title || '(без названия)'));
+  col.appendChild(el('p', 'dup-title', c.title || '(без названия)'));
   if (c.description) col.appendChild(el('p', 'dup-desc', c.description));
   const meta = [];
   if ((c.people || []).length) meta.push((c.people || []).join(', '));
@@ -792,7 +792,7 @@ async function onMerge(existing) {
     captureDraft = null;
     $('#capture-result').innerHTML = '';
     $('#capture-input').value = '';
-    showStatus(status, 'Объединено ✓ — смотрите в разделе «Карточки».');
+    showStatus(status, 'Объединено ✓ — смотрите в разделе «Карточки».');
   } catch (e) {
     showStatus(status, 'Не удалось объединить: ' + e.message, true);
   }
@@ -812,7 +812,7 @@ function renderSurnamePrompt(drafts, pending, onDone) {
   const card = document.createElement('div');
   card.className = 'card';
   card.appendChild(el('p', 'card-title', 'Уточните ФИО'));
-  card.appendChild(el('p', 'card-body', 'Добавьте недостающую часть, чтобы одна персона не превратилась в разные карточки. Можно пропустить.'));
+  card.appendChild(el('p', 'card-body', 'Добавьте недостающую часть, чтобы одна персона не превратилась в разные карточки. Можно пропустить.'));
 
   const form = document.createElement('div');
   form.className = 'edit-form';
@@ -897,7 +897,7 @@ function saveCaptureDraft() {
   captureDraft = null;
   $('#capture-result').innerHTML = '';
   $('#capture-input').value = '';
-  showStatus($('#capture-status'), 'Сохранено ✓ — смотрите в разделе «Карточки».');
+  showStatus($('#capture-status'), 'Сохранено ✓ — смотрите в разделе «Карточки».');
 }
 
 // ===== Карточки: фильтры и сортировка =====
@@ -1120,7 +1120,7 @@ function isSummaryCard(c) {
 function appendCardBody(li, c) {
   const summary = isSummaryCard(c);
   if (summary) li.classList.add('is-summary');   // акцентная рамка вокруг карточки
-  const title = el('p', 'card-title', c.title || '(без названия)');
+  const title = el('p', 'card-title', c.title || '(без названия)');
   if (summary) {
     // Иконка-сводка слева от названия (в отдельной flex-строке, чтобы не
     // ломать многоточие-обрезку заголовка через -webkit-line-clamp).
@@ -1209,11 +1209,11 @@ function buildCard(c, opts = {}) {
     editBtn.title = 'Дозаполнить';
     editBtn.addEventListener('click', () => { editingId = c.id; renderBoard(); });
     const del = iconBtn('trash', '');
-    del.title = 'В архив';
+    del.title = 'В архив';
     del.addEventListener('click', () => {
       store.remove(c.id);
       renderBoard();
-      showToast('Карточка в архиве', 'Отменить', () => { store.unarchive(c.id); renderBoard(); });
+      showToast('Карточка в архиве', 'Отменить', () => { store.unarchive(c.id); renderBoard(); });
     });
     buttons = [editBtn, del];
   }
@@ -1330,7 +1330,7 @@ function bindArchive() {
   $('#archive-clear').addEventListener('click', () => {
     const n = store.getArchived().length;
     if (!n) return;
-    if (confirm(`Удалить все карточки из архива (${n})? Это действие необратимо.`)) {
+    if (confirm(`Удалить все карточки из архива (${n})? Это действие необратимо.`)) {
       store.destroyArchived();
       renderArchive();
     }
@@ -1391,7 +1391,7 @@ function renderAnswer(box, info) {
   head.append(el('span', 'answer-icon', '✦'), el('span', 'answer-label', summary ? 'Сводка' : 'Ответ ассистента'));
   if (count) head.appendChild(el('span', 'answer-count', `${count} ${plural(count, 'находка', 'находки', 'находок')}`));
   box.appendChild(head);
-  const text = summary || explanation || 'Ничего не найдено по этому запросу.';
+  const text = summary || explanation || 'Ничего не найдено по этому запросу.';
   box.appendChild(el('p', 'answer-text', text));
   // Кнопка «Сохранить как карточку» — только когда есть содержательная сводка.
   if (summary && count) {
@@ -1405,9 +1405,9 @@ function renderAnswer(box, info) {
 }
 /** Создать новую карточку из саммаризованной сводки поиска. */
 function saveSummaryCard(title, summary, btn) {
-  const t = (title || '').trim() || 'Сводка по запросу';
+  const t = (title || '').trim() || 'Сводка по запросу';
   store.createCard({ title: t, description: summary, tags: ['сводка'] });
-  if (btn) { btn.disabled = true; btn.textContent = 'Сохранено ✓ — в разделе «Карточки»'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохранено ✓ — в разделе «Карточки»'; }
 }
 function plural(n, one, few, many) {
   const m10 = n % 10, m100 = n % 100;
@@ -1476,7 +1476,7 @@ async function onMeme() {
     const [{ hero, meme }] = await Promise.all([generateMeme(), spin]);
     status.hidden = true;
     out.querySelector('.meme-text').textContent = meme || 'Сегодня муза молчит. Жми ещё.';
-    out.querySelector('.meme-hero').textContent = hero ? `в стиле ${hero}` : '';
+    out.querySelector('.meme-hero').textContent = hero ? `в стиле ${hero}` : '';
     out.hidden = false;
   } catch (e) {
     showStatus(status, e.message, true);
@@ -1499,7 +1499,7 @@ function bindSettings() {
     $('#workspace-input').value = s.workspaceId || '';
     setSyncStatus(sync.isConfigured(syncCfg())
       ? 'Синхронизация включена.'
-      : 'Синхронизация выключена. Заполните URL и anon-ключ.');
+      : 'Синхронизация выключена. Заполните URL и anon-ключ.');
     modal.hidden = false;
   });
   $('#settings-close').addEventListener('click', () => (modal.hidden = true));
@@ -1524,7 +1524,7 @@ function bindSettings() {
       supabaseKey: $('#supabase-key-input').value.trim(),
       workspaceId: $('#workspace-input').value.trim(),
     });
-    if (!sync.isConfigured(syncCfg())) { setSyncStatus('Укажите Supabase URL и anon-ключ.', true); return; }
+    if (!sync.isConfigured(syncCfg())) { setSyncStatus('Укажите Supabase URL и anon-ключ.', true); return; }
     doPull();
   });
   $('#export-btn').addEventListener('click', exportData);

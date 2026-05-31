@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="PM Assistant — личный ИИ-ассистент менеджера продукта: превращает мысли в карточки, ищет по записям, проверяет дубли, синхронизирует между устройствами." />
+  <meta name="description" content="PM Assistant — личный ИИ-ассистент менеджера продукта: превращает мысли в карточки, ищет по записям, проверяет дубли, синхронизирует между устройствами." />
   <meta name="color-scheme" content="dark light" />
   <meta name="theme-color" content="#0d0e10" />
   <title>PM Assistant</title>
@@ -1108,7 +1108,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
         <div class="home-block-head">
           <span class="home-block-icon">🔍</span>
           <h2 class="home-block-title">Спросить ассистента</h2>
-          <span class="home-block-hint">Спросите по своим записям</span>
+          <span class="home-block-hint">Спросите по своим записям</span>
         </div>
         <div class="find-bar">
           <input id="search-input" class="find-input" type="text" placeholder="" />
@@ -1117,9 +1117,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
           </button>
         </div>
         <div class="find-suggestions">
-          <button class="chip suggestion">Что срочного на этой неделе?</button>
+          <button class="chip suggestion">Что срочного на этой неделе?</button>
           <button class="chip suggestion">Чем заняться сегодня?</button>
-          <button class="chip suggestion">Покажи всё по Имя Фамилия</button>
+          <button class="chip suggestion">Покажи всё по Имя Фамилия</button>
           <button class="chip suggestion">Просроченные задачи</button>
         </div>
         <div id="search-status" class="status-line" hidden></div>
@@ -1132,16 +1132,16 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
         <div class="home-block-head">
           <span class="home-block-icon">📝</span>
           <h2 class="home-block-title">Новая запись</h2>
-          <span class="home-block-hint">AI разберёт текст в карточку</span>
+          <span class="home-block-hint">AI разберёт текст в карточку</span>
         </div>
         <textarea
           id="capture-input"
           class="capture-input"
-          placeholder="Просто напишите, что у вас в голове 🧠
+          placeholder="Просто напишите, что у вас в голове 🧠
 
-Например: «Созвон с Наташей по бэклогу до пятницы» или «Подготовить отчёт по продажам»
+Например: «Созвон с Наташей по бэклогу до пятницы» или «Подготовить отчёт по продажам»
 
-Можно вставить сразу несколько заметок — если они про разное, ассистент предложит разбить их на отдельные карточки 🧩"
+Можно вставить сразу несколько заметок — если они про разное, ассистент предложит разбить их на отдельные карточки 🧩"
         ></textarea>
         <div class="capture-actions">
           <label class="switch" title="Перед сохранением проверять, нет ли похожей карточки">
@@ -1160,11 +1160,11 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
         <div class="home-block-head">
           <span class="home-block-icon">🃏</span>
           <h2 class="home-block-title">Хочешь совет? Жми!</h2>
-          <span class="home-block-hint">Брутальный совет дня для PM</span>
+          <span class="home-block-hint">Брутальный совет дня для PM</span>
         </div>
         <div class="meme-stage">
           <div class="meme-orbit">
-            <button id="meme-btn" class="meme-btn" type="button" aria-label="Получить совет" title="Нажми на кнопку и получи совет">
+            <button id="meme-btn" class="meme-btn" type="button" aria-label="Получить совет" title="Нажми на кнопку и получи совет">
               <span class="meme-btn-glow" aria-hidden="true"></span>
               <span class="meme-btn-ic" aria-hidden="true">🪩</span>
             </button>
@@ -1206,64 +1206,64 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 
     <!-- ВКЛАДКА: КАРТОЧКИ -->
     <section id="view-board" class="view" data-view="board" hidden>
-      <div class="filter-bar" role="toolbar" aria-label="Фильтры и сортировка">
+      <div class="filter-bar" role="toolbar" aria-label="Фильтры и сортировка">
         <span class="filter-cell">
-          <select id="filter-person" class="filter-field" aria-label="Фильтр по персонам"><option value="">Персоны</option></select>
-          <button type="button" class="filter-clear" data-clear="person" aria-label="Сбросить фильтр по персонам" hidden>✕</button>
+          <select id="filter-person" class="filter-field" aria-label="Фильтр по персонам"><option value="">Персоны</option></select>
+          <button type="button" class="filter-clear" data-clear="person" aria-label="Сбросить фильтр по персонам" hidden>✕</button>
         </span>
         <span class="filter-cell">
-          <select id="filter-project" class="filter-field" aria-label="Фильтр по проекту"><option value="">Проект</option></select>
-          <button type="button" class="filter-clear" data-clear="project" aria-label="Сбросить фильтр по проекту" hidden>✕</button>
+          <select id="filter-project" class="filter-field" aria-label="Фильтр по проекту"><option value="">Проект</option></select>
+          <button type="button" class="filter-clear" data-clear="project" aria-label="Сбросить фильтр по проекту" hidden>✕</button>
         </span>
         <span class="filter-cell">
-          <select id="filter-priority" class="filter-field" aria-label="Фильтр по приоритету">
+          <select id="filter-priority" class="filter-field" aria-label="Фильтр по приоритету">
             <option value="">Приоритет</option>
             <option value="P1">Высокий</option>
             <option value="P2">Средний</option>
             <option value="P3">Низкий</option>
           </select>
-          <button type="button" class="filter-clear" data-clear="priority" aria-label="Сбросить фильтр по приоритету" hidden>✕</button>
+          <button type="button" class="filter-clear" data-clear="priority" aria-label="Сбросить фильтр по приоритету" hidden>✕</button>
         </span>
         <span class="filter-cell">
-          <select id="filter-daterange" class="filter-field" aria-label="Фильтр по сроку">
+          <select id="filter-daterange" class="filter-field" aria-label="Фильтр по сроку">
             <option value="all">Срок</option>
             <option value="overdue">Просроченные</option>
             <option value="today">Сегодня</option>
             <option value="this_week">Эта неделя</option>
             <option value="this_month">Этот месяц</option>
           </select>
-          <button type="button" class="filter-clear" data-clear="daterange" aria-label="Сбросить фильтр по сроку" hidden>✕</button>
+          <button type="button" class="filter-clear" data-clear="daterange" aria-label="Сбросить фильтр по сроку" hidden>✕</button>
         </span>
         <span class="filter-cell">
-          <select id="filter-created" class="filter-field" aria-label="Фильтр по дате создания">
+          <select id="filter-created" class="filter-field" aria-label="Фильтр по дате создания">
             <option value="all">Дата создания</option>
             <option value="today">Создано сегодня</option>
-            <option value="this_week">Создано на этой неделе</option>
-            <option value="this_month">Создано в этом месяце</option>
+            <option value="this_week">Создано на этой неделе</option>
+            <option value="this_month">Создано в этом месяце</option>
             <option value="older">Создано раньше</option>
           </select>
-          <button type="button" class="filter-clear" data-clear="created" aria-label="Сбросить фильтр по дате создания" hidden>✕</button>
+          <button type="button" class="filter-clear" data-clear="created" aria-label="Сбросить фильтр по дате создания" hidden>✕</button>
         </span>
         <select id="sort-select" class="filter-field filter-field--sort" aria-label="Сортировка">
-          <option value="default">По умолчанию</option>
-          <option value="deadline">По сроку</option>
-          <option value="priority">По приоритету</option>
-          <option value="person">По персонам</option>
-          <option value="project">По проекту</option>
+          <option value="default">По умолчанию</option>
+          <option value="deadline">По сроку</option>
+          <option value="priority">По приоритету</option>
+          <option value="person">По персонам</option>
+          <option value="project">По проекту</option>
         </select>
         <button id="filter-reset" class="reset-link" disabled>Сбросить всё</button>
       </div>
 
       <p id="cards-count" class="board-count" hidden></p>
       <ul id="cards-list" class="board-grid"></ul>
-      <p id="cards-empty" class="empty-col" hidden>Пока пусто. Добавьте запись на Главной.</p>
-      <p id="cards-empty-filtered" class="empty-col" hidden>Ничего не найдено по выбранным фильтрам. <button type="button" id="cards-empty-reset" class="reset-link">Сбросить фильтры</button></p>
+      <p id="cards-empty" class="empty-col" hidden>Пока пусто. Добавьте запись на Главной.</p>
+      <p id="cards-empty-filtered" class="empty-col" hidden>Ничего не найдено по выбранным фильтрам. <button type="button" id="cards-empty-reset" class="reset-link">Сбросить фильтры</button></p>
     </section>
 
     <!-- ВКЛАДКА: АРХИВ -->
     <section id="view-archive" class="view" data-view="archive" hidden>
       <div class="archive-head">
-        <p class="hint">Карточки, удалённые из раздела «Карточки». Их можно вернуть или удалить навсегда.</p>
+        <p class="hint">Карточки, удалённые из раздела «Карточки». Их можно вернуть или удалить навсегда.</p>
         <div class="archive-head-actions">
           <span class="count" id="count-archive">0</span>
           <button id="archive-clear" class="btn btn-ghost btn-sm" hidden>Очистить архив</button>
@@ -1282,41 +1282,41 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
           <span class="home-block-hint">Возможности простым языком</span>
         </div>
         <p class="hint">PM Assistant — личный ассистент менеджера продукта. Он превращает разрозненные мысли,
-          задачи и договорённости в аккуратные карточки и помогает быстро находить нужное.
-          Ниже — задачи, которые он решает (в формате «Когда… → я хочу… → чтобы…»).</p>
+          задачи и договорённости в аккуратные карточки и помогает быстро находить нужное.
+          Ниже — задачи, которые он решает (в формате «Когда… → я хочу… → чтобы…»).</p>
 
         <ul class="help-grid">
           <li class="help-item">
             <span class="help-icon">📝</span>
             <div class="help-body">
-              <h3 class="help-title">Новая запись из обычного текста</h3>
-              <p class="help-jtbd"><b>Когда</b> мысль или задача возникает на ходу, <b>я хочу</b> записать её
-                обычным текстом, <b>чтобы</b> не отвлекаться на заполнение полей.</p>
-              <p class="help-desc">Пишете свободным текстом — ИИ сам разбирает его в структурированную карточку:
-                заголовок, описание, персоны, проекты, приоритет, срок и теги.</p>
+              <h3 class="help-title">Новая запись из обычного текста</h3>
+              <p class="help-jtbd"><b>Когда</b> мысль или задача возникает на ходу, <b>я хочу</b> записать её
+                обычным текстом, <b>чтобы</b> не отвлекаться на заполнение полей.</p>
+              <p class="help-desc">Пишете свободным текстом — ИИ сам разбирает его в структурированную карточку:
+                заголовок, описание, персоны, проекты, приоритет, срок и теги.</p>
             </div>
           </li>
 
           <li class="help-item">
             <span class="help-icon">🧩</span>
             <div class="help-body">
-              <h3 class="help-title">Разбивка на несколько карточек</h3>
-              <p class="help-jtbd"><b>Когда</b> я вставляю сразу несколько разных заметок, <b>я хочу</b>, чтобы
+              <h3 class="help-title">Разбивка на несколько карточек</h3>
+              <p class="help-jtbd"><b>Когда</b> я вставляю сразу несколько разных заметок, <b>я хочу</b>, чтобы
                 ассистент это заметил, <b>чтобы</b> каждое дело стало отдельной карточкой.</p>
-              <p class="help-desc">Если в тексте несколько не связанных дел — разные люди, проекты или сроки —
-                ассистент предложит разделить их на отдельные карточки (или оставить всё одной заметкой).</p>
+              <p class="help-desc">Если в тексте несколько не связанных дел — разные люди, проекты или сроки —
+                ассистент предложит разделить их на отдельные карточки (или оставить всё одной заметкой).</p>
             </div>
           </li>
 
           <li class="help-item">
             <span class="help-icon">🔁</span>
             <div class="help-body">
-              <h3 class="help-title">Проверка дублей и объединение</h3>
-              <p class="help-jtbd"><b>Когда</b> я завожу запись, похожую на уже существующую, <b>я хочу</b>
-                узнать об этом сразу, <b>чтобы</b> не плодить дубликаты.</p>
+              <h3 class="help-title">Проверка дублей и объединение</h3>
+              <p class="help-jtbd"><b>Когда</b> я завожу запись, похожую на уже существующую, <b>я хочу</b>
+                узнать об этом сразу, <b>чтобы</b> не плодить дубликаты.</p>
               <p class="help-desc">Перед сохранением ассистент ищет похожие карточки. Можно оставить обе,
-                объединить их в одну (ИИ соберёт общий контекст) или не добавлять. Проверку можно отключить
-                тумблером в блоке «Новая запись».</p>
+                объединить их в одну (ИИ соберёт общий контекст) или не добавлять. Проверку можно отключить
+                тумблером в блоке «Новая запись».</p>
             </div>
           </li>
 
@@ -1324,22 +1324,22 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
             <span class="help-icon">🔍</span>
             <div class="help-body">
               <h3 class="help-title">Спросить ассистента</h3>
-              <p class="help-jtbd"><b>Когда</b> мне нужно быстро понять, что важно, <b>я хочу</b> спросить
-                своими словами, <b>чтобы</b> получить ответ по своим записям.</p>
-              <p class="help-desc">Задайте вопрос на естественном языке («Что срочного на этой неделе?»,
-                «Покажи всё по Имя Фамилия») — ассистент найдёт подходящие карточки, покажет краткую сводку
-                сверху и предложит сохранить её отдельной карточкой.</p>
+              <p class="help-jtbd"><b>Когда</b> мне нужно быстро понять, что важно, <b>я хочу</b> спросить
+                своими словами, <b>чтобы</b> получить ответ по своим записям.</p>
+              <p class="help-desc">Задайте вопрос на естественном языке («Что срочного на этой неделе?»,
+                «Покажи всё по Имя Фамилия») — ассистент найдёт подходящие карточки, покажет краткую сводку
+                сверху и предложит сохранить её отдельной карточкой.</p>
             </div>
           </li>
 
           <li class="help-item">
             <span class="help-icon">🗂</span>
             <div class="help-body">
-              <h3 class="help-title">Карточки: фильтры и сортировка</h3>
-              <p class="help-jtbd"><b>Когда</b> задач много, <b>я хочу</b> отфильтровать их по человеку,
-                проекту, приоритету, сроку или дате создания, <b>чтобы</b> сосредоточиться на нужном.</p>
-              <p class="help-desc">Доска со всеми активными карточками. Фильтры по персонам, проекту,
-                приоритету, сроку (просроченные / сегодня / неделя / месяц) и дате создания, сортировка и сброс
+              <h3 class="help-title">Карточки: фильтры и сортировка</h3>
+              <p class="help-jtbd"><b>Когда</b> задач много, <b>я хочу</b> отфильтровать их по человеку,
+                проекту, приоритету, сроку или дате создания, <b>чтобы</b> сосредоточиться на нужном.</p>
+              <p class="help-desc">Доска со всеми активными карточками. Фильтры по персонам, проекту,
+                приоритету, сроку (просроченные / сегодня / неделя / месяц) и дате создания, сортировка и сброс
                 одного или всех фильтров сразу.</p>
             </div>
           </li>
@@ -1348,21 +1348,21 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
             <span class="help-icon">👤</span>
             <div class="help-body">
               <h3 class="help-title">Умное распознавание персон</h3>
-              <p class="help-jtbd"><b>Когда</b> я упоминаю человека коротко («Настя», «Иванов»), <b>я хочу</b>,
-                чтобы ассистент понял, о ком речь, <b>чтобы</b> записи об одном человеке не разъезжались.</p>
-              <p class="help-desc">Уменьшительные имена разворачиваются (Настя → Анастасия), а если не хватает
-                имени или фамилии — ассистент уточнит недостающее (в том числе при разбивке на несколько карточек).</p>
+              <p class="help-jtbd"><b>Когда</b> я упоминаю человека коротко («Настя», «Иванов»), <b>я хочу</b>,
+                чтобы ассистент понял, о ком речь, <b>чтобы</b> записи об одном человеке не разъезжались.</p>
+              <p class="help-desc">Уменьшительные имена разворачиваются (Настя → Анастасия), а если не хватает
+                имени или фамилии — ассистент уточнит недостающее (в том числе при разбивке на несколько карточек).</p>
             </div>
           </li>
 
           <li class="help-item">
             <span class="help-icon">⚡</span>
             <div class="help-body">
-              <h3 class="help-title">Приоритеты и сроки</h3>
-              <p class="help-jtbd"><b>Когда</b> дел много, <b>я хочу</b> видеть, что важнее и что горит,
+              <h3 class="help-title">Приоритеты и сроки</h3>
+              <p class="help-jtbd"><b>Когда</b> дел много, <b>я хочу</b> видеть, что важнее и что горит,
                 <b>чтобы</b> правильно расставлять фокус.</p>
-              <p class="help-desc">Три уровня приоритета (Высокий / Средний / Низкий) и срок выполнения
-                у каждой карточки — с подсветкой просроченных.</p>
+              <p class="help-desc">Три уровня приоритета (Высокий / Средний / Низкий) и срок выполнения
+                у каждой карточки — с подсветкой просроченных.</p>
             </div>
           </li>
 
@@ -1370,9 +1370,9 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
             <span class="help-icon">🗄</span>
             <div class="help-body">
               <h3 class="help-title">Архив</h3>
-              <p class="help-jtbd"><b>Когда</b> карточка больше не нужна, <b>я хочу</b> убрать её с глаз,
-                но не потерять, <b>чтобы</b> при необходимости вернуть.</p>
-              <p class="help-desc">Удалённые карточки попадают в архив — их можно вернуть, удалить навсегда
+              <p class="help-jtbd"><b>Когда</b> карточка больше не нужна, <b>я хочу</b> убрать её с глаз,
+                но не потерять, <b>чтобы</b> при необходимости вернуть.</p>
+              <p class="help-desc">Удалённые карточки попадают в архив — их можно вернуть, удалить навсегда
                 поштучно или очистить архив целиком.</p>
             </div>
           </li>
@@ -1381,10 +1381,10 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
             <span class="help-icon">☁️</span>
             <div class="help-body">
               <h3 class="help-title">Синхронизация между устройствами</h3>
-              <p class="help-jtbd"><b>Когда</b> я работаю с разных устройств, <b>я хочу</b> видеть одни
-                и те же карточки везде, <b>чтобы</b> не терять контекст.</p>
-              <p class="help-desc">Подключив Supabase в настройках, вы получаете доступ к своим карточкам
-                с компьютера и телефона — данные синхронизируются автоматически.</p>
+              <p class="help-jtbd"><b>Когда</b> я работаю с разных устройств, <b>я хочу</b> видеть одни
+                и те же карточки везде, <b>чтобы</b> не терять контекст.</p>
+              <p class="help-desc">Подключив Supabase в настройках, вы получаете доступ к своим карточкам
+                с компьютера и телефона — данные синхронизируются автоматически.</p>
             </div>
           </li>
 
@@ -1392,10 +1392,10 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
             <span class="help-icon">🪩</span>
             <div class="help-body">
               <h3 class="help-title">Хочешь совет? Жми!</h3>
-              <p class="help-jtbd"><b>Когда</b> хочется встряхнуться и взглянуть на работу под другим углом,
-                <b>я хочу</b> нажать одну кнопку, <b>чтобы</b> получить заряд бодрости и неочевидную мысль.</p>
-              <p class="help-desc">Нажмите на диско-шар на Главной — ассистент сгенерирует свежий
-                юмористический совет дня для продакт-менеджера. Каждый раз новый.</p>
+              <p class="help-jtbd"><b>Когда</b> хочется встряхнуться и взглянуть на работу под другим углом,
+                <b>я хочу</b> нажать одну кнопку, <b>чтобы</b> получить заряд бодрости и неочевидную мысль.</p>
+              <p class="help-desc">Нажмите на диско-шар на Главной — ассистент сгенерирует свежий
+                юмористический совет дня для продакт-менеджера. Каждый раз новый.</p>
             </div>
           </li>
 
@@ -1403,10 +1403,10 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
             <span class="help-icon">🎨</span>
             <div class="help-body">
               <h3 class="help-title">Темы оформления</h3>
-              <p class="help-jtbd"><b>Когда</b> я работаю в разное время суток и в разной обстановке, <b>я хочу</b>
+              <p class="help-jtbd"><b>Когда</b> я работаю в разное время суток и в разной обстановке, <b>я хочу</b>
                 переключать вид интерфейса, <b>чтобы</b> глазам было комфортно.</p>
-              <p class="help-desc">Три темы по кругу — тёмная, светлая и «Стекло» (Liquid Glass). Переключаются
-                одной кнопкой в шапке, выбор запоминается.</p>
+              <p class="help-desc">Три темы по кругу — тёмная, светлая и «Стекло» (Liquid Glass). Переключаются
+                одной кнопкой в шапке, выбор запоминается.</p>
             </div>
           </li>
 
@@ -1414,10 +1414,10 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
             <span class="help-icon">📤</span>
             <div class="help-body">
               <h3 class="help-title">Экспорт данных</h3>
-              <p class="help-jtbd"><b>Когда</b> мне нужна резервная копия или перенос, <b>я хочу</b> выгрузить
-                все карточки одним файлом, <b>чтобы</b> данные всегда оставались под рукой и под контролем.</p>
-              <p class="help-desc">В настройках — кнопка «Экспорт данных»: сохраняет все записи в JSON-файл.
-                Данные хранятся только у вас, в этом браузере.</p>
+              <p class="help-jtbd"><b>Когда</b> мне нужна резервная копия или перенос, <b>я хочу</b> выгрузить
+                все карточки одним файлом, <b>чтобы</b> данные всегда оставались под рукой и под контролем.</p>
+              <p class="help-desc">В настройках — кнопка «Экспорт данных»: сохраняет все записи в JSON-файл.
+                Данные хранятся только у вас, в этом браузере.</p>
             </div>
           </li>
         </ul>
@@ -1434,7 +1434,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
       </div>
       <label class="field-label" for="api-key-input">Claude API ключ</label>
       <input id="api-key-input" class="text-input" type="password" placeholder="sk-ant-..." autocomplete="off" />
-      <p class="hint">Хранится только в этом браузере (localStorage) и шлётся напрямую в api.anthropic.com.</p>
+      <p class="hint">Хранится только в этом браузере (localStorage) и шлётся напрямую в api.anthropic.com.</p>
 
       <label class="field-label" for="model-input">Модель</label>
       <input id="model-input" class="text-input" type="text" placeholder="claude-haiku-4-5-20251001" />
@@ -1447,7 +1447,7 @@ textarea:focus, .text-input:focus, .find-input:focus, .select:focus, .capture-in
 
       <label class="field-label" for="workspace-input">ID рабочей области</label>
       <input id="workspace-input" class="text-input" type="text" placeholder="default" autocomplete="off" />
-      <p class="hint">Синхронизирует карточки между устройствами. Введите одинаковые URL, ключ и ID рабочей области на всех устройствах. Ключи хранятся только в этом браузере.</p>
+      <p class="hint">Синхронизирует карточки между устройствами. Введите одинаковые URL, ключ и ID рабочей области на всех устройствах. Ключи хранятся только в этом браузере.</p>
       <div class="sync-row">
         <button id="sync-now" class="btn btn-ghost">Синхронизировать сейчас</button>
         <span id="sync-status" class="status-line" hidden></span>
@@ -2238,7 +2238,7 @@ const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
 const PRIORITY_RANK = { P1: 3, P2: 2, P3: 1, '': 0 };
 const PRIORITY_NAME = { P1: 'Высокий', P2: 'Средний', P3: 'Низкий' };
-const PRIORITY_LABEL = { P1: 'P1 • Высокий', P2: 'P2 • Средний', P3: 'P3 • Низкий', '': 'Без приоритета' };
+const PRIORITY_LABEL = { P1: 'P1 • Высокий', P2: 'P2 • Средний', P3: 'P3 • Низкий', '': 'Без приоритета' };
 
 // Уменьшительные → полная форма имени (детерминированная подстраховка к модели).
 const DIMINUTIVES = {
@@ -2315,7 +2315,7 @@ function setSyncStatus(msg, isError = false) {
 function schedulePush() {
   if (!sync.isConfigured(syncCfg())) return;
   pendingPush = true;
-  setSyncStatus('Сохранение в облако…');
+  setSyncStatus('Сохранение в облако…');
   clearTimeout(pushTimer);
   pushTimer = setTimeout(doPush, 700);
 }
@@ -2345,7 +2345,7 @@ async function doPull(opts = {}) {
   if (!sync.isConfigured(syncCfg())) return;
   if (opts.auto && pendingPush) return;
   try {
-    if (!opts.auto) setSyncStatus('Загрузка из облака…');
+    if (!opts.auto) setSyncStatus('Загрузка из облака…');
     const remote = await sync.pull(syncCfg());
     if (remote) {
       store.replaceCards(remote.cards);
@@ -2546,7 +2546,7 @@ function renderSplitPrompt(raw, drafts) {
   const card = document.createElement('div');
   card.className = 'card';
   card.appendChild(el('p', 'card-title', `Похоже, здесь несколько разных заметок (${drafts.length})`));
-  card.appendChild(el('p', 'card-body', 'Я разделил текст по смыслу. Можно создать карточки по отдельности или оставить всё одной заметкой.'));
+  card.appendChild(el('p', 'card-body', 'Я разделил текст по смыслу. Можно создать карточки по отдельности или оставить всё одной заметкой.'));
 
   const list = el('div', 'split-cards');
   drafts.forEach((d, i) => list.appendChild(dupColumn(`Карточка ${i + 1}`, d)));
@@ -2580,7 +2580,7 @@ function saveSplitDrafts(drafts) {
   $('#capture-result').innerHTML = '';
   $('#capture-input').value = '';
   const n = drafts.length;
-  showStatus($('#capture-status'), `Создано ${n} ${plural(n, 'карточка', 'карточки', 'карточек')} ✓ — смотрите в разделе «Карточки».`);
+  showStatus($('#capture-status'), `Создано ${n} ${plural(n, 'карточка', 'карточки', 'карточек')} ✓ — смотрите в разделе «Карточки».`);
 }
 
 /**
@@ -2619,7 +2619,7 @@ function startSplitPeopleResolution(drafts) {
 async function keepAsSingle(raw) {
   const status = $('#capture-status');
   $('#capture-result').innerHTML = '';
-  showStatus(status, 'Собираю в одну карточку…');
+  showStatus(status, 'Собираю в одну карточку…');
   try {
     const cards = await processCapture(raw, knownFullNames(), { forceSingle: true, knownProjects: knownProjects() });
     captureDraft = normalizeDraft(cards[0]);
@@ -2833,7 +2833,7 @@ function renderProjectPrompt(drafts, pending, onDone) {
     inp.placeholder = 'Название проекта';
     inp.setAttribute('list', 'known-projects');
     const labelText = p.kind === 'similar'
-      ? `«${p.original}» похоже на проект «${p.suggested}». Подставить его или оставить «${p.original}»?`
+      ? `«${p.original}» похоже на проект «${p.suggested}». Подставить его или оставить «${p.original}»?`
       : `«${p.original}» — это проект? Уточните название или очистите поле, если нет.`;
     const wrap = field(labelText, inp);
 
@@ -2989,7 +2989,7 @@ function renderDuplicatePrompt(existing, reason) {
 function dupColumn(label, c) {
   const col = el('div', 'dup-col');
   col.appendChild(el('span', 'dup-label', label));
-  col.appendChild(el('p', 'dup-title', c.title || '(без названия)'));
+  col.appendChild(el('p', 'dup-title', c.title || '(без названия)'));
   if (c.description) col.appendChild(el('p', 'dup-desc', c.description));
   const meta = [];
   if ((c.people || []).length) meta.push((c.people || []).join(', '));
@@ -3019,7 +3019,7 @@ async function onMerge(existing) {
     captureDraft = null;
     $('#capture-result').innerHTML = '';
     $('#capture-input').value = '';
-    showStatus(status, 'Объединено ✓ — смотрите в разделе «Карточки».');
+    showStatus(status, 'Объединено ✓ — смотрите в разделе «Карточки».');
   } catch (e) {
     showStatus(status, 'Не удалось объединить: ' + e.message, true);
   }
@@ -3039,7 +3039,7 @@ function renderSurnamePrompt(drafts, pending, onDone) {
   const card = document.createElement('div');
   card.className = 'card';
   card.appendChild(el('p', 'card-title', 'Уточните ФИО'));
-  card.appendChild(el('p', 'card-body', 'Добавьте недостающую часть, чтобы одна персона не превратилась в разные карточки. Можно пропустить.'));
+  card.appendChild(el('p', 'card-body', 'Добавьте недостающую часть, чтобы одна персона не превратилась в разные карточки. Можно пропустить.'));
 
   const form = document.createElement('div');
   form.className = 'edit-form';
@@ -3124,7 +3124,7 @@ function saveCaptureDraft() {
   captureDraft = null;
   $('#capture-result').innerHTML = '';
   $('#capture-input').value = '';
-  showStatus($('#capture-status'), 'Сохранено ✓ — смотрите в разделе «Карточки».');
+  showStatus($('#capture-status'), 'Сохранено ✓ — смотрите в разделе «Карточки».');
 }
 
 // ===== Карточки: фильтры и сортировка =====
@@ -3347,7 +3347,7 @@ function isSummaryCard(c) {
 function appendCardBody(li, c) {
   const summary = isSummaryCard(c);
   if (summary) li.classList.add('is-summary');   // акцентная рамка вокруг карточки
-  const title = el('p', 'card-title', c.title || '(без названия)');
+  const title = el('p', 'card-title', c.title || '(без названия)');
   if (summary) {
     // Иконка-сводка слева от названия (в отдельной flex-строке, чтобы не
     // ломать многоточие-обрезку заголовка через -webkit-line-clamp).
@@ -3436,11 +3436,11 @@ function buildCard(c, opts = {}) {
     editBtn.title = 'Дозаполнить';
     editBtn.addEventListener('click', () => { editingId = c.id; renderBoard(); });
     const del = iconBtn('trash', '');
-    del.title = 'В архив';
+    del.title = 'В архив';
     del.addEventListener('click', () => {
       store.remove(c.id);
       renderBoard();
-      showToast('Карточка в архиве', 'Отменить', () => { store.unarchive(c.id); renderBoard(); });
+      showToast('Карточка в архиве', 'Отменить', () => { store.unarchive(c.id); renderBoard(); });
     });
     buttons = [editBtn, del];
   }
@@ -3557,7 +3557,7 @@ function bindArchive() {
   $('#archive-clear').addEventListener('click', () => {
     const n = store.getArchived().length;
     if (!n) return;
-    if (confirm(`Удалить все карточки из архива (${n})? Это действие необратимо.`)) {
+    if (confirm(`Удалить все карточки из архива (${n})? Это действие необратимо.`)) {
       store.destroyArchived();
       renderArchive();
     }
@@ -3618,7 +3618,7 @@ function renderAnswer(box, info) {
   head.append(el('span', 'answer-icon', '✦'), el('span', 'answer-label', summary ? 'Сводка' : 'Ответ ассистента'));
   if (count) head.appendChild(el('span', 'answer-count', `${count} ${plural(count, 'находка', 'находки', 'находок')}`));
   box.appendChild(head);
-  const text = summary || explanation || 'Ничего не найдено по этому запросу.';
+  const text = summary || explanation || 'Ничего не найдено по этому запросу.';
   box.appendChild(el('p', 'answer-text', text));
   // Кнопка «Сохранить как карточку» — только когда есть содержательная сводка.
   if (summary && count) {
@@ -3632,9 +3632,9 @@ function renderAnswer(box, info) {
 }
 /** Создать новую карточку из саммаризованной сводки поиска. */
 function saveSummaryCard(title, summary, btn) {
-  const t = (title || '').trim() || 'Сводка по запросу';
+  const t = (title || '').trim() || 'Сводка по запросу';
   store.createCard({ title: t, description: summary, tags: ['сводка'] });
-  if (btn) { btn.disabled = true; btn.textContent = 'Сохранено ✓ — в разделе «Карточки»'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохранено ✓ — в разделе «Карточки»'; }
 }
 function plural(n, one, few, many) {
   const m10 = n % 10, m100 = n % 100;
@@ -3703,7 +3703,7 @@ async function onMeme() {
     const [{ hero, meme }] = await Promise.all([generateMeme(), spin]);
     status.hidden = true;
     out.querySelector('.meme-text').textContent = meme || 'Сегодня муза молчит. Жми ещё.';
-    out.querySelector('.meme-hero').textContent = hero ? `в стиле ${hero}` : '';
+    out.querySelector('.meme-hero').textContent = hero ? `в стиле ${hero}` : '';
     out.hidden = false;
   } catch (e) {
     showStatus(status, e.message, true);
@@ -3726,7 +3726,7 @@ function bindSettings() {
     $('#workspace-input').value = s.workspaceId || '';
     setSyncStatus(sync.isConfigured(syncCfg())
       ? 'Синхронизация включена.'
-      : 'Синхронизация выключена. Заполните URL и anon-ключ.');
+      : 'Синхронизация выключена. Заполните URL и anon-ключ.');
     modal.hidden = false;
   });
   $('#settings-close').addEventListener('click', () => (modal.hidden = true));
@@ -3751,7 +3751,7 @@ function bindSettings() {
       supabaseKey: $('#supabase-key-input').value.trim(),
       workspaceId: $('#workspace-input').value.trim(),
     });
-    if (!sync.isConfigured(syncCfg())) { setSyncStatus('Укажите Supabase URL и anon-ключ.', true); return; }
+    if (!sync.isConfigured(syncCfg())) { setSyncStatus('Укажите Supabase URL и anon-ключ.', true); return; }
     doPull();
   });
   $('#export-btn').addEventListener('click', exportData);
