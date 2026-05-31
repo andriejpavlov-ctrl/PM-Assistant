@@ -165,6 +165,19 @@ export function canonicalize(name) {
   for (let i = 1; i < parts.length; i++) parts[i] = cap(parts[i]);
   return parts.join(' ');
 }
+/** Названия проектов из всех карточек, включая архив (дедуп без учёта регистра). */
+function knownProjects() {
+  const seen = new Set();
+  const list = [];
+  store.getEverything().forEach((c) =>
+    (c.projects || []).forEach((p) => {
+      const name = String(p || '').trim();
+      const key = normKey(name);
+      if (name && !seen.has(key)) { seen.add(key); list.push(name); }
+    })
+  );
+  return list;
+}
 /** Полные имена (имя+фамилия) из всех карточек, включая архив, в канонической форме. */
 function knownFullNames() {
   const set = new Set();
@@ -275,7 +288,7 @@ async function onParse() {
   showStatus(status, 'Claude обрабатывает…');
 
   try {
-    const cards = await processCapture(raw, knownFullNames());
+    const cards = await processCapture(raw, knownFullNames(), { knownProjects: knownProjects() });
     const drafts = cards.map(normalizeDraft).filter(Boolean);
     status.hidden = true;
     if (!drafts.length) {
@@ -370,8 +383,9 @@ function startSplitPeopleResolution(drafts) {
       pending.push({ original: name, token: name, kind, candidates: matches });
     });
   });
-  if (!pending.length) saveSplitDrafts(drafts);
-  else renderSurnamePrompt(drafts, pending, () => saveSplitDrafts(drafts));
+  const done = () => resolveProjects(drafts, () => saveSplitDrafts(drafts));
+  if (!pending.length) done();
+  else renderSurnamePrompt(drafts, pending, done);
 }
 
 /** Оставить весь текст одной карточкой: повторный разбор с принудительным склеиванием. */
@@ -380,7 +394,7 @@ async function keepAsSingle(raw) {
   $('#capture-result').innerHTML = '';
   showStatus(status, 'Собираю в одну карточку…');
   try {
-    const cards = await processCapture(raw, knownFullNames(), { forceSingle: true });
+    const cards = await processCapture(raw, knownFullNames(), { forceSingle: true, knownProjects: knownProjects() });
     captureDraft = normalizeDraft(cards[0]);
     status.hidden = true;
     if (captureDraft) startPeopleResolution(captureDraft);
@@ -390,15 +404,29 @@ async function keepAsSingle(raw) {
   }
 }
 
-/** Привести ответ модели к черновику-карточке и канонизировать имена. */
+/** Привести ответ модели к черновику-карточке и канонизировать имена.
+ *  Проекты сохраняем как готовые строки (draft.projects) + сырьё с метаданными
+ *  (draft._projectMeta) для последующего уточнения — confidence/sameAs. */
 function normalizeDraft(result) {
   if (!result || typeof result !== 'object') return null;
+  const rawProjects = (Array.isArray(result.projects) ? result.projects : [result.projects]).filter(Boolean);
+  const meta = rawProjects.map((p) => {
+    if (p && typeof p === 'object') {
+      return {
+        name: String(p.name || '').trim(),
+        confidence: p.confidence === 'low' ? 'low' : 'high',
+        sameAs: p.sameAs ? String(p.sameAs).trim() : '',
+      };
+    }
+    return { name: String(p || '').trim(), confidence: 'high', sameAs: '' };
+  }).filter((m) => m.name);
   const d = {
     rawText: result.rawText || '',
     title: result.title || '',
     description: result.description || '',
     people: (Array.isArray(result.people) ? result.people : [result.people]).filter(Boolean).map(canonicalize),
-    projects: (Array.isArray(result.projects) ? result.projects : [result.projects]).filter(Boolean),
+    projects: meta.map((m) => m.name),
+    _projectMeta: meta,
     priority: ['P1', 'P2', 'P3'].includes(result.priority) ? result.priority : '',
     deadline: result.deadline || null,
     tags: Array.isArray(result.tags) ? result.tags : [],
@@ -410,6 +438,132 @@ function normalizeDraft(result) {
 /** Заменить имя во всех вхождениях draft.people (по точному совпадению). */
 function setPersonName(draft, original, full) {
   draft.people = (draft.people || []).map((p) => (p === original ? full : p));
+}
+
+/** Заменить/удалить проект во всех вхождениях draft.projects (пустое имя — удалить),
+ *  без дубликатов (без учёта регистра). */
+function setProjectName(draft, original, newName) {
+  const next = [];
+  const seen = new Set();
+  (draft.projects || []).forEach((p) => {
+    const v = (p === original) ? (newName || '').trim() : p;
+    if (!v) return;
+    const k = normKey(v);
+    if (!seen.has(k)) { seen.add(k); next.push(v); }
+  });
+  draft.projects = next;
+}
+
+/**
+ * Уточнение проектов перед сохранением (для одной карточки или для разбивки).
+ * Логика (см. _projectMeta из normalizeDraft):
+ *  1) точное совпадение с известным проектом → подставляем его молча;
+ *  2) похож на известный (sameAs) → спрашиваем, по умолчанию подставить существующий;
+ *  3) низкая уверенность («это проект?») → спрашиваем, можно изменить/очистить;
+ *  4) уверенный новый проект → оставляем как есть.
+ * @param {object[]} drafts  карточки-черновики
+ * @param {Function} onDone  что вызвать после уточнения
+ */
+function resolveProjects(drafts, onDone) {
+  const known = knownProjects();
+  const knownKey = new Map(known.map((k) => [normKey(k), k]));
+  const pending = [];
+  const seen = new Set();
+  drafts.forEach((draft) => {
+    (draft._projectMeta || []).forEach((m) => {
+      const key = normKey(m.name);
+      if (!m.name || seen.has(key)) return;
+      seen.add(key);
+      // 1) точное совпадение с известным — подставить молча (в каноническом написании).
+      if (knownKey.has(key)) {
+        const canonical = knownKey.get(key);
+        if (canonical !== m.name) drafts.forEach((d) => setProjectName(d, m.name, canonical));
+        return;
+      }
+      // 2) похож на известный — спросить (по умолчанию подставить существующий).
+      const sameKey = normKey(m.sameAs);
+      if (m.sameAs && knownKey.has(sameKey) && sameKey !== key) {
+        pending.push({ original: m.name, kind: 'similar', suggested: knownKey.get(sameKey), candidates: known });
+        return;
+      }
+      // 3) сомнение, проект ли это — спросить.
+      if (m.confidence === 'low') {
+        pending.push({ original: m.name, kind: 'doubt', suggested: m.name, candidates: known });
+        return;
+      }
+      // 4) уверенный новый проект — оставляем как есть.
+    });
+  });
+  if (!pending.length) onDone();
+  else renderProjectPrompt(drafts, pending, onDone);
+}
+
+/** Форма уточнения проектов. Поле ввода с предзаполнением + чипы существующих. */
+function renderProjectPrompt(drafts, pending, onDone) {
+  const targets = Array.isArray(drafts) ? drafts : [drafts];
+  const box = $('#capture-result');
+  box.innerHTML = '';
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.appendChild(el('p', 'card-title', 'Уточните проект'));
+  card.appendChild(el('p', 'card-body', 'Помогите не плодить разные названия одного проекта. Можно изменить название, выбрать существующее или очистить поле, если это не проект.'));
+
+  const form = el('div', 'edit-form');
+  const known = knownProjects();
+
+  const rows = pending.map((p) => {
+    const inp = document.createElement('input');
+    inp.className = 'text-input';
+    inp.value = p.suggested || '';
+    inp.placeholder = 'Название проекта';
+    inp.setAttribute('list', 'known-projects');
+    const labelText = p.kind === 'similar'
+      ? `«${p.original}» похоже на проект «${p.suggested}». Подставить его или оставить «${p.original}»?`
+      : `«${p.original}» — это проект? Уточните название или очистите поле, если нет.`;
+    const wrap = field(labelText, inp);
+
+    const picks = el('div', 'find-suggestions');
+    if (p.kind === 'similar') {
+      const keepNew = el('button', 'chip', `Оставить «${p.original}»`);
+      keepNew.addEventListener('click', () => (inp.value = p.original));
+      picks.appendChild(keepNew);
+    }
+    (p.candidates || []).slice(0, 6).forEach((name) => {
+      if (normKey(name) === normKey(p.original)) return;
+      const b = el('button', 'chip', name);
+      b.addEventListener('click', () => (inp.value = name));
+      picks.appendChild(b);
+    });
+    const notProject = el('button', 'chip', 'Не проект');
+    notProject.addEventListener('click', () => (inp.value = ''));
+    picks.appendChild(notProject);
+    wrap.appendChild(picks);
+
+    form.appendChild(wrap);
+    return { p, inp };
+  });
+
+  // Подсказки автодополнения по существующим проектам.
+  const dl = document.createElement('datalist');
+  dl.id = 'known-projects';
+  known.forEach((v) => { const o = document.createElement('option'); o.value = v; dl.appendChild(o); });
+  form.appendChild(dl);
+
+  const footer = el('div', 'card-footer');
+  const skip = el('button', 'btn btn-ghost btn-sm', 'Оставить как есть');
+  skip.addEventListener('click', () => onDone());
+  const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
+  save.addEventListener('click', () => {
+    rows.forEach(({ p, inp }) => {
+      targets.forEach((d) => setProjectName(d, p.original, inp.value.trim()));
+    });
+    onDone();
+  });
+  footer.append(skip, save);
+
+  card.append(form, footer);
+  box.appendChild(card);
 }
 
 /**
@@ -434,8 +588,10 @@ function startPeopleResolution(draft) {
     if (matches.length === 1) { setPersonName(draft, name, matches[0]); return; }
     pending.push({ original: name, token: name, kind, candidates: matches });
   });
-  if (!pending.length) afterPeopleResolved();
-  else renderSurnamePrompt(draft, pending, afterPeopleResolved);
+  // После ФИО — уточняем проекты, и только потом проверка дублей.
+  const done = () => resolveProjects([draft], afterPeopleResolved);
+  if (!pending.length) done();
+  else renderSurnamePrompt(draft, pending, done);
 }
 
 /**
