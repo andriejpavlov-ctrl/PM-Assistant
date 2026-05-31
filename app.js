@@ -404,6 +404,90 @@ async function keepAsSingle(raw) {
   }
 }
 
+// Служебные слова-связки: не начинают и не продолжают название проекта.
+const PROJECT_CONNECTORS = new Set([
+  'и', 'в', 'на', 'по', 'для', 'с', 'со', 'до', 'от', 'к', 'о', 'об', 'у', 'за',
+  'из', 'про', 'что', 'как', 'при', 'во', 'же', 'бы', 'ли', 'не', 'а', 'но', 'или',
+]);
+// Нарицательные слова, которые иногда пишут с заглавной, но это НЕ проекты.
+const PROJECT_STOPWORDS = new Set([
+  'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье',
+  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август',
+  'сентябрь', 'октябрь', 'ноябрь', 'декабрь', 'сегодня', 'завтра', 'вчера',
+  'отчёт', 'отчет', 'встреча', 'звонок', 'созвон', 'задача', 'письмо', 'почта',
+]);
+// Предлоги-спутники: следующее за ними имя — это, как правило, человек
+// («с Наташей», «у Олега»), а не проект. Помогает отсечь склонённые имена,
+// которых нет в словаре в именительном падеже.
+const PERSON_PREPOSITIONS = new Set(['с', 'со', 'у']);
+const CLEAN_EDGES = (t) => t.replace(/^[«"'(\[]+/, '').replace(/[.,;:!?»"')\]]+$/, '');
+const STARTS_UPPER = (t) => /^[А-ЯЁA-Z]/.test(t);
+const STARTS_LOWER = (t) => /^[а-яёa-z]/.test(t);
+
+// Косвенные падежи семейства «-ение/-ание» → именительный. Очень узкий и
+// безопасный набор: трогаем только слова с этими специфичными окончаниями
+// (управлению, ценообразованию, планированием…). Слова вне этого семейства
+// (качеством, Биллингом, Динамическому) НЕ меняем — приведение остаётся
+// «простым» и не ломает остальные названия.
+const CASE_ENDINGS = [
+  [/ением$/, 'ение'], [/анием$/, 'ание'],
+  [/ению$/, 'ение'], [/анию$/, 'ание'],
+  [/ении$/, 'ение'], [/ании$/, 'ание'],
+  [/ения$/, 'ение'], [/ания$/, 'ание'],
+];
+/** Простая нормализация падежа одного слова (только семейство -ение/-ание). */
+function toNominative(word) {
+  if (!word || word.length < 6) return word;
+  for (const [re, repl] of CASE_ENDINGS) {
+    if (re.test(word)) return word.replace(re, repl);
+  }
+  return word;
+}
+
+/**
+ * Детерминированная страховка к модели: ищем в исходном тексте слова/фразы
+ * с ЗАГЛАВНОЙ буквы НЕ в начале предложения, которые модель могла пропустить.
+ * Возвращаем кандидатов с confidence 'low' (приложение переспросит «это проект?»).
+ * Исключаем: начало предложения, имена людей, общие слова из стоп-списка и то,
+ * что модель уже вернула как проект.
+ */
+function detectMissedProjects(rawText, people, meta) {
+  if (!rawText) return [];
+  const existing = (meta || []).map((m) => normKey(m.name));
+  const peopleFirst = new Set((people || []).map((p) => normKey(firstToken(p))));
+  const found = [];
+  const seen = new Set();
+  rawText.split(/[.!?\n]+/).forEach((sentence) => {
+    const tokens = sentence.trim().split(/\s+/).filter(Boolean);
+    for (let i = 1; i < tokens.length; i++) { // i=0 — начало предложения, пропускаем
+      const word = CLEAN_EDGES(tokens[i]);
+      if (!STARTS_UPPER(word) || word.length < 3) continue;
+      const key = normKey(word);
+      if (PROJECT_STOPWORDS.has(key) || PROJECT_CONNECTORS.has(key)) continue;
+      if (KNOWN_FIRST_NAMES.has(key) || peopleFirst.has(key)) continue; // это имя человека
+      // Перед словом стоит предлог-спутник человека («с Наташей») — это персона.
+      if (PERSON_PREPOSITIONS.has(normKey(CLEAN_EDGES(tokens[i - 1])))) continue;
+      // Собрать фразу: заглавное слово + следующие строчные слова (не связки).
+      // Каждое слово приводим к именительному падежу (только семейство -ение/-ание),
+      // сохраняя регистр первой буквы заглавного слова.
+      const parts = [cap(toNominative(word))];
+      for (let j = i + 1; j < tokens.length; j++) {
+        const next = CLEAN_EDGES(tokens[j]);
+        if (!STARTS_LOWER(next) || PROJECT_CONNECTORS.has(normKey(next))) break;
+        parts.push(toNominative(next));
+      }
+      const name = parts.join(' ');
+      const nameKey = normKey(name);
+      if (seen.has(nameKey)) continue;
+      // Модель уже вернула этот проект (по вхождению заглавного слова) — не дублируем.
+      if (existing.some((e) => e === nameKey || e.includes(key) || nameKey.includes(e))) continue;
+      seen.add(nameKey);
+      found.push({ name, confidence: 'low', sameAs: '' });
+    }
+  });
+  return found;
+}
+
 /** Привести ответ модели к черновику-карточке и канонизировать имена.
  *  Проекты сохраняем как готовые строки (draft.projects) + сырьё с метаданными
  *  (draft._projectMeta) для последующего уточнения — confidence/sameAs. */
@@ -436,68 +520,6 @@ function normalizeDraft(result) {
   };
   if (!d.title && !d.description) return null;
   return d;
-}
-
-// Служебные слова-связки: не начинают и не продолжают название проекта.
-const PROJECT_CONNECTORS = new Set([
-  'и', 'в', 'на', 'по', 'для', 'с', 'со', 'до', 'от', 'к', 'о', 'об', 'у', 'за',
-  'из', 'про', 'что', 'как', 'при', 'во', 'же', 'бы', 'ли', 'не', 'а', 'но', 'или',
-]);
-// Нарицательные слова, которые иногда пишут с заглавной, но это НЕ проекты.
-const PROJECT_STOPWORDS = new Set([
-  'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье',
-  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август',
-  'сентябрь', 'октябрь', 'ноябрь', 'декабрь', 'сегодня', 'завтра', 'вчера',
-  'отчёт', 'отчет', 'встреча', 'звонок', 'созвон', 'задача', 'письмо', 'почта',
-]);
-// Предлоги-спутники: следующее за ними имя — это, как правило, человек
-// («с Наташей», «у Олега»), а не проект. Помогает отсечь склонённые имена,
-// которых нет в словаре в именительном падеже.
-const PERSON_PREPOSITIONS = new Set(['с', 'со', 'у']);
-const CLEAN_EDGES = (t) => t.replace(/^[«"'(\[]+/, '').replace(/[.,;:!?»"')\]]+$/, '');
-const STARTS_UPPER = (t) => /^[А-ЯЁA-Z]/.test(t);
-const STARTS_LOWER = (t) => /^[а-яёa-z]/.test(t);
-
-/**
- * Детерминированная страховка к модели: ищем в исходном тексте слова/фразы
- * с ЗАГЛАВНОЙ буквы НЕ в начале предложения, которые модель могла пропустить.
- * Возвращаем кандидатов с confidence 'low' (приложение переспросит «это проект?»).
- * Исключаем: начало предложения, имена людей, общие слова из стоп-списка и то,
- * что модель уже вернула как проект.
- */
-function detectMissedProjects(rawText, people, meta) {
-  if (!rawText) return [];
-  const existing = (meta || []).map((m) => normKey(m.name));
-  const peopleFirst = new Set((people || []).map((p) => normKey(firstToken(p))));
-  const found = [];
-  const seen = new Set();
-  rawText.split(/[.!?\n]+/).forEach((sentence) => {
-    const tokens = sentence.trim().split(/\s+/).filter(Boolean);
-    for (let i = 1; i < tokens.length; i++) { // i=0 — начало предложения, пропускаем
-      const word = CLEAN_EDGES(tokens[i]);
-      if (!STARTS_UPPER(word) || word.length < 3) continue;
-      const key = normKey(word);
-      if (PROJECT_STOPWORDS.has(key) || PROJECT_CONNECTORS.has(key)) continue;
-      if (KNOWN_FIRST_NAMES.has(key) || peopleFirst.has(key)) continue; // это имя человека
-      // Перед словом стоит предлог-спутник человека («с Наташей») — это персона.
-      if (PERSON_PREPOSITIONS.has(normKey(CLEAN_EDGES(tokens[i - 1])))) continue;
-      // Собрать фразу: заглавное слово + следующие строчные слова (не связки).
-      const parts = [word];
-      for (let j = i + 1; j < tokens.length; j++) {
-        const next = CLEAN_EDGES(tokens[j]);
-        if (!STARTS_LOWER(next) || PROJECT_CONNECTORS.has(normKey(next))) break;
-        parts.push(next);
-      }
-      const name = parts.join(' ');
-      const nameKey = normKey(name);
-      if (seen.has(nameKey)) continue;
-      // Модель уже вернула этот проект (по вхождению заглавного слова) — не дублируем.
-      if (existing.some((e) => e === nameKey || e.includes(key) || nameKey.includes(e))) continue;
-      seen.add(nameKey);
-      found.push({ name, confidence: 'low', sameAs: '' });
-    }
-  });
-  return found;
 }
 
 /** Заменить имя во всех вхождениях draft.people (по точному совпадению). */
@@ -619,16 +641,23 @@ function renderProjectPrompt(drafts, pending, onDone) {
   const skip = el('button', 'btn btn-ghost btn-sm', 'Оставить как есть');
   skip.addEventListener('click', () => onDone());
   const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
-  save.addEventListener('click', () => {
+  const commit = () => {
     rows.forEach(({ p, inp }) => {
       targets.forEach((d) => setProjectName(d, p.original, inp.value.trim()));
     });
     onDone();
-  });
+  };
+  save.addEventListener('click', commit);
+  // Enter в любом поле = «Сохранить» (datalist-подсказки выбираются стрелками без Enter).
+  rows.forEach(({ inp }) => inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+  }));
   footer.append(skip, save);
 
   card.append(form, footer);
   box.appendChild(card);
+  // Фокус в первое поле, чтобы можно было сразу печатать/нажать Enter.
+  if (rows[0]) rows[0].inp.focus();
 }
 
 /**
@@ -829,7 +858,7 @@ function renderSurnamePrompt(drafts, pending, onDone) {
   const skip = el('button', 'btn btn-ghost btn-sm', 'Пропустить');
   skip.addEventListener('click', () => onDone());
   const save = el('button', 'btn btn-primary btn-sm', 'Сохранить');
-  save.addEventListener('click', () => {
+  const commit = () => {
     rows.forEach(({ p, inp, needSurname }) => {
       const extra = inp.value.trim();
       // needSurname: «Имя Фамилия»; иначе: «Имя Фамилия» = extra + токен-фамилия.
@@ -840,11 +869,18 @@ function renderSurnamePrompt(drafts, pending, onDone) {
       targets.forEach((d) => setPersonName(d, p.original, full));
     });
     onDone();
-  });
+  };
+  save.addEventListener('click', commit);
+  // Enter в любом поле = «Сохранить».
+  rows.forEach(({ inp }) => inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+  }));
   footer.append(skip, save);
 
   card.append(form, footer);
   box.appendChild(card);
+  // Фокус в первое поле — можно сразу печатать недостающую часть.
+  if (rows[0]) rows[0].inp.focus();
 }
 
 function renderCaptureResult() {
@@ -873,18 +909,23 @@ function bindBoard() {
   $('#filter-created').addEventListener('change', (e) => { filters.created = e.target.value; afterFilterChange(); });
   $('#sort-select').addEventListener('change', (e) => { sortMode = e.target.value; renderBoard(); });
   $$('.filter-clear').forEach((b) => b.addEventListener('click', () => clearOneFilter(b.dataset.clear)));
-  $('#filter-reset').addEventListener('click', () => {
-    filters.person = filters.project = filters.priority = '';
-    filters.dateRange = 'all';
-    filters.created = 'all';
-    sortMode = 'default';
-    $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
-    $('#filter-daterange').value = 'all';
-    $('#filter-created').value = 'all';
-    $('#sort-select').value = 'default';
-    populateFilters();
-    afterFilterChange();
-  });
+  $('#filter-reset').addEventListener('click', resetAllFilters);
+  const emptyReset = $('#cards-empty-reset');
+  if (emptyReset) emptyReset.addEventListener('click', resetAllFilters);
+}
+
+/** Сбросить все фильтры и сортировку к значениям по умолчанию. */
+function resetAllFilters() {
+  filters.person = filters.project = filters.priority = '';
+  filters.dateRange = 'all';
+  filters.created = 'all';
+  sortMode = 'default';
+  $('#filter-person').value = $('#filter-project').value = $('#filter-priority').value = '';
+  $('#filter-daterange').value = 'all';
+  $('#filter-created').value = 'all';
+  $('#sort-select').value = 'default';
+  populateFilters();
+  afterFilterChange();
 }
 
 function hasActiveFilters() {
@@ -1031,9 +1072,24 @@ export function sortAndFilter(items, sortBy = 'default', f = {}) {
 function renderBoard() {
   const list = $('#cards-list');
   const empty = $('#cards-empty');
+  const emptyFiltered = $('#cards-empty-filtered');
+  const countEl = $('#cards-count');
+  const total = store.getAll().length;
   const cards = sortAndFilter(store.getAll(), sortMode, filters);
   list.innerHTML = '';
-  empty.hidden = cards.length > 0;
+  // Три состояния пустоты: совсем нет карточек / есть, но фильтры ничего не дали / есть результаты.
+  const filtered = hasActiveFilters();
+  if (empty) empty.hidden = !(cards.length === 0 && !filtered);
+  if (emptyFiltered) emptyFiltered.hidden = !(cards.length === 0 && filtered);
+  // Счётчик «Показано N из M» — только когда есть карточки и активны фильтры.
+  if (countEl) {
+    if (total > 0 && filtered) {
+      countEl.textContent = `Показано ${cards.length} из ${total}`;
+      countEl.hidden = false;
+    } else {
+      countEl.hidden = true;
+    }
+  }
   // Сборка во фрагмент и одна вставка в DOM — без лишних reflow на каждой карточке.
   const frag = document.createDocumentFragment();
   cards.forEach((c) => frag.appendChild(buildCard(c)));
@@ -1154,7 +1210,11 @@ function buildCard(c, opts = {}) {
     editBtn.addEventListener('click', () => { editingId = c.id; renderBoard(); });
     const del = iconBtn('trash', '');
     del.title = 'В архив';
-    del.addEventListener('click', () => { store.remove(c.id); renderBoard(); });
+    del.addEventListener('click', () => {
+      store.remove(c.id);
+      renderBoard();
+      showToast('Карточка в архиве', 'Отменить', () => { store.unarchive(c.id); renderBoard(); });
+    });
     buttons = [editBtn, del];
   }
   li.appendChild(buildFooter(c, buttons));
@@ -1527,10 +1587,46 @@ function iconBtn(name, label) {
   if (label) b.appendChild(document.createTextNode(label));
   return b;
 }
+// Тост с действием «Отменить»: появляется внизу, сам исчезает через ~6 секунд.
+let toastTimer = null;
+function showToast(msg, actionLabel, onAction) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = '';
+  toast.appendChild(el('span', 'toast-msg', msg));
+  if (actionLabel && onAction) {
+    const btn = el('button', 'toast-action', actionLabel);
+    btn.addEventListener('click', () => {
+      clearTimeout(toastTimer);
+      toast.classList.remove('is-visible');
+      onAction();
+    });
+    toast.appendChild(btn);
+  }
+  // Запускаем анимацию появления на следующий кадр (чтобы сработал transition).
+  requestAnimationFrame(() => toast.classList.add('is-visible'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 6000);
+}
+
+let statusHideTimer = null;
 function showStatus(elm, msg, isError = false) {
   elm.textContent = msg;
   elm.classList.toggle('is-error', isError);
   elm.hidden = false;
+  // Успешные сообщения сами гаснут через 5 секунд; ошибки остаются на экране.
+  clearTimeout(statusHideTimer);
+  if (!isError) {
+    statusHideTimer = setTimeout(() => {
+      // Прячем только если текст не сменился на новый (на случай быстрых действий).
+      if (elm.textContent === msg) elm.hidden = true;
+    }, 5000);
+  }
 }
 
 // Запускаем приложение только в браузере (в Node модуль импортируется для тестов).
