@@ -404,6 +404,68 @@ async function keepAsSingle(raw) {
   }
 }
 
+// Служебные слова-связки: не начинают и не продолжают название проекта.
+const PROJECT_CONNECTORS = new Set([
+  'и', 'в', 'на', 'по', 'для', 'с', 'со', 'до', 'от', 'к', 'о', 'об', 'у', 'за',
+  'из', 'про', 'что', 'как', 'при', 'во', 'же', 'бы', 'ли', 'не', 'а', 'но', 'или',
+]);
+// Нарицательные слова, которые иногда пишут с заглавной, но это НЕ проекты.
+const PROJECT_STOPWORDS = new Set([
+  'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье',
+  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август',
+  'сентябрь', 'октябрь', 'ноябрь', 'декабрь', 'сегодня', 'завтра', 'вчера',
+  'отчёт', 'отчет', 'встреча', 'звонок', 'созвон', 'задача', 'письмо', 'почта',
+]);
+// Предлоги-спутники: следующее за ними имя — это, как правило, человек
+// («с Наташей», «у Олега»), а не проект. Помогает отсечь склонённые имена,
+// которых нет в словаре в именительном падеже.
+const PERSON_PREPOSITIONS = new Set(['с', 'со', 'у']);
+const CLEAN_EDGES = (t) => t.replace(/^[«"'(\[]+/, '').replace(/[.,;:!?»"')\]]+$/, '');
+const STARTS_UPPER = (t) => /^[А-ЯЁA-Z]/.test(t);
+const STARTS_LOWER = (t) => /^[а-яёa-z]/.test(t);
+
+/**
+ * Детерминированная страховка к модели: ищем в исходном тексте слова/фразы
+ * с ЗАГЛАВНОЙ буквы НЕ в начале предложения, которые модель могла пропустить.
+ * Возвращаем кандидатов с confidence 'low' (приложение переспросит «это проект?»).
+ * Исключаем: начало предложения, имена людей, общие слова из стоп-списка и то,
+ * что модель уже вернула как проект.
+ */
+function detectMissedProjects(rawText, people, meta) {
+  if (!rawText) return [];
+  const existing = (meta || []).map((m) => normKey(m.name));
+  const peopleFirst = new Set((people || []).map((p) => normKey(firstToken(p))));
+  const found = [];
+  const seen = new Set();
+  rawText.split(/[.!?\n]+/).forEach((sentence) => {
+    const tokens = sentence.trim().split(/\s+/).filter(Boolean);
+    for (let i = 1; i < tokens.length; i++) { // i=0 — начало предложения, пропускаем
+      const word = CLEAN_EDGES(tokens[i]);
+      if (!STARTS_UPPER(word) || word.length < 3) continue;
+      const key = normKey(word);
+      if (PROJECT_STOPWORDS.has(key) || PROJECT_CONNECTORS.has(key)) continue;
+      if (KNOWN_FIRST_NAMES.has(key) || peopleFirst.has(key)) continue; // это имя человека
+      // Перед словом стоит предлог-спутник человека («с Наташей») — это персона.
+      if (PERSON_PREPOSITIONS.has(normKey(CLEAN_EDGES(tokens[i - 1])))) continue;
+      // Собрать фразу: заглавное слово + следующие строчные слова (не связки).
+      const parts = [word];
+      for (let j = i + 1; j < tokens.length; j++) {
+        const next = CLEAN_EDGES(tokens[j]);
+        if (!STARTS_LOWER(next) || PROJECT_CONNECTORS.has(normKey(next))) break;
+        parts.push(next);
+      }
+      const name = parts.join(' ');
+      const nameKey = normKey(name);
+      if (seen.has(nameKey)) continue;
+      // Модель уже вернула этот проект (по вхождению заглавного слова) — не дублируем.
+      if (existing.some((e) => e === nameKey || e.includes(key) || nameKey.includes(e))) continue;
+      seen.add(nameKey);
+      found.push({ name, confidence: 'low', sameAs: '' });
+    }
+  });
+  return found;
+}
+
 /** Привести ответ модели к черновику-карточке и канонизировать имена.
  *  Проекты сохраняем как готовые строки (draft.projects) + сырьё с метаданными
  *  (draft._projectMeta) для последующего уточнения — confidence/sameAs. */
@@ -420,6 +482,9 @@ function normalizeDraft(result) {
     }
     return { name: String(p || '').trim(), confidence: 'high', sameAs: '' };
   }).filter((m) => m.name);
+  // Страховка: добавляем заглавные фразы из текста, которые модель пропустила.
+  const peopleCanon = (Array.isArray(result.people) ? result.people : [result.people]).filter(Boolean).map(canonicalize);
+  detectMissedProjects(result.rawText, peopleCanon, meta).forEach((m) => meta.push(m));
   const d = {
     rawText: result.rawText || '',
     title: result.title || '',
