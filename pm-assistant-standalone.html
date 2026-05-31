@@ -2609,6 +2609,26 @@ const CLEAN_EDGES = (t) => t.replace(/^[«"'(\[]+/, '').replace(/[.,;:!?»"')\]]
 const STARTS_UPPER = (t) => /^[А-ЯЁA-Z]/.test(t);
 const STARTS_LOWER = (t) => /^[а-яёa-z]/.test(t);
 
+// Косвенные падежи семейства «-ение/-ание» → именительный. Очень узкий и
+// безопасный набор: трогаем только слова с этими специфичными окончаниями
+// (управлению, ценообразованию, планированием…). Слова вне этого семейства
+// (качеством, Биллингом, Динамическому) НЕ меняем — приведение остаётся
+// «простым» и не ломает остальные названия.
+const CASE_ENDINGS = [
+  [/ением$/, 'ение'], [/анием$/, 'ание'],
+  [/ению$/, 'ение'], [/анию$/, 'ание'],
+  [/ении$/, 'ение'], [/ании$/, 'ание'],
+  [/ения$/, 'ение'], [/ания$/, 'ание'],
+];
+/** Простая нормализация падежа одного слова (только семейство -ение/-ание). */
+function toNominative(word) {
+  if (!word || word.length < 6) return word;
+  for (const [re, repl] of CASE_ENDINGS) {
+    if (re.test(word)) return word.replace(re, repl);
+  }
+  return word;
+}
+
 /**
  * Детерминированная страховка к модели: ищем в исходном тексте слова/фразы
  * с ЗАГЛАВНОЙ буквы НЕ в начале предложения, которые модель могла пропустить.
@@ -2633,11 +2653,13 @@ function detectMissedProjects(rawText, people, meta) {
       // Перед словом стоит предлог-спутник человека («с Наташей») — это персона.
       if (PERSON_PREPOSITIONS.has(normKey(CLEAN_EDGES(tokens[i - 1])))) continue;
       // Собрать фразу: заглавное слово + следующие строчные слова (не связки).
-      const parts = [word];
+      // Каждое слово приводим к именительному падежу (только семейство -ение/-ание),
+      // сохраняя регистр первой буквы заглавного слова.
+      const parts = [cap(toNominative(word))];
       for (let j = i + 1; j < tokens.length; j++) {
         const next = CLEAN_EDGES(tokens[j]);
         if (!STARTS_LOWER(next) || PROJECT_CONNECTORS.has(normKey(next))) break;
-        parts.push(next);
+        parts.push(toNominative(next));
       }
       const name = parts.join(' ');
       const nameKey = normKey(name);
