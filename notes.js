@@ -303,7 +303,7 @@ function insertChecklistItem() {
   cb.contentEditable = 'false';
   const span = document.createElement('span');
   span.className = 'note-todo-text';
-  span.innerHTML = '​'; // zero-width — чтобы был куда поставить курсор
+  span.appendChild(document.createTextNode('')); // пустой узел — место для курсора
   li.append(cb, span);
   const sel = window.getSelection();
   if (sel && sel.rangeCount) {
@@ -375,7 +375,7 @@ function htmlToMarkdown(root) {
         });
       } else if (n.classList.contains('note-todo')) {
         const done = n.querySelector('input[type=checkbox]')?.checked;
-        const txt = (n.querySelector('.note-todo-text')?.textContent || '').replace(/​/g, '').trim();
+        const txt = (n.querySelector('.note-todo-text')?.textContent || '').trim();
         lines.push(`- [${done ? 'x' : ' '}] ${txt}`);
       } else if (tag === 'DIV' || tag === 'P') {
         const t = inline(n).trim();
