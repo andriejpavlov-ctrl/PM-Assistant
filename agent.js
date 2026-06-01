@@ -77,11 +77,22 @@ async function callClaude(system, user, { maxTokens = 1500 } = {}) {
   }
 
   const data = await res.json();
-  return (data.content || [])
+  const text = (data.content || [])
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('')
     .trim();
+
+  // Если модель упёрлась в лимит вывода, ответ обрывается на середине —
+  // JSON получается невалидным. Даём понятное сообщение вместо ошибки парсинга.
+  if (data.stop_reason === 'max_tokens') {
+    throw new Error(
+      'Заметка слишком большая — ответ не поместился в лимит. ' +
+      'Сократите текст или разбейте его на несколько записей.'
+    );
+  }
+
+  return text;
 }
 
 /**
@@ -115,7 +126,7 @@ function safeParseJSON(text) {
 // ФУНКЦИЯ 1: processCapture(rawText)
 // ============================================================
 
-const CAPTURE_SYSTEM = `Ты — персональный ассистент директора по продукту. Преврати свободный текст пользователя в ОДНУ ИЛИ НЕСКОЛЬКО структурированных карточек. Всегда отвечай строго в формате JSON без дополнительного текста.
+const CAPTURE_SYSTEM = `Ты — персональный ассистент директора по продукту. Преврати свободный텍스트 пользователя в ОДНУ ИЛИ НЕСКОЛЬКО структурированных карточек. Всегда отвечай строго в формате JSON без дополнительного текста.
 
 КОГДА РАЗБИВАТЬ НА НЕСКОЛЬКО КАРТОЧЕК:
 По умолчанию — ОДНА карточка. Раздели текст на НЕСКОЛЬКО карточек ТОЛЬКО если в нём явно несколько РАЗНЫХ, НЕ связанных между собой заметок. Признаки того, что заметки разные и их стоит разделить:
@@ -157,15 +168,17 @@ const CAPTURE_SYSTEM = `Ты — персональный ассистент д�
 const CAPTURE_SINGLE_RULE = `\n\nВАЖНО: верни РОВНО ОДНУ карточку (массив cards с одним элементом), объединив весь текст в неё, даже если кажется, что тем несколько.`;
 
 /**
- * Превращает свободный текст в одну или несколько карточек.
- * @param {string} rawText  текст пользователя
- * @param {string[]} [knownPeople]  список известных коллег (полные имена) для объединения
+ * Разбирает свободный текст в одну ИЛИ несколько карточек. Модель сама решает,
+ * содержит ли текст несколько не связанных между собой заметок, и тогда возвращает
+ * их по отдельности; иначе — одну карточку.
+ * @param {string} rawText
+ * @param {string[]} [knownPeople]  список известных коллег (полные имена) для объединения вариантов
  * @param {object} [opts]  { forceSingle, knownProjects } — forceSingle: вернуть ровно одну карточку; knownProjects: список существующих проектов для сопоставления
- * @returns {Promise<object[]>}  массив карточек-черновиков
+ * @returns {Promise<object[]>} массив карточек-черновиков (1+)
  */
 export async function processCapture(rawText, knownPeople = [], opts = {}) {
-  const peopleHint = Array.isArray(knownPeople) && knownPeople.length
-    ? `\n\nИзвестные коллеги (если имя совпадает — верни полное): ${knownPeople.join(', ')}.`
+  const peopleHint = (knownPeople && knownPeople.length)
+    ? `\n\nИзвестные коллеги (если имя соответствует одному из них — используй ИМЕННО это полное имя с фамилией): ${knownPeople.join(', ')}.`
     : '';
   const knownProjects = Array.isArray(opts.knownProjects) ? opts.knownProjects : [];
   const projectsHint = knownProjects.length
@@ -173,13 +186,15 @@ export async function processCapture(rawText, knownPeople = [], opts = {}) {
     : '';
   const singleRule = opts.forceSingle ? CAPTURE_SINGLE_RULE : '';
   const user = `Сегодняшняя дата: ${todayISO()}.${peopleHint}${projectsHint}${singleRule}\n\nТекст пользователя:\n"""${rawText}"""\n\nРазбери и верни JSON.`;
-  const text = await callClaude(CAPTURE_SYSTEM, user, { maxTokens: 1500 });
+  const text = await callClaude(CAPTURE_SYSTEM, user, { maxTokens: 8192 });
   const parsed = safeParseJSON(text);
-
-  let cards = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.cards) ? parsed.cards : [parsed]);
+  // Поддерживаем оба формата ответа: {cards:[...]} или одиночный объект-карточку.
+  let cards = Array.isArray(parsed) ? parsed
+    : (parsed && Array.isArray(parsed.cards)) ? parsed.cards
+    : [parsed];
   cards = cards.filter((c) => c && typeof c === 'object');
-  if (!cards.length) throw new Error('Модель не вернула ни одной карточки');
-
+  if (!cards.length) cards = [parsed];
+  // Сохраняем исходный текст для трассируемости.
   cards.forEach((c) => { c.rawText = rawText; });
   return opts.forceSingle ? cards.slice(0, 1) : cards;
 }
@@ -190,41 +205,53 @@ export async function processCapture(rawText, knownPeople = [], opts = {}) {
 
 const QUERY_SYSTEM = `Ты — поисковый ассистент директора по продукту. Тебе дают запрос на естественном языке и массив карточек (JSON): у каждой есть title, description, people, projects, priority, deadline, tags.
 
-ЗАДАЧА: найди карточки, релевантные запросу, и верни их ID в порядке убывания релевантности
+Найди карточки, релевантные запросу, и отсортируй их по полезности для пользователя
 (учитывай совпадение по человеку/проекту/тексту, приоритет, дедлайн).
-ДОПОЛНИТЕЛЬНО: если вопрос подразумевает сводку или анализ («что срочного», «чем заняться», «что по проекту X»),
-сформулируй краткую сводку в 2–4 предложения, выдели главное — ключевые задачи, людей, проекты, сроки и на чём
-стоит сфокусироваться. Если ничего не нашлось — summary пустой.
 
-ФОРМАТ ОТВЕТА (строго JSON):
-{"ids":["id1","id2"],"explanation":"коротко, почему эти карточки","summary":"сводка или пустая строка","summaryTitle":"короткий заголовок сводки"}
-Ничего кроме JSON.`;
+Дополнительно подготовь КРАТКУЮ САММАРИЗОВАННУЮ СВОДКУ по найденным карточкам: свяжи их
+в 2–4 предложения, выдели главное — ключевые задачи, людей, проекты, сроки и на чём
+сфокусироваться. Пиши по делу, без воды, обобщай (а не перечисляй каждую карточку дословно).
+Если найдена одна карточка — кратко перескажи её. Если ничего не найдено — summary: "".
+
+Также придумай короткий заголовок этой сводки (summaryTitle) в форме действия/существительного,
+до ~7 слов — по нему пользователь сможет создать новую карточку-сводку.
+
+Верни ТОЛЬКО валидный JSON без markdown в формате:
+{"explanation":"короткое объяснение, как ты отфильтровал и отсортировал","summary":"краткая связная сводка по найденным карточкам","summaryTitle":"короткий заголовок сводки","resultIds":["id1","id2", ...]}
+
+resultIds — id релевантных записей строго в порядке от самой релевантной к наименее.
+Если ничего не подходит — resultIds: [], summary: "" и поясни это в explanation. Используй только переданные id, ничего не выдумывай.`;
 
 /**
- * Ищет карточки по естественно-языковому запросу.
- * @returns {Promise<{explanation,summary,summaryTitle,results}>}
+ * Находит, фильтрует и сортирует релевантные записи под запрос пользователя,
+ * а также готовит краткую сводку по найденным карточкам.
+ * @param {string} queryText
+ * @param {Array<object>} allData  все записи из БД
+ * @returns {Promise<{explanation: string, summary: string, summaryTitle: string, results: object[]}>}
  */
 export async function processQuery(queryText, allData) {
-  // Компактная версия карточек для промпта (экономим токены).
+  // Компактная проекция карточек, чтобы не раздувать контекст лишними полями.
   const compact = (allData || []).map((c) => ({
     id: c.id,
-    title: c.title || '',
-    description: c.description || '',
+    title: c.title || null,
+    description: c.description || null,
     people: c.people || [],
     projects: c.projects || [],
-    priority: c.priority || '',
+    priority: c.priority || null,
     deadline: c.deadline || null,
     tags: c.tags || [],
   }));
-  const user = `Запрос: "${queryText}"\n\nКарточки (JSON):\n${JSON.stringify(compact)}\n\nСегодня: ${todayISO()}. Верни JSON.`;
+
+  const user = `Запрос: "${queryText}"\n\nКарточки (JSON):\n${JSON.stringify(compact)}`;
   const text = await callClaude(QUERY_SYSTEM, user, { maxTokens: 1500 });
   const parsed = safeParseJSON(text);
 
-  const ids = Array.isArray(parsed.ids) ? parsed.ids : [];
+  // Восстанавливаем полные записи в порядке, заданном моделью.
   const byId = new Map((allData || []).map((e) => [e.id, e]));
-  const results = ids
+  const results = (parsed.resultIds || [])
     .map((id) => byId.get(id))
     .filter(Boolean);
+
   return {
     explanation: parsed.explanation || '',
     summary: parsed.summary || '',
@@ -237,57 +264,66 @@ export async function processQuery(queryText, allData) {
 // ФУНКЦИЯ 3: findSimilarCard(draft, cards)
 // ============================================================
 
-const SIMILAR_SYSTEM = `Ты — ассистент, который ищет ДУБЛИКАТЫ карточек. Тебе дают НОВУЮ карточку и массив СУЩЕСТВУЮЩИХ карточек (JSON).
+const SIMILAR_SYSTEM = `Ты — ассистент директора по продукту. Тебе дают НОВУЮ карточку и массив СУЩЕСТВУЮЩИХ карточек (JSON). Найди среди существующих карточку, СВЯЗАННУЮ с новой по сути, которую разумно объединить.
 
-ЗАДАЧА: определи, есть ли среди существующих карточка, которая ПО СМЫСЛУ дублирует новую (тот же вопрос/задача/событие).
-Считай дубликатом, если речь об одном и том же деле (даже если формулировки разные). НЕ считай дубликатом разные задачи по одному человеку/проекту.
+Считай карточки связанными, если выполняется ХОТЯ БЫ ОДНО:
+• это одно и то же дело/задача/вопрос, описанные разными словами;
+• они про ОДНОГО человека и про ОДНУ ситуацию/тему (например: «Павел не прислал отчёт», «Павел не выполнил задачу», «напомнить Павлу о задаче» — это одна ситуация про невыполнение Павлом, их надо объединить);
+• одна карточка продолжает, дублирует или уточняет другую.
 
-ФОРМАТ ОТВЕТА (строго JSON): {"similarId":"id или null","reason":"короткое объяснение или пустая строка"}
-Ничего кроме JSON.`;
+НЕ связывай карточки про явно разные дела, даже если упомянут один человек или проект (например «обсудить отпуск Павла» и «Павел не сдал отчёт» — разное).
+
+Сравнивай по СМЫСЛУ, а не по точному совпадению слов. Если подходящих несколько — верни id самой близкой.
+
+Верни ТОЛЬКО валидный JSON без markdown:
+{"similarId":"id-или-null","reason":"короткое пояснение, почему похоже"}
+
+similarId — id связанной существующей карточки при средней или высокой уверенности; если ничего по-настоящему не связано — null. Используй только переданные id, ничего не выдумывай.`;
 
 /**
- * Ищет среди существующих карточек дубликат новой.
- * @returns {Promise<{similarId,reason}>}
+ * Ищет среди существующих карточек дубликат/сильно похожую на черновик.
+ * @returns {Promise<{similarId: string|null, reason: string}>}
  */
 export async function findSimilarCard(draft, cards) {
   if (!cards || !cards.length) return { similarId: null, reason: '' };
   const compact = cards.map((c) => ({
     id: c.id,
-    title: c.title || '',
-    description: c.description || '',
+    title: c.title || null,
+    description: c.description || null,
     people: c.people || [],
     projects: c.projects || [],
+    tags: c.tags || [],
   }));
-  const draftCompact = {
-    title: draft.title || '',
-    description: draft.description || '',
+  const newCard = {
+    title: draft.title || null,
+    description: draft.description || null,
     people: draft.people || [],
     projects: draft.projects || [],
+    tags: draft.tags || [],
   };
-  const user = `НОВАЯ карточка:\n${JSON.stringify(draftCompact)}\n\nСУЩЕСТВУЮЩИЕ карточки:\n${JSON.stringify(compact)}\n\nВерни JSON.`;
+  const user = `НОВАЯ карточка (JSON):\n${JSON.stringify(newCard)}\n\nСУЩЕСТВУЮЩИЕ карточки (JSON):\n${JSON.stringify(compact)}`;
   const text = await callClaude(SIMILAR_SYSTEM, user, { maxTokens: 300 });
   const parsed = safeParseJSON(text);
-  const similarId = parsed.similarId && parsed.similarId !== 'null' ? parsed.similarId : null;
-  return { similarId, reason: parsed.reason || '' };
+  return { similarId: parsed.similarId || null, reason: parsed.reason || '' };
 }
 
 // ============================================================
 // ФУНКЦИЯ 4: mergeCards(existing, draft)
 // ============================================================
 
-const MERGE_SYSTEM = `Ты — ассистент, который ОБЪЕДИНЯЕТ две карточки в одну. Тебе дают СУЩЕСТВУЮЩУЮ карточку и НОВУЮ запись (JSON).
+const MERGE_SYSTEM = `Ты — ассистент директора по продукту. Тебе дают ДВЕ карточки про одно дело: СУЩЕСТВУЮЩУЮ и НОВУЮ. Объедини их в ОДНУ цельную карточку, учитывающую контекст обеих, без потери важных деталей и без дублирования.
 
-ЗАДАЧА: собери общий контекст в ОДНУ карточку без потери смысла.
-• title — лучший из двух или улучшенный (глагол действия + объект, до ~7 слов).
-• description — объединённые детали обеих (без повторов).
-• people / projects / tags — объединение без дубликатов.
-
-ФОРМАТ ОТВЕТА (строго JSON):
+Верни ТОЛЬКО валидный JSON без markdown:
 {"title":"...","description":"...","people":["..."],"projects":["..."],"tags":["..."]}
-Ничего кроме JSON.`;
+
+• title — одно ёмкое название в форме действия (глагол + объект).
+• description — объедини детали обеих карточек в связный текст, убери повторы.
+• people / projects / tags — объединение без дубликатов.
+Приоритет и срок НЕ возвращай — их подставит приложение.`;
 
 /**
- * Объединяет две карточки в одну через модель.
+ * Объединяет существующую карточку и черновик в одну (контент). Приоритет и
+ * срок проставляет приложение отдельно по своему правилу.
  * @returns {Promise<{title,description,people,projects,tags}>}
  */
 export async function mergeCards(existing, draft) {
@@ -298,70 +334,74 @@ export async function mergeCards(existing, draft) {
     projects: c.projects || [],
     tags: c.tags || [],
   });
-  const user = `СУЩЕСТВУЮЩАЯ:\n${JSON.stringify(proj(existing))}\n\nНОВАЯ:\n${JSON.stringify(proj(draft))}\n\nОбъедини и верни JSON.`;
+  const user = `СУЩЕСТВУЮЩАЯ карточка (JSON):\n${JSON.stringify(proj(existing))}\n\nНОВАЯ карточка (JSON):\n${JSON.stringify(proj(draft))}\n\nОбъедини и верни JSON.`;
   const text = await callClaude(MERGE_SYSTEM, user, { maxTokens: 800 });
-  const parsed = safeParseJSON(text);
-  return {
-    title: parsed.title || existing.title || '',
-    description: parsed.description || '',
-    people: Array.isArray(parsed.people) ? parsed.people : [],
-    projects: Array.isArray(parsed.projects) ? parsed.projects : [],
-    tags: Array.isArray(parsed.tags) ? parsed.tags : [],
-  };
+  return safeParseJSON(text);
 }
 
 // ============================================================
 // ФУНКЦИЯ 5: generateDailySummary(allData)
 // ============================================================
 
-const SUMMARY_SYSTEM = `Ты — ассистент директора по продукту. Тебе дают массив активных карточек (JSON).
+const SUMMARY_SYSTEM = `Ты — личный ассистент директора по продукту. На основе всех карточек сформируй краткую сводку на сегодня.
+
 У каждой карточки есть title, description, people, projects, priority (P1 высокий, P2 средний, P3 низкий), deadline, tags.
+Сегодняшнюю дату тебе передадут — выделяй просроченные и сегодняшние дедлайны.
 
-ЗАДАЧА: сделай краткую сводку дня — на чём сфокусироваться, что горит, какие дедлайны близко.
-Пиши по-деловому, без воды, 3–6 предложений.
+Верни ТОЛЬКО валидный JSON без markdown в формате:
+{
+  "greeting":"короткое приветствие/общая фраза",
+  "urgent":[{"id":"...","title":"...","why":"почему важно"}],
+  "todayFocus":["3-5 пунктов: что важнее всего сделать сегодня"],
+  "summary":"связный абзац-сводка на 2-3 предложения"
+}
 
-ФОРМАТ ОТВЕТА (строго JSON): {"summary":"текст сводки"}
-Ничего кроме JSON.`;
+Используй только реальные id из данных. Если данных мало — верни пустые массивы, но заполни summary.`;
 
 /**
- * Генерирует сводку дня по активным карточкам.
- * @returns {Promise<string>}
+ * Формирует краткую сводку на день по карточкам.
+ * @param {Array<object>} allData
+ * @returns {Promise<object>} { greeting, urgent, todayFocus, summary }
  */
 export async function generateDailySummary(allData) {
   const compact = (allData || []).map((c) => ({
-    title: c.title || '',
-    description: c.description || '',
+    id: c.id,
+    title: c.title || null,
     people: c.people || [],
     projects: c.projects || [],
-    priority: c.priority || '',
+    priority: c.priority || null,
     deadline: c.deadline || null,
-    tags: c.tags || [],
   }));
-  const user = `Активные карточки (JSON):\n${JSON.stringify(compact)}\n\nСегодня: ${todayISO()}. Верни JSON.`;
+
+  const user = `Сегодняшняя дата: ${todayISO()}.\n\nВсе карточки (JSON):\n${JSON.stringify(compact)}\n\nСформируй сводку на день.`;
   const text = await callClaude(SUMMARY_SYSTEM, user, { maxTokens: 1500 });
-  const parsed = safeParseJSON(text);
-  return parsed.summary || '';
+  return safeParseJSON(text);
 }
 
 // ============================================================
-// ФУНКЦИЯ 6: generateMeme()
+// ФУНКЦИЯ 6: generateMeme() — «The daily AI Meme»
 // ============================================================
 
-const MEME_SYSTEM = `Ты — генератор брутальных, мотивирующих и смешных советов для менеджера продукта в стиле интернет-мемов.
+const MEME_SYSTEM = `Ты — генератор юмористических «мемных» советов для продакт-менеджера в стиле фактов про Чака Норриса и Джейсона Стейтема: брутально, гиперболизированно, абсурдно-пафосно — но строго по теме продакт-менеджмента (бэклог, релизы, спринты, дедлайны, стейкхолдеры, метрики, A/B-тесты, фичи, баги, приоритизация, roadmap, customer development, ретро, OKR и т.п.).
 
-ЗАДАЧА: выдай ОДИН короткий совет (1–2 предложения) в стиле одного из брутальных героев (Чак Норрис, Джейсон Статхем и т.п.).
-Совет должен быть с юмором, про работу продакт-менеджера (бэклог, релизы, стейкхолдеры, метрики, дедлайны).
+ПРАВИЛА:
+• Один совет = 1–2 коротких предложения с панчлайном в конце.
+• Это шутка-преувеличение: либо в духе всемогущества Чака Норриса («Чак Норрис не закрывает спринт — спринт закрывается сам, чтобы не расстраивать Чака»), либо в духе брутальности Джейсона Стейтема. Выбирай стиль СЛУЧАЙНО для каждого совета.
+• Внутри обязательно зашит практический намёк-совет для PM (фокус на ценности, дисциплина с бэклогом, говорить «нет», смотреть в метрики и т.п.).
+• По-русски, с лёгким продуктовым/IT-жаргоном. Без мата, без токсичности, без оскорблений реальных людей.
+• Каждый раз выдавай СВЕЖИЙ, неожиданный совет — не повторяйся.
 
-ФОРМАТ ОТВЕТА (строго JSON): {"hero":"имя героя","meme":"текст совета"}
-Ничего кроме JSON.`;
+Верни ТОЛЬКО валидный JSON без markdown:
+{"hero":"Чак Норрис" или "Джейсон Стейтем","meme":"текст совета"}`;
 
 /**
- * Генерирует случайный брутальный совет.
- * @returns {Promise<{hero,meme}>}
+ * Генерирует один свежий юмористический «мемный» совет для PM.
+ * @returns {Promise<{hero: string, meme: string}>}
  */
 export async function generateMeme() {
-  const seed = Math.random().toString(36).slice(2, 8);
-  const user = `Сгенерируй свежий совет (seed ${seed}, чтобы не повторяться). Верни JSON.`;
+  // Случайное зерно + дата подталкивают модель каждый раз выдавать новое.
+  const seed = Math.random().toString(36).slice(2);
+  const user = `Случайное зерно для разнообразия: ${seed}. Сегодня: ${todayISO()}. Сгенерируй ОДИН свежий мемный совет для продакт-менеджера и верни JSON.`;
   const text = await callClaude(MEME_SYSTEM, user, { maxTokens: 400 });
   const parsed = safeParseJSON(text);
   return { hero: parsed.hero || '', meme: parsed.meme || '' };
