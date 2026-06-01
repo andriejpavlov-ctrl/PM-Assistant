@@ -10,6 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="stylesheet" href="style.css?v=12" />
+  <link rel="stylesheet" href="notes.css?v=1" />
 </head>
 <body>
   <header class="topbar">
@@ -21,6 +22,7 @@
       <button class="tab" role="tab" data-tab="capture" aria-selected="true">Главная</button>
       <button class="tab" role="tab" data-tab="board" aria-selected="false">Карточки</button>
       <button class="tab" role="tab" data-tab="archive" aria-selected="false">Архив</button>
+      <button class="tab" role="tab" data-tab="notes" aria-selected="false">Заметки</button>
       <button class="tab" role="tab" data-tab="help" aria-selected="false">Что умеет?</button>
     </nav>
     <div class="topbar-actions">
@@ -197,6 +199,9 @@
       <ul id="archive-list" class="card-list"></ul>
       <p id="archive-empty" class="empty-col" hidden>Архив пуст.</p>
     </section>
+
+    <!-- ВКЛАДКА: ЗАМЕТКИ -->
+    <section id="view-notes" class="view" data-view="notes" hidden></section>
 
     <!-- ВКЛАДКА: ЧТО УМЕЕТ? -->
     <section id="view-help" class="view" data-view="help" hidden>
@@ -388,5 +393,6 @@
 
   <script src="config.js"></script>
   <script type="module" src="app.js?v=12"></script>
+  <script type="module" src="notes.js?v=1"></script>
 </body>
 </html>

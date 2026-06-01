@@ -1,0 +1,206 @@
+/* notes.css — стили раздела «Заметки». Использует токены из style.css,
+   поэтому корректно работает в тёмной, светлой и «стеклянной» темах. */
+
+.notes-app {
+  display: flex;
+  gap: var(--s-4);
+  height: calc(100vh - 200px);
+  min-height: 460px;
+}
+
+/* ---------- Левая панель: список заметок ---------- */
+.notes-pane-list {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.notes-list-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+.notes-list-head #note-new { white-space: nowrap; }
+.notes-search {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-h-sm);
+  padding: 0 var(--s-3);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+}
+.notes-search:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+
+.notes-list { list-style: none; margin: 0; padding: 0; flex: 1; overflow-y: auto; }
+.note-item {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--tr);
+}
+.note-item:hover { background: var(--bg-elev-2); }
+.note-item.is-active { background: var(--accent-weak); }
+.note-item-title {
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  font-size: var(--fs-base);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.note-item-meta {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.note-item-date { flex: 0 0 auto; }
+.note-item-snippet { overflow: hidden; text-overflow: ellipsis; }
+
+.notes-empty { padding: var(--s-5); color: var(--text-3); font-size: var(--fs-sm); text-align: center; }
+.notes-status {
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  border-top: 1px solid var(--border);
+  min-height: 24px;
+}
+.notes-status.is-error { color: var(--danger); }
+
+/* ---------- Правая панель: редактор ---------- */
+.notes-pane-editor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.notes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+.fmt-btn {
+  height: var(--control-h-sm);
+  padding: 0 var(--s-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--tr), color var(--tr), border-color var(--tr);
+}
+.fmt-btn:hover { background: var(--bg-elev-2); color: var(--text); border-color: var(--border); }
+.fmt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.fmt-bold { font-weight: var(--fw-semibold); }
+.fmt-italic { font-style: italic; }
+.fmt-strike { text-decoration: line-through; }
+.fmt-code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+.notes-back { display: none; font-size: var(--fs-lg); line-height: 1; padding: 0 var(--s-2); }
+
+/* Поле ввода — «как блокнот» */
+.note-editor {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s-5) var(--s-6);
+  color: var(--text);
+  font-size: var(--fs-md);
+  line-height: var(--lh-base);
+  outline: none;
+}
+.note-editor[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: var(--text-3);
+  pointer-events: none;
+}
+.note-editor:focus { outline: none; }
+.note-editor h1, .note-editor h2, .note-editor h3 {
+  margin: 0.6em 0 0.3em;
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+.note-editor h2 { font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+.note-editor p, .note-editor div { margin: 0 0 0.2em; }
+.note-editor ul, .note-editor ol { margin: 0.2em 0; padding-left: 1.5em; }
+.note-editor li { margin: 0.1em 0; }
+.note-editor blockquote {
+  margin: 0.4em 0;
+  padding: 0.2em 0 0.2em 0.9em;
+  border-left: 3px solid var(--accent);
+  color: var(--text-2);
+}
+.note-editor code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+.note-editor a { color: var(--accent); }
+
+/* Пункт чек-листа */
+.note-todo {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: 0.15em 0;
+}
+.note-todo input[type="checkbox"] {
+  margin-top: 0.35em;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.note-todo-text { flex: 1; min-width: 0; }
+.note-todo.done .note-todo-text { text-decoration: line-through; color: var(--text-3); }
+
+.notes-editor-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--border);
+}
+.note-meta { font-size: var(--fs-xs); color: var(--text-3); }
+.notes-foot-actions { display: flex; gap: var(--s-2); }
+.btn-danger { color: var(--danger); }
+.btn-danger:hover { background: var(--danger-weak); border-color: var(--danger); }
+
+/* ---------- Мобильная раскладка ---------- */
+@media (max-width: 720px) {
+  .notes-app { height: calc(100vh - 170px); gap: 0; }
+  .notes-pane-list { flex-basis: 100%; }
+  .notes-pane-editor { display: none; }
+  /* В режиме редактирования показываем только редактор + кнопку назад */
+  .notes-app.is-editing .notes-pane-list { display: none; }
+  .notes-app.is-editing .notes-pane-editor { display: flex; flex-basis: 100%; }
+  .notes-back { display: inline-flex; align-items: center; }
+}
