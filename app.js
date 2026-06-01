@@ -3,7 +3,7 @@
 // Единая карточка: title, description, people[], projects[], priority, deadline, tags.
 
 import * as store from './storage.js';
-import { processCapture, processQuery, findSimilarCard, mergeCards, generateMeme } from './agent.js';
+import { processCapture, processQuery, findSimilarCard, mergeCards, generateMeme } from './agent.js?v=13';
 import * as sync from './sync.js';
 
 const fileConfig = window.PM_CONFIG || {};
@@ -138,6 +138,17 @@ function firstToken(name) { return (name || '').trim().split(/\s+/)[0] || ''; }
 function lastToken(name) { const p = (name || '').trim().split(/\s+/); return p.slice(1).join(' '); }
 function isFullName(name) { return (name || '').trim().split(/\s+/).length >= 2; }
 function normKey(s) { return (s || '').toLowerCase().replace(/ё/g, 'е'); }
+
+// Инициал вместо фамилии/имени: одиночная буква (рус/лат) с опциональной точкой («П.», «И»).
+const INITIAL_RE = /^[A-Za-zА-Яа-яЁё]\.?$/;
+/** Содержательные токены имени без инициалов: «Анна П.» → ['Анна']; «Анна Петрова» → ['Анна','Петрова']. */
+function realTokens(name) {
+  return (name || '').trim().split(/\s+/).filter((t) => t && !INITIAL_RE.test(t));
+}
+/** Полное ли ФИО: есть имя И настоящая фамилия (инициал «П.» фамилией НЕ считается). */
+function hasRealName(name) { return realTokens(name).length >= 2; }
+/** Содержательный токен для уточнения (имя без инициала): «Анна П.» → 'Анна'. */
+function coreToken(name) { return realTokens(name)[0] || firstToken(name); }
 
 // Множество известных имён (ключи словаря + их полные формы) для распознавания
 // «имя vs фамилия» в одиночном токене.
@@ -366,12 +377,14 @@ function startSplitPeopleResolution(drafts) {
   const seen = new Set();
   drafts.forEach((draft) => {
     (draft.people || []).forEach((name) => {
-      const key = normKey(name);
-      if (!name || seen.has(key)) return;
+      if (!name) return;
+      if (hasRealName(name)) return; // имя и настоящая фамилия уже есть
+      const core = coreToken(name); // содержательный токен без инициала
+      const key = normKey(core);
+      if (seen.has(key)) return;
       seen.add(key);
-      if (isFullName(name)) return; // обе части уже есть
 
-      const kind = classifyToken(name); // 'name' → не хватает фамилии; 'surname' → имени
+      const kind = classifyToken(core); // 'name' → не хватает фамилии; 'surname' → имени
       // Однозначное совпадение с известным коллегой — подставляем во все черновики.
       const matches = kind === 'surname'
         ? [...new Set(known.filter((f) => normKey(lastToken(f)) === key))]
@@ -380,7 +393,7 @@ function startSplitPeopleResolution(drafts) {
         drafts.forEach((d) => setPersonName(d, name, matches[0]));
         return;
       }
-      pending.push({ original: name, token: name, kind, candidates: matches });
+      pending.push({ original: name, token: core, kind, candidates: matches });
     });
   });
   const done = () => resolveProjects(drafts, () => saveSplitDrafts(drafts));
@@ -670,17 +683,20 @@ function startPeopleResolution(draft) {
   const pending = [];
   const seen = new Set();
   (draft.people || []).forEach((name) => {
-    if (!name || seen.has(name)) return;
-    seen.add(name);
-    if (isFullName(name)) return; // обе части уже есть
+    if (!name) return;
+    if (hasRealName(name)) return; // имя и настоящая фамилия уже есть
+    const core = coreToken(name); // содержательный токен без инициала
+    const key = normKey(core);
+    if (seen.has(key)) return;
+    seen.add(key);
 
-    const kind = classifyToken(name); // 'name' → не хватает фамилии; 'surname' → имени
+    const kind = classifyToken(core); // 'name' → не хватает фамилии; 'surname' → имени
     // Однозначное совпадение с известным коллегой по той же части — объединяем.
     const matches = kind === 'surname'
-      ? [...new Set(known.filter((f) => normKey(lastToken(f)) === normKey(name)))]
-      : [...new Set(known.filter((f) => normKey(firstToken(f)) === normKey(name)))];
+      ? [...new Set(known.filter((f) => normKey(lastToken(f)) === key))]
+      : [...new Set(known.filter((f) => normKey(firstToken(f)) === key))];
     if (matches.length === 1) { setPersonName(draft, name, matches[0]); return; }
-    pending.push({ original: name, token: name, kind, candidates: matches });
+    pending.push({ original: name, token: core, kind, candidates: matches });
   });
   // После ФИО — уточняем проекты, и только потом проверка дублей.
   const done = () => resolveProjects([draft], afterPeopleResolved);
