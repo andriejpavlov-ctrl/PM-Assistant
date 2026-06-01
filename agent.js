@@ -77,11 +77,22 @@ async function callClaude(system, user, { maxTokens = 1500 } = {}) {
   }
 
   const data = await res.json();
-  return (data.content || [])
+  const text = (data.content || [])
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('')
     .trim();
+
+  // Если модель упёрлась в лимит вывода, ответ обрывается на середине —
+  // JSON получается невалидным. Даём понятное сообщение вместо ошибки парсинга.
+  if (data.stop_reason === 'max_tokens') {
+    throw new Error(
+      'Заметка слишком большая — ответ не поместился в лимит. ' +
+      'Сократите текст или разбейте его на несколько записей.'
+    );
+  }
+
+  return text;
 }
 
 /**
@@ -175,7 +186,7 @@ export async function processCapture(rawText, knownPeople = [], opts = {}) {
     : '';
   const singleRule = opts.forceSingle ? CAPTURE_SINGLE_RULE : '';
   const user = `Сегодняшняя дата: ${todayISO()}.${peopleHint}${projectsHint}${singleRule}\n\nТекст пользователя:\n"""${rawText}"""\n\nРазбери и верни JSON.`;
-  const text = await callClaude(CAPTURE_SYSTEM, user, { maxTokens: 1500 });
+  const text = await callClaude(CAPTURE_SYSTEM, user, { maxTokens: 8192 });
   const parsed = safeParseJSON(text);
   // Поддерживаем оба формата ответа: {cards:[...]} или одиночный объект-карточку.
   let cards = Array.isArray(parsed) ? parsed
